@@ -14,4 +14,10 @@
             <arg name="paused" value="$(arg paused)"/>
         </include>
 
+            <!-- Spawning launch file to add a ground model -->
+        <include file ="$(find arthur_gazebo)/launch/spawn_ground.launch">
+            <arg name="robot_name" value="ground" />
+            <arg name="sdf_robot_file" value="$(find kortex_gazebo)/models/ground/model.sdf" />
+        </include>
+
     </launch>
