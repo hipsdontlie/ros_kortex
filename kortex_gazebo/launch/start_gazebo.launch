@@ -4,7 +4,7 @@
         <arg name="use_sim_time" default="true"/>
         <arg name="debug" default="false" />
         <arg name="gui" default="true" />
-        <arg name="paused" default="true" />
+        <arg name="paused" default="false" />
     
         <!-- Launch Gazebo with an empty world -->
         <include file="$(find gazebo_ros)/launch/empty_world.launch">
@@ -12,6 +12,12 @@
             <arg name="use_sim_time" value="$(arg use_sim_time)"/>
             <arg name="debug" value="$(arg debug)" />
             <arg name="paused" value="$(arg paused)"/>
+        </include>
+
+        <!-- Spawning launch file to add a ground model -->
+        <include file ="$(find kortex_gazebo)/launch/spawn_ground.launch">
+            <arg name="robot_name" value="ground" />
+            <arg name="sdf_robot_file" value="$(find kortex_gazebo)/models/ground/model.sdf" />
         </include>
 
     </launch>
