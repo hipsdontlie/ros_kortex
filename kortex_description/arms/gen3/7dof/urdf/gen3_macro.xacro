@@ -270,18 +270,18 @@
         <inertia ixx="0.000214" ixy="0" ixz="1E-06" iyy="0.000223" iyz="-2E-06" izz="0.00024" />
       </inertial>
       <visual>
-        <origin xyz="0 0 0" rpy="0 0 0" />
+        <origin xyz="-0.03 -0.02 0" rpy="-1.5708 0 0" />
         <geometry>
-          <mesh filename="package://kortex_description/arms/gen3/${dof}dof/meshes/bracelet_no_vision_link.STL" />
+          <mesh filename="package://kortex_description/arms/gen3/${dof}dof/meshes/ReamerHandle.STL" scale="0.001 0.001 0.001"/>
         </geometry>
         <material name="">
           <color rgba="0.75294 0.75294 0.75294 1" />
         </material>
       </visual>
       <collision>
-        <origin xyz="0 0 0" rpy="0 0 0" />
+        <origin xyz="-0.03 -0.02 0" rpy="-1.5708 0 0" />
         <geometry>
-          <mesh filename="package://kortex_description/arms/gen3/${dof}dof/meshes/bracelet_no_vision_link.STL" />
+          <mesh filename="package://kortex_description/arms/gen3/${dof}dof/meshes/ReamerHandle.STL" scale="0.001 0.001 0.001"/>
         </geometry>
       </collision>
     </link>
