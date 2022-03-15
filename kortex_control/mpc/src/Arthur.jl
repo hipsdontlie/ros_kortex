@@ -16,7 +16,7 @@ struct Arthur{T} <: AbstractModel
 end
 
 #TODO: Change Path
-Arthur(; mechanism=RigidBodyDynamics.URDF.parse_urdf("/home/amkyu/catkin_workspace/src/ros_kortex/kortex_description/arms/gen3/7dof/urdf/GEN3_URDF_V12.urdf")) = Arthur(mechanism)
+Arthur(; mechanism=RigidBodyDynamics.URDF.parse_urdf("../../../kortex_description/arms/gen3/7dof/urdf/GEN3_URDF_V12.urdf", remove_fixed_tree_joints = false)) = Arthur(mechanism)
 
 # State, s, is [q q̇ x ẋ F]
 # x will be input from the camera
@@ -38,7 +38,7 @@ function RobotDynamics.dynamics(model::Arthur, s, u)
     F = s[2*num_q + 13:2*num_q + 18]
     Be = zeros(6, 6)
     if (norm(ẋ) > 1e-5)
-        for k = 1:3
+        for k = 1:6
             Be[k,k] = norm(F) / norm(ẋ)
         end
     end
@@ -47,47 +47,16 @@ function RobotDynamics.dynamics(model::Arthur, s, u)
     RigidBodyDynamics.set_configuration!(mechanismState, q)
     RigidBodyDynamics.set_velocity!(mechanismState, q̇)
     
-    # Get variables dependent on state
-    J = getJacobian(model, q, q̇)
-    τ_ext = transpose(J)*Be*ẋ
-    
-    # Calculate dynamics
-    RigidBodyDynamics.dynamics!(dynamicsResult, mechanismState, u)
-    # Add the effects of external forces/torques into dynamics
-    q̈ = M\((M * dynamicsResult.v̇) - τ_ext)
-    ẍ = getJ̇(model, J, q, q̇)*q̇ + J*q̈
+    w = Wrench(default_frame(bodies(model.mechanism)[end-1]), F[4:6], F[1:3])
+    wrenches = BodyDict{Wrench{Float64}}(b => zero(Wrench{Float64}, root_frame(model.mechanism)) for b in bodies(model.mechanism))
+    wrenches[bodies(model.mechanism)[end-1].id] = transform(w, transform_to_root(mechanismState, bodies(model.mechanism)[end-1]))
+    dynamics!(dynamicsResult, mechanismState, u, wrenches)
+
+    q̈ = dynamicsResult.v̇
+    ẍ = [dynamicsResult.accelerations[bodies(model.mechanism)[end].id].linear; dynamicsResult.accelerations[bodies(model.mechanism)[end].id].angular]
     Ḟ = Be*ẍ
-    return [q̇; q̈; ẋ; ẍ; Ḟ]
-end
-
-function getJacobian(model::Arthur, q,  q̇)
-    mechanismState = RigidBodyDynamics.MechanismState(model.mechanism)
-    RigidBodyDynamics.set_configuration!(mechanismState, q)
-    RigidBodyDynamics.set_velocity!(mechanismState, q̇)
-    p = RigidBodyDynamics.path(model.mechanism, RigidBodyDynamics.root_body(model.mechanism), RigidBodyDynamics.bodies(model.mechanism)[end])
-    J_data = RigidBodyDynamics.geometric_jacobian(mechanismState, p)
-#     print(typeof([J_data.linear; J_data.angular]))
-    return [J_data.linear; J_data.angular]
-end
-
-function getẊ(model::Arthur, J, q, q̇)
-#     J = getJacobian(model, q, q̇)
-    ẋ = J*q̇
-#     print(typeof(ẋ))
-    return ẋ
-end
-
-function getJ̇(model::Arthur, J, q, q̇)
-    return ForwardDiff.jacobian(dq -> getẊ(model, J, dq, q̇), q)
+    return SVector{32}([q̇; q̈; ẋ; ẍ; Ḟ])
 end
 
 RobotDynamics.state_dim(::Arthur) = 32
 RobotDynamics.control_dim(::Arthur) = 7
-
-# model = Arthur()
-# getJacobian, model, zeros(7), 0.1*ones(7)
-# print(RobotDynamics.dynamics(model, zeros(32), 0.1*ones(7)))
-
-
-
-
