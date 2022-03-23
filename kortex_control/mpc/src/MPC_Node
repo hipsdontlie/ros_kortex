@@ -67,6 +67,7 @@ function callback!(msg::JointTrajectory,pub_obj::Publisher{JointTrajectoryPoint}
     if altro != nothing
         # TODO: set problem
         
+        
     else
         global altro = ALTROSolver(prob, params.opts)
         set_options!(altro, show_summary=true)
