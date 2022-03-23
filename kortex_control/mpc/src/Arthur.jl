@@ -54,7 +54,7 @@ function RobotDynamics.dynamics(model::Arthur, x::AbstractVector{T1}, u::Abstrac
 #     wrenches = BodyDict{Wrench{T}}(b => zero(Wrench{T}, root_frame(model.mechanism)) for b in bodies(model.mechanism))
 #     wrenches[bodies(model.mechanism)[end-1].id] = transform(w, transform_to_root(mechanismState, bodies(model.mechanism)[end-1]))    dynamics!(dynamicsResult, mechanismState, u, wrenches)
 
-    @time dynamics!(res, state, u)
+    dynamics!(res, state, u)
 
     # p̈ = [res.accelerations[bodies(model.mechanism)[end].id].linear; res.accelerations[bodies(model.mechanism)[end].id].angular]
     # Ḟ = Be*p̈
