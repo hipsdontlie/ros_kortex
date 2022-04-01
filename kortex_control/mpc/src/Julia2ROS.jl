@@ -72,15 +72,16 @@ function callback(msg::Point,pub_obj::Publisher{JointTrajectoryPoint})
     # JointTrajectory = msg.positions
     #Do magic here
 
-    JointTrajectoryOutput = JointTrajectoryPoint([0,0,0],[0,0,0],[0,0,0],[0,0,0],Duration(0))
+    # JointTrajectoryOutput .= JointTrajectoryPoint([0,0,0],[0,0,0],[0,0,0],[0,0,0],Duration(0))
 
     publish(pub_obj,JointTrajectoryOutput)
 end
 
-function loop(pub_obj)
+function loop(sub_obj, pub_obj)
     loop_rate = Rate(5.0)
     while ! is_shutdown()
-        publish(pub_obj,JointTrajectoryOutput)
+        # publish(pub_obj,JointTrajectoryOutput)
+        RobotOS._run_callbacks(sub_obj)
         rossleep(loop_rate)
     end
 end
@@ -89,7 +90,7 @@ function main()
     init_node("julia2ros")
     pub = Publisher{JointTrajectoryPoint}("julia_out",queue_size=10)
     sub = Subscriber{Point}("julia_in",callback,(pub,),queue_size=10)
-    loop(pub)
+    loop(sub, pub)
 end
 
 if !isinteractive()

@@ -19,7 +19,7 @@ struct Arthur{C} <: AbstractModel
 end
 
 #TODO: Change Path
-Arthur(; mechanism=RigidBodyDynamics.URDF.parse_urdf(joinpath(@__DIR__,"../../../kortex_description/arms/gen3/7dof/urdf/GEN3_URDF_V12 copy.urdf"), remove_fixed_tree_joints = false)) = Arthur(mechanism)
+Arthur(; mechanism=RigidBodyDynamics.URDF.parse_urdf(joinpath(@__DIR__,"../../../kortex_description/arms/gen3/7dof/urdf/GEN3_URDF_V12.urdf"), remove_fixed_tree_joints = false)) = Arthur(mechanism)
 
 # State, s, is [q q̇ x ẋ F]
 # x will be input from the camera

@@ -133,14 +133,16 @@ end
 function callback(msg::JointTrajectoryPoint, x0)
     x0[1:7] .= msg.positions
     x0[8:14] .= msg.velocities
+    # println("In Callback")
 end
 
-function loop(pub_obj, x0, Xref, altro_mpc, prob_mpc, Z_track)
-    RobotOS.loginfo("In MPC_Node Loop")
+function loop(sub_obj, pub_obj, x0, Xref, altro_mpc, prob_mpc, Z_track)
     loop_rate = Rate(4.0)
     while ! is_shutdown()
-        if norm(x0 - Xref[end]) < 0.1
+        RobotOS._run_callbacks(sub_obj)
+        if norm(x0 - Xref[end]) > 0.1
             t0 = RobotOS.to_sec(RobotOS.now())
+            println(x0)
             mpc_update(altro_mpc, prob_mpc, Z_track, x0, t0)
             solve!(altro_mpc)
             X = states(altro_mpc)
@@ -158,7 +160,6 @@ function loop(pub_obj, x0, Xref, altro_mpc, prob_mpc, Z_track)
             JointTrajectoryOutput.points = points
             publish(pub_obj, JointTrajectoryOutput)
         end
-
         rossleep(loop_rate)
     end
 end
@@ -188,7 +189,7 @@ function main()
     TrajectoryOptimization.set_initial_time!(prob_mpc, t0)
     
 
-    loop(pub, x0, Xref, altro_mpc, prob_mpc, Z_track)
+    loop(sub, pub, x0, Xref, altro_mpc, prob_mpc, Z_track)
 end
 
 if !isinteractive()

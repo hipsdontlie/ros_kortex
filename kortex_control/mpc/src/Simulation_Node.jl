@@ -132,24 +132,39 @@ function get_trajectory()
 end
 
 function callback(msg::JointTrajectory, U, i, initialized)
-    for k = 1:length(msg.points)
-        U[k] .= msg.points[k].effort
+    # println(msg.points[1].effort[1])
+    # println(typeof(msg.points[1].effort[1]))
+    # println(U[1][1])
+    for k = 1:length(U)
+        for j = 1:length(U[k])
+            U[k][j] = msg.points[k].effort[j]
+        end
     end
-    if !initialized
+    # println(typeof(U))
+    # println(typeof(U[1]))
+    if !initialized[1]
         initialized .= true
     end
+    # println("in callback")
+    # println(initialized)
     i .= 1
 end
 
-function loop(pub_obj, x0, U, i, params, initialized)
-    RobotOS.loginfo("In Sim_Node Loop")
+function loop(sub_obj, pub_obj, x0, U, i, params, initialized)
     loop_rate = Rate(1.0/params.dt)
     while ! is_shutdown()
-        if initialized
+        RobotOS._run_callbacks(sub_obj)
+        RobotOS.loginfo("%d", i)
+        # println(initialized)
+        # println(U[i])
+        if initialized[1]
             JointTrajectoryOutput = JointTrajectoryPoint()
-            x0 .= rk4(params.model, x0, U[i], params.dt)
-            i += 1
-            i .= min(i, length(U))
+            # println(typeof(U[i][1]))
+            # println(U[i][1])
+            x0 = rk4(params.model, x0, U[i][1], params.dt)
+            println(x0)
+            i[1] = i[1] + 1
+            i[1] = min(i[1], length(U))
             JointTrajectoryOutput.positions = x0[1:7]
             JointTrajectoryOutput.velocities = x0[8:14]
             publish(pub_obj, JointTrajectoryOutput)
@@ -163,9 +178,11 @@ function main()
     params = MPC_Params()
     Xref = get_trajectory()
     x0 = Xref[1]
-    i = 1
-    U = [zeros(7) for k = 1:params.H]
-    initialized = false
+    i = [1]
+    U = [zeros(7) for k = 1:params.H-1]
+    println(U[1])
+    println(typeof(U[1]))
+    initialized = [false]
     pub = Publisher{JointTrajectoryPoint}("state",queue_size=1)
 
     # TODO: Implement and get trajectory using Subscriber
@@ -174,7 +191,7 @@ function main()
     # TODO: Implement and get current state using Subscriber
     sub = Subscriber{JointTrajectory}("joint_torques",callback,(U, i, initialized),queue_size=1)
 
-    loop(pub, x0, U, i, params, initialized)
+    loop(sub, pub, x0, U, i, params, initialized)
 end
 
 if !isinteractive()
