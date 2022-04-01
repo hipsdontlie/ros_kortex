@@ -19,7 +19,7 @@ struct Arthur{C} <: AbstractModel
 end
 
 #TODO: Change Path
-Arthur(; mechanism=RigidBodyDynamics.URDF.parse_urdf("../../../kortex_description/arms/gen3/7dof/urdf/GEN3_URDF_V12 copy.urdf", remove_fixed_tree_joints = false)) = Arthur(mechanism)
+Arthur(; mechanism=RigidBodyDynamics.URDF.parse_urdf(joinpath(@__DIR__,"../../../kortex_description/arms/gen3/7dof/urdf/GEN3_URDF_V12 copy.urdf"), remove_fixed_tree_joints = false)) = Arthur(mechanism)
 
 # State, s, is [q q̇ x ẋ F]
 # x will be input from the camera
@@ -41,30 +41,54 @@ function RobotDynamics.dynamics(model::Arthur, x::AbstractVector{T1}, u::Abstrac
     # F = x[2*num_q + 13:2*num_q + 18]
     # Be = zeros(T, 6, 6)
     
-#     if (norm(ṗ) > 1e-5)
-#         for k = 1:6
-#             Be[k,k] = norm(F) / norm(ṗ)
-#         end
-#     end
+    # if (norm(ṗ) > 1e-5)
+    #     for k = 1:6
+    #         Be[k,k] = norm(F) / norm(ṗ)
+    #     end
+    # end
 
     # Set mechanism state to current state
     copyto!(state, x[SA[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]])
     
-#     w = Wrench{T}(default_frame(bodies(model.mechanism)[end-1]), F[4:6], F[1:3])
-#     wrenches = BodyDict{Wrench{T}}(b => zero(Wrench{T}, root_frame(model.mechanism)) for b in bodies(model.mechanism))
-#     wrenches[bodies(model.mechanism)[end-1].id] = transform(w, transform_to_root(mechanismState, bodies(model.mechanism)[end-1]))    dynamics!(dynamicsResult, mechanismState, u, wrenches)
-
+    # w = Wrench{T}(default_frame(bodies(model.mechanism)[end-1]), F[4:6], F[1:3])
+    # wrenches = BodyDict{Wrench{T}}(b => zero(Wrench{T}, root_frame(model.mechanism)) for b in bodies(model.mechanism))
+    # wrenches[bodies(model.mechanism)[end-1].id] = transform(w, transform_to_root(mechanismState, bodies(model.mechanism)[end-1]))    dynamics!(dynamicsResult, mechanismState, u, wrenches)
+    # dynamics!(res, state, u, wrenches)
     dynamics!(res, state, u)
 
     # p̈ = [res.accelerations[bodies(model.mechanism)[end].id].linear; res.accelerations[bodies(model.mechanism)[end].id].angular]
     # Ḟ = Be*p̈
     # return SVector{32}([q̇; q̈; ṗ; p̈; Ḟ])
-    return SVector{14}([x[SA[8, 9, 10, 11, 12, 13, 14]]; res.v̇])
+    # return SVector{14}([x[SA[8, 9, 10, 11, 12, 13, 14]]; res.v̇])
+    return [x[SA[8, 9, 10, 11, 12, 13, 14]]; res.v̇]
 end
 
 RobotDynamics.state_dim(::Arthur) = 14
 RobotDynamics.control_dim(::Arthur) = 7
 
+# cd(joinpath(@__DIR__,"../../../kortex_description/arms/gen3/7dof/urdf/GEN3_URDF_V12 copy.urdf"))
+# readdir(joinpath(@__DIR__,"../../../kortex_description/arms/gen3/7dof/urdf/"))
+# Arthur()
+
+"""
+Integrates the dynamics ODE 1 dt forward, x_{k+1} = rk4(x_k,u_k,dt).
+
+returns x_{k+1}
+"""
+function rk4(model::Arthur,x::AbstractVector,u::AbstractVector,dt::Float64)
+    # rk4 for integration
+    k1 = dt*dynamics(model,x,u)
+    k2 = dt*dynamics(model,x + k1/2,u)
+    k3 = dt*dynamics(model,x + k2/2,u)
+    k4 = dt*dynamics(model,x + k3,u)
+    return x + (1/6)*(k1 + 2*k2 + 2*k3 + k4)
+end
+
+# model = Arthur()
+# n,m = size(model)
+# for k = 1:10
+#     @time dynamics(model, rand(n), rand(m))
+# end
 # """
 #     simulate(model, x0, ctrl; [kwargs...])
 

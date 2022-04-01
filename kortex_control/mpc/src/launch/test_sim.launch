@@ -1,0 +1,9 @@
+<launch>
+
+  <node name="MPC_Node" pkg="MPC_Node" type="MPC_Node" args="$(find kortex_control)/mpc/src/MPC_Node.jl">
+  </node>
+
+  <node name="Simulation_Node" pkg="Simulation_Node" type="Simulation_Node">
+  </node>
+
+</launch>

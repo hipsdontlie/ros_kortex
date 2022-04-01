@@ -3,7 +3,7 @@
 #Import Statements for MPC
 import Pkg; Pkg.status()
 include("Arthur.jl")
-include("MPC_Params.jl")
+include("MPCUtil.jl")
 using RigidBodyDynamics
 using StaticArrays
 using RobotDynamics
@@ -29,75 +29,9 @@ Distributed.@everywhere using PyCall
 #Import Statements for RobotOS
 using RobotOS
 
-@rosimport trajectory_msgs.msg: JointTrajectoryPoint
+@rosimport trajectory_msgs.msg: JointTrajectory, JointTrajectoryPoint
 rostypegen()
 using .trajectory_msgs.msg
-
-@rosimport trajectory_msgs.msg: JointTrajectory
-rostypegen()
-using .trajectory_msgs.msg
-
-params = MPC_Params()
-global altro = nothing
-
-function callback!(msg::JointTrajectory,pub_obj::Publisher{JointTrajectoryPoint})
-
-    ## TODO: Trajectory should be in msg
-    Xref = get_trajectory()
-
-    # Create initial guess of U trajectory
-    Qref = Vector{Float64}[]
-    Uref = Vector{Float64}[]
-    push!(Qref, copy(Xref[1][1:14]))
-    for k = 1:N-1
-        set_configuration!(params.state, Qref[k][1:7])
-        set_velocity!(params.state, Qref[k][8:end])
-        push!(Uref, inverse_dynamics(params.state, params.v̇))
-        push!(Qref, Qref[k] + dynamics(params.model, Qref[k], Uref[k])*dt)
-    end
-
-    # Gather trajectory information
-    dtref = [params.dt for k=1:N]
-    traj = RobotDynamics.Traj(Xref, Uref, dtref, cumsum(dtref) .- dtref[1]);
-
-    obj = TrajectoryOptimization.TrackingObjective(params.Q, params.R, traj, Qf=params.Qf)
-
-    prob = Problem(params.model, obj, Xref[end], params.tf, x0=Xref[1], constraints=params.conSet, X0=Xref, U0=Uref)
-
-    if altro != nothing
-        # TODO: set problem
-        
-        
-    else
-        global altro = ALTROSolver(prob, params.opts)
-        set_options!(altro, show_summary=true)
-    end
-    solve!(altro);
-    
-    publish(pub_obj,JointTrajectoryOutput)
-end
-
-function loop(pub_obj)
-    loop_rate = Rate(5.0)
-    while ! is_shutdown()
-        publish(pub_obj,JointTrajectoryOutput)
-        rossleep(loop_rate)
-    end
-end
-
-function main()
-    init_node("MPC_Node")
-    traj, obj, prob, altro = initialize_solver(params)
-
-    pub = Publisher{JointTrajectoryPoint}("joint_torques",queue_size=10)
-
-    # TODO: Implement and get trajectory using Subscriber
-    sub = Subscriber{Point}("trajectory",callback!,(pub,traj,obj,prob,altro),queue_size=10)
-
-    # TODO: Implement and get current state using Subscriber
-
-    loop(pub)
-end
 
 function get_trajectory()
     qref = typeof(zeros(7))[]
@@ -189,15 +123,72 @@ function get_trajectory()
     push!(q̇ref,  [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 
     Xref = typeof(zeros(14))[]
-    for k = 1:N
+    for k = 1:length(qref)
         push!(Xref, [qref[k]; q̇ref[k]])
     end
 
-    tf = 4.1
-    dt = 0.1
-    N = Int(round(tf/dt) + 1)
+    return Xref
+end
 
-    return Xref, N, dt, tf
+function callback(msg::JointTrajectoryPoint, x0)
+    x0[1:7] .= msg.positions
+    x0[8:14] .= msg.velocities
+end
+
+function loop(pub_obj, x0, Xref, altro_mpc, prob_mpc, Z_track)
+    RobotOS.loginfo("In MPC_Node Loop")
+    loop_rate = Rate(4.0)
+    while ! is_shutdown()
+        if norm(x0 - Xref[end]) < 0.1
+            t0 = RobotOS.to_sec(RobotOS.now())
+            mpc_update(altro_mpc, prob_mpc, Z_track, x0, t0)
+            solve!(altro_mpc)
+            X = states(altro_mpc)
+            U = controls(altro_mpc)
+            points = Array{JointTrajectoryPoint}(undef, length(U))
+            for k = 1:length(U)
+                point = JointTrajectoryPoint()
+                point.positions = X[k][1:7]
+                point.velocities = X[k][8:14]
+                point.effort = U[k]
+                points[k] = point
+            end
+            JointTrajectoryOutput = JointTrajectory()
+            JointTrajectoryOutput.header.stamp = RobotOS.now()
+            JointTrajectoryOutput.points = points
+            publish(pub_obj, JointTrajectoryOutput)
+        end
+
+        rossleep(loop_rate)
+    end
+end
+
+function main()
+    init_node("MPC_Node")
+    params = MPC_Params()
+    Xref = get_trajectory()
+    x0 = Xref[1]
+
+    pub = Publisher{JointTrajectory}("joint_torques",queue_size=1)
+
+    # TODO: Implement and get trajectory using Subscriber
+    # sub = Subscriber{Point}("trajectory",callback!,(pub,traj,obj,prob,altro),queue_size=10)
+
+    # TODO: Implement and get current state using Subscriber
+    sub = Subscriber{JointTrajectoryPoint}("state",callback,(x0,),queue_size=1)
+    prob = ArthurProblem(Xref, params=params)
+    altro = ALTROSolver(prob, params.opts)
+    solve!(altro)
+    Z_track = TrajectoryOptimization.get_trajectory(altro)
+    prob_mpc = ArthurHorizonProblem(prob, params.H)
+    altro_mpc = ALTROSolver(prob_mpc, params.opts)
+    solve!(altro_mpc)
+    t0 = RobotOS.to_sec(RobotOS.now())
+    TrajectoryOptimization.set_initial_time!(prob, t0)
+    TrajectoryOptimization.set_initial_time!(prob_mpc, t0)
+    
+
+    loop(pub, x0, Xref, altro_mpc, prob_mpc, Z_track)
 end
 
 if !isinteractive()
