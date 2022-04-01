@@ -162,6 +162,7 @@ while norm(X_traj[end] - Xref[end]) > 0.1 && iter < max_iters#&& norm(errors[ite
     # mpc_update(altro_mpc, prob_mpc, Z_track, t0, k_mpc)
     x0 = rk4(prob_mpc.model, state(prob_mpc.Z[1]), control(prob_mpc.Z[1]), prob_mpc.Z[1].dt)
     mpc_update(altro_mpc, prob_mpc, Z_track, x0, t0)
+    
     push!(X_traj, prob_mpc.x0)
     # push!(errors, norm(X_traj[end] - Xref[end]))
     solve!(altro_mpc)

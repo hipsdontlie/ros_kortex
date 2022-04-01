@@ -162,7 +162,9 @@ function loop(sub_obj, pub_obj, x0, U, i, params, initialized)
             # println(typeof(U[i][1]))
             # println(U[i][1])
             x0 = rk4(params.model, x0, U[i][1], params.dt)
-            println(x0)
+            if !isnan(x0[1])
+                println(x0)
+            end
             i[1] = i[1] + 1
             i[1] = min(i[1], length(U))
             JointTrajectoryOutput.positions = x0[1:7]
@@ -180,8 +182,6 @@ function main()
     x0 = Xref[1]
     i = [1]
     U = [zeros(7) for k = 1:params.H-1]
-    println(U[1])
-    println(typeof(U[1]))
     initialized = [false]
     pub = Publisher{JointTrajectoryPoint}("state",queue_size=1)
 

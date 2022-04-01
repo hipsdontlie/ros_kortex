@@ -92,7 +92,7 @@ function ArthurProblem(Xref; params=MPC_Params())
     # x_bnd[8:14] = [0.25, 0.05, 0.05, 0.05, 0.25, 0.15, 0.15] # rad/sec
     # x_bnd[15:end] = [Inf for k=1:(n-14)] # Constraints on force elsewhere
     state_bnd = BoundConstraint(n,m, x_min=-x_bnd, x_max=x_bnd)
-    add_constraint!(conSet, state_bnd, 1:N)
+    add_constraint!(conSet, state_bnd, 1:N-1)
 
     # # Cartesian Velocity Bound
     # ẋ_max = 0.0005 # m/s
@@ -156,7 +156,7 @@ struct MPC_Params
         model = Arthur()
         n,m = size(model)
 
-        tf = 1.0 # Time Horizon (seconds)
+        tf = 0.2 # Time Horizon (seconds)
         dt = 0.1 # Time step (seconds)
         H = Int(round(tf/dt) + 1) # Time Horizon (discrete steps)
 
@@ -174,7 +174,7 @@ struct MPC_Params
             penalty_scaling=10.,
             penalty_initial=1.0,
             show_summary=true,
-            projected_newton=false,
+            projected_newton=true,
         )
 
         Q = 100.0*Diagonal(@SVector ones(n))
