@@ -1,11 +1,9 @@
-import Pkg; Pkg.status()
-include("../src/Arthur.jl")
-include("../src/MPCUtil.jl")
-using RigidBodyDynamics
-using StaticArrays
-using RobotDynamics
-using Altro
-using TrajectoryOptimization
+include("MPC.jl")
+# using RigidBodyDynamics
+# using StaticArrays
+# using RobotDynamics
+# using Altro
+# using TrajectoryOptimization
 
 # model = Arthur()
 # n,m = size(model)
@@ -116,9 +114,10 @@ end
 prob = ArthurProblem(Xref, params=params)
 altro = ALTROSolver(prob, params.opts)
 solve!(altro)
-Z_track = TrajectoryOptimization.get_trajectory(altro)
-prob_mpc = ArthurHorizonProblem(prob, params.H)
-altro_mpc = ALTROSolver(prob_mpc, params.opts)
+Z_track = TrajectoryOptimization.get_trajectory(prob)
+# cons = TrajectoryOptimization.get_constraints(altro.solver_al)
+global prob_mpc = ArthurHorizonProblem(prob, state(Z_track[1]), params.H, start=1)
+global altro_mpc = ALTROSolver(prob_mpc, params.opts)
 solve!(altro_mpc)
 # num_iters = length(Z_track) - prob_mpc.N
 # X_traj = [zero(state(Z_track[1])) for i = 1:num_iters+1]
@@ -154,18 +153,24 @@ max_iters = length(Z_track) + params.H
 # push!(errors, Inf)
 # push!(errors, norm(X_traj[end] - Xref[end]))
 while norm(X_traj[end] - Xref[end]) > 0.1 && iter < max_iters#&& norm(errors[iter+1] - errors[iter]) > 0.003
-    println(iter)
+    # println(iter)
     global iter += 1
     global t0 += params.dt
     # Update the ALTRO solution, advancing forward by 1 time step
     push!(U_traj, control(prob_mpc.Z[1]))
     # mpc_update(altro_mpc, prob_mpc, Z_track, t0, k_mpc)
     x0 = rk4(prob_mpc.model, state(prob_mpc.Z[1]), control(prob_mpc.Z[1]), prob_mpc.Z[1].dt)
-    mpc_update(altro_mpc, prob_mpc, Z_track, x0, t0)
+    # x0 = Xref[1]
+    # mpc_update(altro_mpc, prob_mpc, Z_track, cons, x0, t0)
+    k_mpc = argmin(norm.([(states(Z_track)[k] - x0) for k=1:length(Z_track)]))
+    println(k_mpc)
+    global prob_mpc = ArthurHorizonProblem(prob, x0, params.H, start=k_mpc)
+    global altro_mpc = ALTROSolver(prob_mpc, params.opts)
+    solve!(altro_mpc)
     
     push!(X_traj, prob_mpc.x0)
     # push!(errors, norm(X_traj[end] - Xref[end]))
-    solve!(altro_mpc)
+    # solve!(altro_mpc)
 end
 # for traj in X_traj
 #     println(traj)

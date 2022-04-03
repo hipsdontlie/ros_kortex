@@ -1,7 +1,8 @@
 #!/usr/bin/env julia
 
 #Import Statements for MPC
-import Pkg; Pkg.status()
+# import Pkg; Pkg.activate(@__DIR__); 
+# Pkg.instantiate()
 include("Arthur.jl")
 include("MPCUtil.jl")
 using RigidBodyDynamics
@@ -133,7 +134,6 @@ end
 function callback(msg::JointTrajectoryPoint, x0)
     x0[1:7] .= msg.positions
     x0[8:14] .= msg.velocities
-    # println("In Callback")
 end
 
 function loop(sub_obj, pub_obj, x0, Xref, altro_mpc, prob_mpc, Z_track, params)
@@ -156,7 +156,7 @@ function loop(sub_obj, pub_obj, x0, Xref, altro_mpc, prob_mpc, Z_track, params)
                 points[k] = point
             end
             JointTrajectoryOutput = JointTrajectory()
-            JointTrajectoryOutput.header.stamp = RobotOS.now()
+            # JointTrajectoryOutput.header.stamp = RobotOS.now()
             JointTrajectoryOutput.points = points
             publish(pub_obj, JointTrajectoryOutput)
         end
@@ -168,7 +168,7 @@ function main()
     init_node("MPC_Node")
     params = MPC_Params()
     Xref = get_trajectory()
-    x0 = Xref[1]
+    x0 = copy(Xref[1])
 
     pub = Publisher{JointTrajectory}("joint_torques",queue_size=1)
 

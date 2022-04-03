@@ -1,10 +1,8 @@
-using RigidBodyDynamics
-using StaticArrays
-using Parameters
-using RobotDynamics
-using Rotations
-using LinearAlgebra
-using ForwardDiff
+# import Pkg; Pkg.activate(@__DIR__); 
+# Pkg.instantiate()
+# using RigidBodyDynamics
+# using StaticArrays
+# using RobotDynamics
 
 # Defining Arthur model using RigidBodyDynamics
 struct Arthur{C} <: AbstractModel
