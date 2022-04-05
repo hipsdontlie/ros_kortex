@@ -31,8 +31,10 @@ Distributed.@everywhere using PyCall
 using RobotOS
 
 @rosimport trajectory_msgs.msg: JointTrajectory, JointTrajectoryPoint
+@rosimport arthur_planning.msg: arthur_traj
 rostypegen()
 using .trajectory_msgs.msg
+using .arthur_planning.msg
 
 function get_trajectory(params)
     qref = typeof(zeros(7))[]
@@ -143,13 +145,28 @@ function callback(msg::JointTrajectoryPoint, x0, solve_mpc, params)
     end
 end
 
-function loop(sub_obj, pub_obj, x0, Xref, altro_mpc, prob_mpc, prob, Z_track, params, solve_mpc)
+function traj_callback(msg::arthur_traj, Xref, x0)
+    Xref[1] = typeof(zeros(14))[]
+    for k=1:length(msg.traj.points)
+        q = msg.traj.points[k].positions
+        q̇ = msg.traj.points[k].velocities
+        push!(Xref[1], [q; q̇])
+    end
+    if norm(x0 - zeros(14)) == 0
+        copy!(x0, Xref[1][1]) 
+    end
+    # RobotOS.loginfo("In Callback")
+    # println(Xref[1][1])
+end
+
+function loop(sub_obj1, sub_obj2, pub_obj, x0, Xref, altro_mpc, prob_mpc, prob, Z_track, params, solve_mpc)
     loop_rate = Rate(1.0/params.dt)
     JointTrajectoryOutput = JointTrajectory()
     while ! is_shutdown()
-        RobotOS._run_callbacks(sub_obj)
-        if norm(x0[1:7] - Xref[end][1:7]) > 0.05 && solve_mpc[1]
-            t0 = RobotOS.to_sec(RobotOS.now())
+        RobotOS._run_callbacks(sub_obj1)
+        RobotOS._run_callbacks(sub_obj2)
+        if norm(x0[1:7] - Xref[1][end][1:7]) > 0.05 && solve_mpc[1]
+            # t0 = RobotOS.to_sec(RobotOS.now())
             println(x0)
             # mpc_update(altro_mpc, prob_mpc, Z_track, x0, t0)
             k_mpc = argmin(norm.([(states(Z_track)[k] - x0) for k=1:length(Z_track)-params.H]))
@@ -177,21 +194,35 @@ function loop(sub_obj, pub_obj, x0, Xref, altro_mpc, prob_mpc, prob, Z_track, pa
     end
 end
 
+# function loop(sub_obj, params)
+#     loop_rate = Rate(1.0/params.dt)
+#     while ! is_shutdown()
+#         RobotOS._run_callbacks(sub_obj)
+#         rossleep(loop_rate)
+#     end
+# end
+
 function main()
     init_node("MPC_Node")
     params = MPC_Params()
-    Xref = get_trajectory(params)
-    x0 = copy(Xref[1])
+    Xref = [typeof(zeros(14))[]]
+    # Xref = get_trajectory(params)
+    # x0 = copy(Xref[1])
     solve_mpc = [true]
-
+    x0 = zeros(14)
     pub = Publisher{JointTrajectory}("joint_torques",queue_size=1)
 
     # TODO: Implement and get trajectory using Subscriber
-    # sub = Subscriber{Point}("trajectory",callback!,(pub,traj,obj,prob,altro),queue_size=10)
+    sub_traj = Subscriber{arthur_traj}("/my_gen3/arthur_traj",traj_callback,(Xref,x0),queue_size=1)
 
     # TODO: Implement and get current state using Subscriber
     sub = Subscriber{JointTrajectoryPoint}("state",callback,(x0, solve_mpc, params),queue_size=1)
-    prob = ArthurProblem(Xref, params=params)
+    
+    while norm(x0 - zeros(14)) == 0
+        RobotOS._run_callbacks(sub_traj)
+    end
+    
+    prob = ArthurProblem(Xref[1], params=params)
     altro = ALTROSolver(prob, params.opts)
     solve!(altro)
     Z_track = TrajectoryOptimization.get_trajectory(altro)
@@ -203,7 +234,8 @@ function main()
     TrajectoryOptimization.set_initial_time!(prob_mpc, t0)
     
 
-    loop(sub, pub, x0, Xref, altro_mpc, prob_mpc, prob, Z_track, params, solve_mpc)
+    loop(sub, sub_traj, pub, x0, Xref, altro_mpc, prob_mpc, prob, Z_track, params, solve_mpc)
+    # loop(sub_traj, params)
 end
 
 if !isinteractive()
