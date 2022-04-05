@@ -32,8 +32,10 @@ Distributed.@everywhere using PyCall
 using RobotOS
 
 @rosimport trajectory_msgs.msg: JointTrajectory, JointTrajectoryPoint
+@rosimport arthur_planning.msg: arthur_traj
 rostypegen()
 using .trajectory_msgs.msg
+using .arthur_planning.msg
 
 
 function get_trajectory(params)
@@ -147,21 +149,35 @@ function callback(msg::JointTrajectory, X, U, initialized, N)
     end
 end
 
+function traj_callback(msg::arthur_traj, Xref, x0)
+    Xref[1] = typeof(zeros(14))[]
+    for k=1:length(msg.traj.points)
+        q = msg.traj.points[k].positions
+        q̇ = msg.traj.points[k].velocities
+        push!(Xref[1], [q; q̇])
+    end
+    if norm(x0 - zeros(14)) == 0
+        copy!(x0, Xref[1][1]) 
+    end
+    # RobotOS.loginfo("In Callback")
+    # println(Xref[1][1])
+end
+
 function loop(sub_obj, pub_obj, x0, X, U, params, initialized, N, Xref, mpc_controller)
-    loop_rate = Rate(1.0/params.dt)
+    loop_rate = Rate(10)
     while ! is_shutdown()
         RobotOS._run_callbacks(sub_obj)
         if initialized[1] && mpc_controller[1]
             i = argmin(norm.([(X[k] - x0) for k=1:N[1]]))
-            x0 = rk4(params.model, x0, U[i], 0.01)
-            if norm(x0[1:7] - Xref[end][1:7]) < 0.05
+            x0 = rk4(params.model, x0, U[i], params.dt)
+            if norm(x0[1:7] - Xref[1][end][1:7]) < 0.05
                 mpc_controller .= false
             end
             if !isnan(x0[1])
                 RobotOS.loginfo("MPC Control")
                 println(U[i])
                 println(x0)
-                println(norm(x0 - Xref[end]))
+                println(norm(x0 - Xref[1][end]))
             end
             JointTrajectoryOutput = JointTrajectoryPoint()
             JointTrajectoryOutput.positions = x0[1:7]
@@ -170,8 +186,8 @@ function loop(sub_obj, pub_obj, x0, X, U, params, initialized, N, Xref, mpc_cont
         else
             set_configuration!(params.state, x0[1:7])
             set_velocity!(params.state, x0[8:14])
-            i = argmin(norm.([(Xref[k][1:7] - x0[1:7]) for k=1:length(Xref)]))
-            ∆x = Xref[i][1:7] - x0[1:7]
+            i = argmin(norm.([(Xref[1][k][1:7] - x0[1:7]) for k=1:length(Xref[1])]))
+            ∆x = Xref[1][i][1:7] - x0[1:7]
             Kp = [10, 10, 10, 10, 10, 10, 10]
             Kd = [20, 20, 20, 20, 20, 20, 20]
             params.v̇ .= (Kp .* ∆x) .- (Kd .* x0[8:14])
@@ -192,20 +208,24 @@ end
 function main()
     init_node("Simulation_Node")
     params = MPC_Params()
-    Xref = get_trajectory(params)
-    x0 = copy(Xref[1])
+    
+    # Xref = get_trajectory(params)
+    # x0 = copy(Xref[1])
+    Xref = [typeof(zeros(14))[]]
+    x0 = zeros(14)
     N = [params.H-1]
     X = [zeros(14) for k = 1:params.H-1]
     U = [zeros(7) for k = 1:params.H-1]
     initialized = [false]
-    pub = Publisher{JointTrajectoryPoint}("state",queue_size=1)
     mpc_controller = [true]
 
-    # TODO: Implement and get trajectory using Subscriber
-    # sub = Subscriber{Point}("trajectory",callback!,(pub,traj,obj,prob,altro),queue_size=10)
-
-    # TODO: Implement and get current state using Subscriber
     sub = Subscriber{JointTrajectory}("joint_torques",callback,(X, U, initialized, N),queue_size=1)
+    sub_traj = Subscriber{arthur_traj}("/my_gen3/arthur_traj",traj_callback,(Xref,x0),queue_size=1)
+    pub = Publisher{JointTrajectoryPoint}("state",queue_size=1)
+
+    while norm(x0 - zeros(14)) == 0
+        RobotOS._run_callbacks(sub_traj)
+    end
 
     loop(sub, pub, x0, X, U, params, initialized, N, Xref, mpc_controller)
 end

@@ -227,6 +227,60 @@ function ArthurHorizonProblem(prob::TrajectoryOptimization.Problem, x0, N; start
     return prob
 end
 
+# function ArthurHorizonProblem(prob::TrajectoryOptimization.Problem, x0, N; start=1, params=MPC_Params())
+#     # H = N
+#     # while (start+N-1) > length(prob.Z)
+#     #     N -= 1
+#     # end
+
+#     n,m = size(prob)
+#     dt = prob.Z[1].dt
+#     tf = params.LQRH*dt
+#     # tf = (N-1)*dt
+#     if start >= length(prob.Z)
+#         N = length(prob.Z)
+#     else
+#         N = start + 1
+#     end
+    
+#     obj = TrajectoryOptimization.LQRObjective(params.Q, params.R, params.Qf, state(prob.Z[N]), params.LQRH)
+
+#     # Create Empty ConstraintList
+#     cons = ConstraintList(params.n,params.m,params.LQRH)
+
+#     # Control Bounds based on Robot Specs (Joint torque limits)
+#     u_bnd = [39.0, 39.0, 39.0, 39.0, 9.0, 9.0, 9.0]
+#     control_bnd = BoundConstraint(params.n,params.m, u_min=-u_bnd, u_max=u_bnd)
+#     add_constraint!(cons, control_bnd, 1:params.LQRH-1)
+
+#     # State Bounds based on Robot Specs (Joint velocity and speed limits)
+#     x_bnd = zeros(params.n)
+#     x_bnd[1:7] = [Inf, deg2rad(128.9), Inf, deg2rad(147.8), Inf, deg2rad(120.3), Inf] # rad
+#     x_bnd[8:14] = [1.39, 1.39, 1.39, 1.39, 1.22, 1.22, 1.22] # rad/sec
+#     # x_bnd[15:end] = [Inf for k=1:(n-14)] # Constraints on force elsewhere
+#     state_bnd = BoundConstraint(params.n,params.m, x_min=-x_bnd, x_max=x_bnd)
+#     add_constraint!(cons, state_bnd, 1:params.LQRH-1)
+
+#     # # # Cartesian Velocity Bound
+#     # # ẋ_max = 0.0005 # m/s
+#     # # vel_bnd = NormConstraint(n, m, ẋ_max, Inequality(), 21:23)
+#     # # add_constraint!(cons, vel_bnd, 1:N)
+
+#     # # # Force Bound (Fx Fy Fz)
+#     # # F_max = 20 # Newtons
+#     # # F_bnd = NormConstraint(n, m, F_max, Inequality(), 27:29)
+#     # # add_constraint!(cons, F_bnd, 1:N)
+#     X = state(prob.Z[start])
+#     Z = Traj([prob.Z[end] for k = 1:params.LQRH])
+#         tf = params.LQRH*dt
+#         prob = TrajectoryOptimization.Problem(prob.model, obj, state(prob.Z[end]), tf, x0=x0, constraints=cons,
+#             integration=TrajectoryOptimization.integration(prob)
+#         )
+#         initial_trajectory!(prob, Z)
+    
+#     return prob
+# end
+
 struct MPC_Params
     model::Arthur
     n::Int64
@@ -246,8 +300,8 @@ struct MPC_Params
         model = Arthur()
         n,m = size(model)
 
-        tf = 0.5 # Time Horizon (seconds)
-        dt = 0.05 # Time step (seconds)
+        tf = 1.0 # Time Horizon (seconds)
+        dt = 0.1 # Time step (seconds)
         H = Int(round(tf/dt) + 1) # Time Horizon (discrete steps)
         LQRH = 5
         state = MechanismState(model.mechanism)
