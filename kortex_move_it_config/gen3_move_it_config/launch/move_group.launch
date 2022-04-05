@@ -25,6 +25,8 @@
   <arg     if="$(arg info)" name="command_args" value="--debug" />
 
   <!-- move_group settings -->
+  <arg name="pipeline" default="ompl"/>
+  <!-- <arg name="pipeline" default="pilz_industrial_motion_planner"/> -->
   <arg name="allow_trajectory_execution" default="true"/>
   <arg name="fake_execution" default="false"/>
   <arg name="max_safe_path_cost" default="1"/>
@@ -50,9 +52,20 @@
   -->
 
   <!-- Planning Functionality -->
-  <include ns="move_group" file="$(find gen3_move_it_config)/launch/planning_pipeline.launch.xml">
+
+  <include ns="move_group/planning_pipelines" file="$(find gen3_move_it_config)/launch/planning_pipeline.launch.xml">
+    <arg name="pipeline" value="pilz_industrial_motion_planner" />
+    <arg name="prefix" value="$(arg prefix)"/>
+  </include>
+
+  <include ns="move_group/planning_pipelines" file="$(find gen3_move_it_config)/launch/planning_pipeline.launch.xml">
     <arg name="pipeline" value="ompl" />
     <arg name="prefix" value="$(arg prefix)"/>
+  </include>
+
+  <include if="$(eval arg('pipeline') not in ['ompl','pilz_industrial_motion_planner'])"
+                ns="$(arg pipeline)" file="$(find gen3_move_it_config)/launch/planning_pipeline.launch.xml">
+    <arg name="pipeline" value="$(arg pipeline)"/>
   </include>
 
   <!-- Trajectory Execution Functionality -->
@@ -79,6 +92,7 @@
     <param name="jiggle_fraction" value="$(arg jiggle_fraction)" />
     <param name="capabilities" value="$(arg capabilities)"/>
     <param name="disable_capabilities" value="$(arg disable_capabilities)"/>
+    <param name="default_planning_pipeline" value="$(arg pipeline)"/>
 
 
     <!-- Publish the planning scene of the physical robot so that rviz plugin can know actual robot -->
@@ -87,5 +101,6 @@
     <param name="planning_scene_monitor/publish_state_updates" value="$(arg publish_monitored_planning_scene)" />
     <param name="planning_scene_monitor/publish_transforms_updates" value="$(arg publish_monitored_planning_scene)" />
   </node>
+  <!-- <node name="dump_parameters" pkg="rosparam" type="rosparam" args="dump parameters_dump.yaml" /> -->
 
 </launch>

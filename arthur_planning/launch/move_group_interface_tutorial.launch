@@ -1,0 +1,8 @@
+<launch>
+
+  <param name="robot_description" textfile="/home/oem/arthur_ws/src/ros_kortex/kortex_description/robots/gen3.urdf"/> 
+
+  <node name="trajectory_test" pkg="arthur_planning" type="trajectory_test" respawn="false" output="screen">
+  </node>
+
+</launch>

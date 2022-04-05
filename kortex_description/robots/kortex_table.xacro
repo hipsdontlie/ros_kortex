@@ -60,7 +60,7 @@
             <joint name="pelvis_joint" type="fixed">
                 <parent link="table" />
                 <child link = "pelvis_link" />
-                <origin xyz="0 0.3 0.01" rpy="-1.57 0 0" />
+                <origin xyz="0.5 0.3 0.01" rpy="0.5 0 2.0" />
                 <limit lower="-3.1416" upper="3.1416" effort="10" velocity="3"/>
                 <axis xyz="0 1 0"/>
             </joint>
