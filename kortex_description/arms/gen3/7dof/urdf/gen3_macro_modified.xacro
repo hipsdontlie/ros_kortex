@@ -270,18 +270,18 @@
         <inertia ixx="0.000214" ixy="0" ixz="1E-06" iyy="0.000223" iyz="-2E-06" izz="0.00024" />
       </inertial>
       <visual>
-        <origin xyz="-0.03 -0.02 0" rpy="-1.5708 0 0" />
+        <origin xyz="0 0 0" rpy="0 0 0" />
         <geometry>
-          <mesh filename="package://kortex_description/arms/gen3/${dof}dof/meshes/ReamerHandle.STL" scale="0.001 0.001 0.001"/>
+          <mesh filename="package://kortex_description/arms/gen3/${dof}dof/meshes/bracelet_no_vision_link.STL" />
         </geometry>
         <material name="">
           <color rgba="0.75294 0.75294 0.75294 1" />
         </material>
       </visual>
       <collision>
-        <origin xyz="-0.03 -0.02 0" rpy="-1.5708 0 0" />
+        <origin xyz="0 0 0" rpy="0 0 0" />
         <geometry>
-          <mesh filename="package://kortex_description/arms/gen3/${dof}dof/meshes/ReamerHandle.STL" scale="0.001 0.001 0.001"/>
+          <mesh filename="package://kortex_description/arms/gen3/${dof}dof/meshes/bracelet_no_vision_link.STL" />
         </geometry>
       </collision>
     </link>
@@ -300,19 +300,137 @@
         effort="9"
         velocity="1.2218" />
     </joint>
-    <link name="${prefix}end_effector_link" />
+
+    <link name="${prefix}ftsensor_link">
+      <inertial>
+        <origin xyz="-9.3E-05 0.000132 -0.022905" rpy="0 0 0" />
+        <mass value="0.310" />
+        <inertia ixx="0.000214" ixy="0" ixz="1E-06" iyy="0.000223" iyz="-2E-06" izz="0.00024" />
+      </inertial>
+      <visual>
+        <origin xyz="-0.04 -0.05 0" rpy="0 0 0" />
+        <geometry>
+          <mesh filename="package://kortex_description/arms/gen3/${dof}dof/meshes/AxisFTSensorImport.STL" scale="0.001 0.001 0.001"/>
+        </geometry>
+        <material name="">
+          <color rgba="0.75294 0.75294 0.75294 1" />
+        </material>
+      </visual>
+      <collision>
+        <origin xyz="-0.04 -0.05 0" rpy="0 0 0" />
+        <geometry>
+          <mesh filename="package://kortex_description/arms/gen3/${dof}dof/meshes/AxisFTSensorImport.STL" scale="0.001 0.001 0.001"/>
+        </geometry>
+      </collision>
+    </link>
+
+    <link name="${prefix}ee_adapter_link">
+      <inertial>
+        <origin xyz="-9.3E-05 0.000132 -0.022905" rpy="0 0 0" />
+        <mass value="0.130" />
+        <inertia ixx="0.000214" ixy="0" ixz="1E-06" iyy="0.000223" iyz="-2E-06" izz="0.00024" />
+      </inertial>
+      <visual>
+        <origin xyz="-0.04 -0.04 0" rpy="0 0 0" />
+        <geometry>
+          <mesh filename="package://kortex_description/arms/gen3/${dof}dof/meshes/FTAdapter.STL" scale="0.001 0.001 0.001"/>
+        </geometry>
+        <material name="">
+          <color rgba="0.75294 0.75294 0.75294 1" />
+        </material>
+      </visual>
+      <collision>
+        <origin xyz="-0.04 -0.04 0" rpy="0 0 0" />
+        <geometry>
+          <mesh filename="package://kortex_description/arms/gen3/${dof}dof/meshes/FTAdapter.STL" scale="0.001 0.001 0.001"/>
+        </geometry>
+      </collision>
+    </link>
+
+    <link name="${prefix}reamer_link">
+      <inertial>
+        <origin xyz="-9.3E-05 0.000132 -0.022905" rpy="0 0 0" />
+        <mass value="0.130" />
+        <inertia ixx="0.000214" ixy="0" ixz="1E-06" iyy="0.000223" iyz="-2E-06" izz="0.00024" />
+      </inertial>
+      <visual>
+        <origin xyz="-0.04 -0.04 0" rpy="0 0 0" />
+        <geometry>
+          <mesh filename="package://kortex_description/arms/gen3/${dof}dof/meshes/ReamerAssembly.stl" scale="0.001 0.001 0.001"/>
+        </geometry>
+        <material name="">
+          <color rgba="0.75294 0.75294 0.75294 1" />
+        </material>
+      </visual>
+      <collision>
+        <origin xyz="-0.04 -0.04 0" rpy="0 0 0" />
+        <geometry>
+          <mesh filename="package://kortex_description/arms/gen3/${dof}dof/meshes/ReamerAssembly.stl" scale="0.001 0.001 0.001"/>
+        </geometry>
+      </collision>
+    </link>
+
+       
+    <joint name="${prefix}ft_sensor" type="fixed">
+      <origin xyz="0 0 -0.0615250000000001" rpy="3.14159265358979 1.09937075168372E-32 0" />
+      <parent
+        link="${prefix}bracelet_link" />
+      <child
+        link="${prefix}ee_adapter_link" />
+      <axis
+        xyz="0 0 0" />
+ 
+    </joint>
+
     <joint
+      name="${prefix}ee_adapter"
+      type="fixed">
+      <origin xyz="0 0 0.075" rpy="0 0 0" />
+      <parent
+        link="${prefix}ee_adapter_link" />
+      <child
+        link="${prefix}ftsensor_link" />
+      <axis
+        xyz="0 0 0" />
+    </joint>
+
+    <!-- <joint
       name="${prefix}end_effector"
       type="fixed">
       <origin xyz="0 0 -0.0615250000000001" rpy="3.14159265358979 1.09937075168372E-32 0" />
       <parent
-        link="${prefix}bracelet_link" />
+        link="${prefix}ee_adapter_link" />
+      <child
+        link="${prefix}end_effector_link" />
+      <axis
+        xyz="0 0 0" />
+    </joint> -->
+ 
+     <joint
+      name="${prefix}reamer_link"
+      type="fixed">
+      <origin xyz="0 0 0.1" rpy="0 0 0" />
+      <parent
+        link="${prefix}ee_adapter_link" />
+      <child
+        link="${prefix}reamer_link" />
+      <axis
+        xyz="0 0 0" />
+    </joint>
+
+    <link name="${prefix}end_effector_link"/>
+    <joint
+      name="${prefix}end_effector"
+      type="fixed">
+      <origin xyz="0 0 0.5" rpy="3.14159265358979 1.09937075168372E-32 0" />
+      <parent
+        link="${prefix}reamer_link" />
       <child
         link="${prefix}end_effector_link" />
       <axis
         xyz="0 0 0" />
     </joint>
-    <xacro:if value="${vision}">
+    <!-- <xacro:if value="${vision}">
       <link name="${prefix}camera_link" />
       <joint name="${prefix}camera_module" type="fixed">
         <origin xyz="0 0.05639 -0.00305" rpy="3.14159265358979 3.14159265358979 0" />
@@ -331,6 +449,24 @@
         <parent link="${prefix}end_effector_link" />
         <child  link="${prefix}camera_color_frame" />
       </joint>
-    </xacro:if>
+    </xacro:if> -->
+
+
+    <gazebo reference="${prefix}ft_sensor">
+        <provideFeedback>true</provideFeedback>
+        <disableFixedJointLumping>true</disableFixedJointLumping> 
+        <preserveFixedJoint>true</preserveFixedJoint>
+    </gazebo>
+
+
+    <gazebo>
+        <plugin name="ft_sensor" filename="libgazebo_ros_ft_sensor.so">
+            <updateRate>100.0</updateRate>
+            <topicName>ft_sensor</topicName>
+            <jointName>${prefix}ft_sensor</jointName>
+        </plugin>
+    </gazebo>
   </xacro:macro>
+
+  
 </robot>
