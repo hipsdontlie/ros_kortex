@@ -79,6 +79,10 @@
                 <selfCollide>true</selfCollide>
             </gazebo>
 
+              <!-- Adding force-torque sensor plugin -->
+
+
+        
         </xacro:if>
         
         <!-- Load the arm -->
