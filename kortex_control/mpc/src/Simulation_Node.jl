@@ -3,13 +3,14 @@
 #Import Statements for MPC
 # import Pkg; Pkg.activate(@__DIR__); 
 # Pkg.instantiate()
-include("Arthur.jl")
-include("MPCUtil.jl")
-using RigidBodyDynamics
-using StaticArrays
-using RobotDynamics
-using Altro
-using TrajectoryOptimization
+# include("Arthur.jl")
+# include("MPCUtil.jl")
+# using RigidBodyDynamics
+# using StaticArrays
+# using RobotDynamics
+# using Altro
+# using TrajectoryOptimization
+include("MPC.jl")
 
 
 # Black magic to make Julia and Python happy
@@ -35,7 +36,7 @@ rostypegen()
 using .trajectory_msgs.msg
 
 
-function get_trajectory()
+function get_trajectory(params)
     qref = typeof(zeros(7))[]
     push!(qref,  [4.9268856741946365e-05, 0.26016423071338934, 3.140069344584098, -2.27008100955155, -2.40769461674617e-05, 0.9598460188468598, 1.569995694393751])
     push!(qref,  [-0.003768053224579125, 0.26079787208394173, 3.1395327288847428, -2.269096150780195, -0.004224076946167462, 0.9616197667116058, 1.5721591274301712])
@@ -128,43 +129,61 @@ function get_trajectory()
     for k = 1:length(qref)
         push!(Xref, [qref[k]; q̇ref[k]])
     end
-
+    for k = 1:params.H
+        push!(Xref, [qref[end]; q̇ref[end]])
+    end
     return Xref
 end
 
-function callback(msg::JointTrajectory, X, U, initialized)
-    for k = 1:length(U)
+function callback(msg::JointTrajectory, X, U, initialized, N)
+    N .= length(msg.points)
+    for k = 1:N[1]
         X[k][1:7] .= msg.points[k].positions
         X[k][8:14] .= msg.points[k].velocities
         U[k][1:end] .= msg.points[k].effort
-        # for j = 1:length(U[k])
-        #     X[k][j] = msg.points[k].positions[j]
-        #     X[k][j+7] = msg.points[k].velocities[j]
-        #     U[k][j] = msg.points[k].effort[j]
-        # end
     end
     if !initialized[1]
         initialized .= true
     end
-    # i .= 1
 end
 
-function loop(sub_obj, pub_obj, x0, X, U, params, initialized)
+function loop(sub_obj, pub_obj, x0, X, U, params, initialized, N, Xref, mpc_controller)
     loop_rate = Rate(1.0/params.dt)
     while ! is_shutdown()
         RobotOS._run_callbacks(sub_obj)
-        if initialized[1]
-            i = argmin(norm.([(X[k] - x0) for k=1:length(X)]))
-            x0 = rk4(params.model, x0, U[i], params.dt)
-            if !isnan(x0[1])
-                println(x0)
+        if initialized[1] && mpc_controller[1]
+            i = argmin(norm.([(X[k] - x0) for k=1:N[1]]))
+            x0 = rk4(params.model, x0, U[i], 0.01)
+            if norm(x0[1:7] - Xref[end][1:7]) < 0.05
+                mpc_controller .= false
             end
-            # i[1] = i[1] + 1
-            # i[1] = min(i[1], length(U))
+            if !isnan(x0[1])
+                RobotOS.loginfo("MPC Control")
+                println(U[i])
+                println(x0)
+                println(norm(x0 - Xref[end]))
+            end
             JointTrajectoryOutput = JointTrajectoryPoint()
             JointTrajectoryOutput.positions = x0[1:7]
             JointTrajectoryOutput.velocities = x0[8:14]
             publish(pub_obj, JointTrajectoryOutput)
+        else
+            set_configuration!(params.state, x0[1:7])
+            set_velocity!(params.state, x0[8:14])
+            i = argmin(norm.([(Xref[k][1:7] - x0[1:7]) for k=1:length(Xref)]))
+            ∆x = Xref[i][1:7] - x0[1:7]
+            Kp = [10, 10, 10, 10, 10, 10, 10]
+            Kd = [20, 20, 20, 20, 20, 20, 20]
+            params.v̇ .= (Kp .* ∆x) .- (Kd .* x0[8:14])
+            U_PD = inverse_dynamics(params.state, params.v̇)
+            x0 .= rk4(params.model, x0, U_PD, params.dt)
+            if !isnan(x0[1])
+                RobotOS.loginfo("PD Control")
+                println(params.v̇[1:7])
+                println(U_PD[1:7])
+                println(x0[1:7])
+                # println(norm(x0 - Xref[end]))
+            end
         end
         rossleep(loop_rate)
     end
@@ -173,21 +192,22 @@ end
 function main()
     init_node("Simulation_Node")
     params = MPC_Params()
-    Xref = get_trajectory()
+    Xref = get_trajectory(params)
     x0 = copy(Xref[1])
-    # i = [1]
+    N = [params.H-1]
     X = [zeros(14) for k = 1:params.H-1]
     U = [zeros(7) for k = 1:params.H-1]
     initialized = [false]
     pub = Publisher{JointTrajectoryPoint}("state",queue_size=1)
+    mpc_controller = [true]
 
     # TODO: Implement and get trajectory using Subscriber
     # sub = Subscriber{Point}("trajectory",callback!,(pub,traj,obj,prob,altro),queue_size=10)
 
     # TODO: Implement and get current state using Subscriber
-    sub = Subscriber{JointTrajectory}("joint_torques",callback,(X, U, initialized),queue_size=1)
+    sub = Subscriber{JointTrajectory}("joint_torques",callback,(X, U, initialized, N),queue_size=1)
 
-    loop(sub, pub, x0, X, U, params, initialized)
+    loop(sub, pub, x0, X, U, params, initialized, N, Xref, mpc_controller)
 end
 
 if !isinteractive()

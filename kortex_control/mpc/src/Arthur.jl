@@ -1,8 +1,9 @@
 # import Pkg; Pkg.activate(@__DIR__); 
 # Pkg.instantiate()
-# using RigidBodyDynamics
-# using StaticArrays
-# using RobotDynamics
+using RigidBodyDynamics
+using StaticArrays
+using RobotDynamics
+using BenchmarkTools
 
 # Defining Arthur model using RigidBodyDynamics
 struct Arthur{C} <: AbstractModel
@@ -46,6 +47,9 @@ function RobotDynamics.dynamics(model::Arthur, x::AbstractVector{T1}, u::Abstrac
     # end
 
     # Set mechanism state to current state
+    # copyto!(parent(state.q), 1, x, 1, num_positions(state))
+    # copyto!(parent(state.v), 1, x, num_positions(state) + 1, num_velocities(state))
+    # setdirty!(state)
     copyto!(state, x[SA[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]])
     
     # w = Wrench{T}(default_frame(bodies(model.mechanism)[end-1]), F[4:6], F[1:3])
@@ -84,8 +88,37 @@ end
 
 # model = Arthur()
 # n,m = size(model)
-# for k = 1:10
-#     @time dynamics(model, rand(n), rand(m))
+# x = rand(n)
+# u = rand(m)
+# T1 = Float64
+# T2 = Float64
+# T = promote_type(T1,T2)
+# state = model.statecache[T]
+# res = model.dyncache[T]
+# # copyto!(state, x)
+# copyto!(parent(state.q), 1, x, 1, num_positions(state))
+# copyto!(parent(state.v), 1, x, num_positions(state) + 1, num_velocities(state))
+# @btime begin
+#     setdirty!(state)
+#     dynamics_bias!($res, $state)
+#     mass_matrix!($res, $state)
+#     # [x[SA[8, 9, 10, 11, 12, 13, 14]]; res.v̇]
+# end
+# @btime dynamics($model, $x, $u);
+# suite = BenchmarkGroup()
+# suite["test"] = @benchmarkable(begin
+    
+# end, 
+# # setup = begin
+    
+# # end, 
+# evals=1)
+# overhead = BenchmarkTools.estimate_overhead()
+# results = run(suite, verbose=true, overhead=overhead, gctrial=false)
+# for result in results
+#     println("$(first(result)):")
+#     display(last(result))
+#     println()
 # end
 # """
 #     simulate(model, x0, ctrl; [kwargs...])

@@ -115,6 +115,7 @@ prob = ArthurProblem(Xref, params=params)
 altro = ALTROSolver(prob, params.opts)
 solve!(altro)
 Z_track = TrajectoryOptimization.get_trajectory(prob)
+# println(length(Traj([Z_track; [Z_track[end] for k = 1:5]])))
 # cons = TrajectoryOptimization.get_constraints(altro.solver_al)
 global prob_mpc = ArthurHorizonProblem(prob, state(Z_track[1]), params.H, start=1)
 global altro_mpc = ALTROSolver(prob_mpc, params.opts)
@@ -191,7 +192,7 @@ end
 println(argmin(norm.([(X_sim[k] - Xref[end]) for k = 1:length(X_sim)])))
 println(X_sim[argmin(norm.([(X_sim[k] - Xref[end]) for k = 1:length(X_sim)]))])
 println(X_sim[argmin(norm.([(X_sim[k] - Xref[end]) for k = 1:length(X_sim)]))] - Xref[end])
-println(norm(X_sim[argmin(norm.([(X_sim[k] - Xref[end]) for k = 1:length(X_sim)]))] - Xref[end]))
+println(norm(X_sim[argmin(norm.([(X_sim[k] - Xref[end]) for k = 1:length(X_sim)]))][1:7] - Xref[end][1:7]))
 # println([(errors[k+1] - errors[k]) for k = 1:(length(errors)-1)])
 # # TODO:
 # # Uref could be just U equilibrium (just gravity compensation),

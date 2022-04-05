@@ -7,25 +7,25 @@
 # using Altro
 # using TrajectoryOptimization
 
-# function mpc_update(altro, prob_mpc, Z_track, t0, k_mpc)
-#     TrajectoryOptimization.set_initial_time!(prob_mpc, t0)
+function mpc_update(altro, prob_mpc, Z_track, t0, k_mpc)
+    TrajectoryOptimization.set_initial_time!(prob_mpc, t0)
 
-#     # Propagate the system forward w/ noise
-#     # x0 = discrete_dynamics(TrajectoryOptimization.integration(prob_mpc),
-#     #                             prob_mpc.model, prob_mpc.Z[1])      
-#     x0 = rk4(prob_mpc.model, state(prob_mpc.Z[1]), control(prob_mpc.Z[1]), prob_mpc.Z[1].dt)
+    # Propagate the system forward w/ noise
+    # x0 = discrete_dynamics(TrajectoryOptimization.integration(prob_mpc),
+    #                             prob_mpc.model, prob_mpc.Z[1])      
+    x0 = rk4(prob_mpc.model, state(prob_mpc.Z[1]), control(prob_mpc.Z[1]), prob_mpc.Z[1].dt)
 
-#     TrajectoryOptimization.set_initial_state!(prob_mpc, x0)
+    TrajectoryOptimization.set_initial_state!(prob_mpc, x0)
 
-#     # Update tracking cost
-#     TrajectoryOptimization.update_trajectory!(prob_mpc.obj, Z_track, k_mpc)
+    # Update tracking cost
+    TrajectoryOptimization.update_trajectory!(prob_mpc.obj, Z_track, k_mpc)
 
-#     # Shift the initial trajectory
-#     RobotDynamics.shift_fill!(prob_mpc.Z)
+    # Shift the initial trajectory
+    RobotDynamics.shift_fill!(prob_mpc.Z)
 
-#     # Shift the multipliers and penalties
-#     Altro.shift_fill!(TrajectoryOptimization.get_constraints(altro.solver_al))
-# end
+    # Shift the multipliers and penalties
+    Altro.shift_fill!(TrajectoryOptimization.get_constraints(altro.solver_al))
+end
 
 # function update_constraints!(conSet::Altro.ALConstraintSet, cons::Altro.ALConstraintSet, start=1)
 #     for c = 1:length(conSet)
@@ -153,6 +153,7 @@ function ArthurProblem(Xref; params=MPC_Params())
 end
 
 function ArthurHorizonProblem(prob::TrajectoryOptimization.Problem, x0, N; start=1, params=MPC_Params())
+    # H = N
     while (start+N-1) > length(prob.Z)
         N -= 1
     end
@@ -160,28 +161,69 @@ function ArthurHorizonProblem(prob::TrajectoryOptimization.Problem, x0, N; start
     n,m = size(prob)
     dt = prob.Z[1].dt
     tf = (N-1)*dt
-
     # Get sub-trajectory
-    Z = Traj(prob.Z[start:start+N-1])
+    if N > 1  
+    # if N == H
+        Z = Traj(prob.Z[start:start+N-1])
+    # else
+        # Z = Traj([prob.Z[start:start+N-1]; [prob.Z[end] for k = 1:(H-N+1)]])
+    # end
 
     # Generate a cost that tracks the trajectory
-    obj = TrajectoryOptimization.TrackingObjective(params.Q, params.R, Z, Qf=params.Qf)
+        obj = TrajectoryOptimization.TrackingObjective(params.Q, params.R, Z, Qf=params.Qf)
 
     # Use the same constraints, except the Goal constraint
-    cons = ConstraintList(n,m,N)
-    for (inds, con) in zip(prob.constraints)
-        if !(con isa GoalConstraint)
-            if inds.stop > N
-                inds = inds.start:N-(prob.N - inds.stop)
+        cons = ConstraintList(n,m,N)
+        for (inds, con) in zip(prob.constraints)
+            if !(con isa GoalConstraint)
+                if inds.stop > N
+                    inds = inds.start:N-(prob.N - inds.stop)
+                end
+                length(inds) > 0 && TrajectoryOptimization.add_constraint!(cons, con, inds)
             end
-            length(inds) > 0 && TrajectoryOptimization.add_constraint!(cons, con, inds)
         end
-    end
 
-    prob = TrajectoryOptimization.Problem(prob.model, obj, state(Z[end]), tf, x0=x0, constraints=cons,
-        integration=TrajectoryOptimization.integration(prob)
-    )
-    initial_trajectory!(prob, Z)
+        prob = TrajectoryOptimization.Problem(prob.model, obj, state(Z[end]), tf, x0=x0, constraints=cons,
+            integration=TrajectoryOptimization.integration(prob)
+        )
+        initial_trajectory!(prob, Z)
+    else
+        obj = TrajectoryOptimization.LQRObjective(params.Q, params.R, params.Qf, state(prob.Z[end]), params.LQRH)
+         # # Gather trajectory information
+        # Create Empty ConstraintList
+        cons = ConstraintList(params.n,params.m,params.LQRH)
+
+        # Control Bounds based on Robot Specs (Joint torque limits)
+        u_bnd = [39.0, 39.0, 39.0, 39.0, 9.0, 9.0, 9.0]
+        control_bnd = BoundConstraint(params.n,params.m, u_min=-u_bnd, u_max=u_bnd)
+        add_constraint!(cons, control_bnd, 1:params.LQRH-1)
+
+        # State Bounds based on Robot Specs (Joint velocity and speed limits)
+        x_bnd = zeros(params.n)
+        x_bnd[1:7] = [Inf, deg2rad(128.9), Inf, deg2rad(147.8), Inf, deg2rad(120.3), Inf] # rad
+        x_bnd[8:14] = [1.39, 1.39, 1.39, 1.39, 1.22, 1.22, 1.22] # rad/sec
+        # x_bnd[8:14] = [0.25, 0.05, 0.05, 0.05, 0.25, 0.15, 0.15] # rad/sec
+        # x_bnd[15:end] = [Inf for k=1:(n-14)] # Constraints on force elsewhere
+        state_bnd = BoundConstraint(params.n,params.m, x_min=-x_bnd, x_max=x_bnd)
+        add_constraint!(cons, state_bnd, 1:params.LQRH-1)
+
+        # # # Cartesian Velocity Bound
+        # # ẋ_max = 0.0005 # m/s
+        # # vel_bnd = NormConstraint(n, m, ẋ_max, Inequality(), 21:23)
+        # # add_constraint!(cons, vel_bnd, 1:N)
+
+        # # # Force Bound (Fx Fy Fz)
+        # # F_max = 20 # Newtons
+        # # F_bnd = NormConstraint(n, m, F_max, Inequality(), 27:29)
+        # # add_constraint!(cons, F_bnd, 1:N)
+        Z = Traj([prob.Z[end] for k = 1:params.LQRH])
+        tf = params.LQRH*dt
+        prob = TrajectoryOptimization.Problem(prob.model, obj, state(prob.Z[end]), tf, x0=x0, constraints=cons,
+            integration=TrajectoryOptimization.integration(prob)
+        )
+        initial_trajectory!(prob, Z)
+    end
+    
     return prob
 end
 
@@ -190,6 +232,7 @@ struct MPC_Params
     n::Int64
     m::Int64
     H::Int64
+    LQRH::Int64
     tf::Float64
     dt::Float64
     state::MechanismState
@@ -204,9 +247,9 @@ struct MPC_Params
         n,m = size(model)
 
         tf = 0.5 # Time Horizon (seconds)
-        dt = 0.1 # Time step (seconds)
+        dt = 0.05 # Time step (seconds)
         H = Int(round(tf/dt) + 1) # Time Horizon (discrete steps)
-
+        LQRH = 5
         state = MechanismState(model.mechanism)
         zero!(state)
         v̇ = similar(velocity(state))
@@ -227,7 +270,7 @@ struct MPC_Params
         Q = 100.0*Diagonal(@SVector ones(n))
         Qf = 100.0*Diagonal(@SVector ones(n))
         R = 1.0e-1*Diagonal(@SVector ones(m))
-        new(model,n,m,H,tf,dt,state,v̇,opts,Q,Qf,R)
+        new(model,n,m,H,LQRH,tf,dt,state,v̇,opts,Q,Qf,R)
     end
 end
 
