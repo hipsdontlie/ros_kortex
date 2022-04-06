@@ -46,7 +46,7 @@ function callback(msg::JointTrajectory, X, U, initialized, N)
         X[k][8:14] .= msg.points[k].velocities
         U[k][1:end] .= msg.points[k].effort
     end
-    if !initialized[1]
+    if !initialized[1] && N > 0
         initialized .= true
     end
 end
