@@ -43,6 +43,7 @@
       </geometry>
     </collision>
   </link>
+  
   <joint name="Actuator1" type="continuous">
     <origin xyz="0 0 0.15643" rpy="3.1416 2.7629E-18 -4.9305E-36" />
     <parent link="base_link" />
