@@ -153,18 +153,22 @@ max_iters = length(Z_track) + params.H
 # errors = Float64[]
 # push!(errors, Inf)
 # push!(errors, norm(X_traj[end] - Xref[end]))
-while norm(X_traj[end] - Xref[end]) > 0.1 && iter < max_iters#&& norm(errors[iter+1] - errors[iter]) > 0.003
+while norm(X_traj[end] - Xref[end]) > 0.1# && iter < max_iters#&& norm(errors[iter+1] - errors[iter]) > 0.003
     # println(iter)
     global iter += 1
     global t0 += params.dt
     # Update the ALTRO solution, advancing forward by 1 time step
     push!(U_traj, control(prob_mpc.Z[1]))
     # mpc_update(altro_mpc, prob_mpc, Z_track, t0, k_mpc)
-    x0 = rk4(prob_mpc.model, state(prob_mpc.Z[1]), control(prob_mpc.Z[1]), prob_mpc.Z[1].dt)
+    x0 = rk4(prob_mpc.model, state(prob_mpc.Z[1]), control(prob_mpc.Z[1]), params.dt)
     # x0 = Xref[1]
     # mpc_update(altro_mpc, prob_mpc, Z_track, cons, x0, t0)
-    k_mpc = argmin(norm.([(states(Z_track)[k] - x0) for k=1:length(Z_track)]))
+    k_mpc = argmin(norm.([(states(Z_track)[k][1:7] - x0[1:7]) for k=1:length(Z_track)]))
+    # k_mpc = 2
     println(k_mpc)
+    println(norm(X_traj[end] - Xref[end]))
+    println(X_traj[end])
+    # println(prob_mpc.Z[1].dt)
     global prob_mpc = ArthurHorizonProblem(prob, x0, params.H, start=k_mpc)
     global altro_mpc = ALTROSolver(prob_mpc, params.opts)
     solve!(altro_mpc)
