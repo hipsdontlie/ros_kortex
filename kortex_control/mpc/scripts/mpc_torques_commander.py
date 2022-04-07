@@ -6,7 +6,7 @@ from trajectory_msgs.msg import JointTrajectoryPoint
 class TorqueCommander():
 
     def __init__(self, joint1_pub,joint2_pub,joint3_pub,joint4_pub,joint5_pub,joint6_pub,joint7_pub):
-        rospy.loginfo("Started torque commander")
+        # rospy.loginfo("Started torque commander")
         joint_torques_sub = rospy.Subscriber("mpc_torques", JointTrajectoryPoint, self.efforts_callback)
         self.joint1_pub = joint1_pub
         self.joint2_pub = joint2_pub
@@ -19,7 +19,7 @@ class TorqueCommander():
     def efforts_callback(self,data):
 
         joint_torques_all = data.effort
-        print(joint_torques_all)
+        # print(joint_torques_all)
         self.send_torque(self.joint1_pub,joint_torques_all[0])
         self.send_torque(self.joint2_pub,joint_torques_all[1])
         self.send_torque(self.joint3_pub,joint_torques_all[2])
@@ -37,7 +37,7 @@ class TorqueCommander():
 
         r = rospy.Rate(20)
         r.sleep()
-        print("here")
+        # print("here")
         rospy.spin()
 
 if __name__ == '__main__':
