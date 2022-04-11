@@ -107,7 +107,6 @@ class arthur_trajectory(object):
         return arm_group.go(wait=True)
 
     def reach_cartesian_pose_pilz(self, pose, pos_tolerance, orientation_tolerance, constraints):
-        start = time.time()
         cartesian_path = True
         velocity_scaling = 0.1
         acc_scaling = 0.1
@@ -115,7 +114,7 @@ class arthur_trajectory(object):
         plan_req = moveit_msgs.msg.MotionPlanRequest()
         plan_req.pipeline_id = "pilz_industrial_motion_planner"
         # plan_req.planner_id = "LIN" if cartesian_path else "PTP"
-        plan_req.planner_id = "PTP"
+        plan_req.planner_id = "LIN"
         plan_req.group_name = "arm"
         plan_req.num_planning_attempts = 1
 
@@ -130,7 +129,9 @@ class arthur_trajectory(object):
         plan_req.max_velocity_scaling_factor = velocity_scaling
         plan_req.max_acceleration_scaling_factor = acc_scaling
 
+        start = time.time()
         mp_res = self.get_plan(plan_req).motion_plan_response
+        end = time.time()
 
         arthur = arthur_traj()
         
@@ -143,8 +144,9 @@ class arthur_trajectory(object):
         # point.append(mp_res.trajectory.joint_trajectory.points[0].velocities[:])
         arthur.traj = mp_res.trajectory.joint_trajectory
         # print(arthur.traj)
-        # print((arthur.traj.points[1].positions[:]))
-
+        # print((arthur.traj.points[-1].positions[:]))
+        total_time = (end-start)
+        print("Time for execution: ", total_time)
         
 
         for i in range(len(arthur.traj.points)):
@@ -190,7 +192,7 @@ class arthur_trajectory(object):
         # self.tf_endEffector(arthur)
         # print(type(arthur.cartesian_vel))
         # print(type(arthur.cartesian_vel[0]))
-        # print(len(arthur.cartesian_states.poses))
+        print("Num waypoints: ", len(arthur.cartesian_states.poses))
         # print(arthur.traj.points[0])
         # print(arthur.cartesian_states.poses[0])
         # print(arthur.cartesian_vel[0])
@@ -198,39 +200,38 @@ class arthur_trajectory(object):
         # print(arthur.cartesian_states.poses[1])
         # print(arthur.cartesian_vel[1])
 
-        end = time.time()
+        
 
-        total_time = (end-start)
-        print("Time for execution: ", total_time)
+        
 
-        print("Message: ", arthur)
+        # print("Message: ", arthur)
         self.arthur_traj_pub(arthur)
 
         # joint_traj = mp_res.trajectory
         # print("Type: ",type(mp_res))
 
-        display_publisher = rospy.Publisher("/move_group/display_planned_path", moveit_msgs.msg.DisplayTrajectory, queue_size=10)
-        display_trajectory = moveit_msgs.msg.DisplayTrajectory
+        # display_publisher = rospy.Publisher("/move_group/display_planned_path", moveit_msgs.msg.DisplayTrajectory, queue_size=10)
+        # display_trajectory = moveit_msgs.msg.DisplayTrajectory
 
-        display_trajectory.trajectory_start = mp_res.trajectory_start
-        traj = display_trajectory.trajectory
+        # display_trajectory.trajectory_start = mp_res.trajectory_start
+        # traj = display_trajectory.trajectory
 
             
-        if mp_res.error_code.val != mp_res.error_code.SUCCESS:
-            rospy.logerr("Planner failed to generate a valid plan to the goal pose")
-            return False
-        if (len(mp_res.trajectory.joint_trajectory.points) > 1 and
-            mp_res.trajectory.joint_trajectory.points[-1].time_from_start
-            == mp_res.trajectory.joint_trajectory.points[-2].time_from_start
-        ):
-            mp_res.trajectory.joint_trajectory.points.pop(-2)
-            rospy.logwarn(
-                "Duplicate time stamp in the planned trajectory. Second last way-point was removed."
-            )
-        goal = moveit_msgs.msg.ExecuteTrajectoryGoal(trajectory=mp_res.trajectory)
-        self.execute_plan.send_goal(goal)
-        rospy.loginfo("Send goal to the trajectory server successfully!")
-        self.execute_plan.wait_for_result()
+        # if mp_res.error_code.val != mp_res.error_code.SUCCESS:
+        #     rospy.logerr("Planner failed to generate a valid plan to the goal pose")
+        #     return False
+        # if (len(mp_res.trajectory.joint_trajectory.points) > 1 and
+        #     mp_res.trajectory.joint_trajectory.points[-1].time_from_start
+        #     == mp_res.trajectory.joint_trajectory.points[-2].time_from_start
+        # ):
+        #     mp_res.trajectory.joint_trajectory.points.pop(-2)
+        #     rospy.logwarn(
+        #         "Duplicate time stamp in the planned trajectory. Second last way-point was removed."
+        #     )
+        # goal = moveit_msgs.msg.ExecuteTrajectoryGoal(trajectory=mp_res.trajectory)
+        # self.execute_plan.send_goal(goal)
+        # rospy.loginfo("Send goal to the trajectory server successfully!")
+        # self.execute_plan.wait_for_result()
         
 
         return True
@@ -318,9 +319,10 @@ def main():
     rospy.loginfo("Reaching Cartesian Pose...")
     
     actual_pose = example.get_cartesian_pose()
-    actual_pose.position.z -= 0.025
-    actual_pose.position.y += 0.06
-    actual_pose.position.x += 0.1
+    
+    actual_pose.position.z -= 0.1
+    actual_pose.position.y -= 0.1
+    actual_pose.position.x -= 0.1
     success &= example.reach_cartesian_pose_pilz(pose=actual_pose, pos_tolerance=0.01, orientation_tolerance=0.005, constraints=None)
     print (success)
     
