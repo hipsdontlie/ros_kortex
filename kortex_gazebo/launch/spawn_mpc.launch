@@ -150,6 +150,20 @@
 
         <!-- Start RViz -->
         <node name="rviz" pkg="rviz" type="rviz" if="$(arg start_rviz)" args="-d $(find kortex_gazebo)/rviz/moveit.rviz"/> 
+
+        <!-- Start Arthur Planning -->
+        <!-- <node name="pilz_test" pkg ="arthur_planning" type="pilz_test.py" output = "screen"/> -->
+
+        <!-- Start PD controller -->
+        <!-- <node name="Controller_Node" type ="Controller_Node.jl" pkg="kortex_control" output = "screen"/> -->
+
+        <!-- Start MPC -->
+
+        <!-- <node name="MPC_Node" type ="MPC_Node.jl" pkg="kortex_control" output = "screen"/> -->
+        
+        <!-- Start Torque Controllers -->
+        <node name="mpc_torques_commander" pkg ="kortex_control" type="mpc_torques_commander.py" output = "screen"/>
+
     
     </group>
 

@@ -111,15 +111,17 @@ for k = 1:params.H
     push!(Xref, [qref[end]; q̇ref[end]])
 end
 
-prob = ArthurProblem(Xref, params=params)
-altro = ALTROSolver(prob, params.opts)
-solve!(altro)
-Z_track = TrajectoryOptimization.get_trajectory(prob)
-# println(length(Traj([Z_track; [Z_track[end] for k = 1:5]])))
-# cons = TrajectoryOptimization.get_constraints(altro.solver_al)
-global prob_mpc = ArthurHorizonProblem(prob, state(Z_track[1]), params.H, start=1)
+# prob = ArthurProblem(Xref, params=params)
+# altro = ALTROSolver(prob, params.opts)
+# solve!(altro)
+# Z_track = TrajectoryOptimization.get_trajectory(prob)
+global x0 = [-0.012784051833563126, 0.2722778684209022, 3.170027245975045, -2.2336492735211575, 0.03408274619129692, 1.226885242471706, 1.5562949837009983, -0.0005575828038824746, 3.2918256112210627e-6, 0.0011079314450628355, -7.003196207031308e-6, -0.0003270387146453352, 6.465030966857781e-7, -5.557828320653166e-5]
+global prob_mpc = ArthurHorizonProblem(Xref, x0, params.H, start=1)
 global altro_mpc = ALTROSolver(prob_mpc, params.opts)
 solve!(altro_mpc)
+println(states(altro_mpc))
+println(controls(altro_mpc))
+
 # num_iters = length(Z_track) - prob_mpc.N
 # X_traj = [zero(state(Z_track[1])) for i = 1:num_iters+1]
 # X_traj[1] = state(Z_track[1])
@@ -143,33 +145,45 @@ solve!(altro_mpc)
 #     # println(i)
 # end
 
-X_traj = typeof(zero(state(Z_track[1])))[]
-push!(X_traj, state(Z_track[1]))
-U_traj = typeof(zero(control(Z_track[1])))[]
+# X_traj = typeof(zero(state(Z_track[1])))[]
+# push!(X_traj, state(Z_track[1]))
+# U_traj = typeof(zero(control(Z_track[1])))[]
+
+X_traj = typeof(Xref[1])[]
+push!(X_traj, x0)
+U_traj = typeof(zeros(7))[]
 
 t0 = 0
 global iter = 1
-max_iters = length(Z_track) + params.H
+max_iters = length(Xref) + params.H
 # errors = Float64[]
 # push!(errors, Inf)
 # push!(errors, norm(X_traj[end] - Xref[end]))
-while norm(X_traj[end] - Xref[end]) > 0.1 && iter < max_iters#&& norm(errors[iter+1] - errors[iter]) > 0.003
+while norm(X_traj[end] - Xref[end]) > 0.1# && iter < max_iters#&& norm(errors[iter+1] - errors[iter]) > 0.003
     # println(iter)
     global iter += 1
     global t0 += params.dt
     # Update the ALTRO solution, advancing forward by 1 time step
     push!(U_traj, control(prob_mpc.Z[1]))
     # mpc_update(altro_mpc, prob_mpc, Z_track, t0, k_mpc)
-    x0 = rk4(prob_mpc.model, state(prob_mpc.Z[1]), control(prob_mpc.Z[1]), prob_mpc.Z[1].dt)
+    x0 = rk4(prob_mpc.model, state(prob_mpc.Z[1]), control(prob_mpc.Z[1]), params.dt)
+    # x0 = [-0.012784051833563126, 0.2722778684209022, 3.170027245975045, -2.2336492735211575, 0.03408274619129692, 1.226885242471706, 1.5562949837009983, -0.0005575828038824746, 3.2918256112210627e-6, 0.0011079314450628355, -7.003196207031308e-6, -0.0003270387146453352, 6.465030966857781e-7, -5.557828320653166e-5]
     # x0 = Xref[1]
     # mpc_update(altro_mpc, prob_mpc, Z_track, cons, x0, t0)
-    k_mpc = argmin(norm.([(states(Z_track)[k] - x0) for k=1:length(Z_track)]))
+    # k_mpc = argmin(norm.([(Xref[k][1:7] - x0[1:7]) for k=1:length(Xref)]))
+    k_mpc = 1
     println(k_mpc)
-    global prob_mpc = ArthurHorizonProblem(prob, x0, params.H, start=k_mpc)
+    println(norm(X_traj[end] - Xref[end]))
+    println(X_traj[end])
+    # println(prob_mpc.Z[1].dt)
+    global prob_mpc = ArthurHorizonProblem(Xref, x0, params.H, start=k_mpc)
     global altro_mpc = ALTROSolver(prob_mpc, params.opts)
     solve!(altro_mpc)
+    println(states(altro_mpc))
+    println(controls(altro_mpc))
     
     push!(X_traj, prob_mpc.x0)
+    println(U_traj[end])
     # push!(errors, norm(X_traj[end] - Xref[end]))
     # solve!(altro_mpc)
 end
@@ -180,7 +194,7 @@ end
 #     println(traj)
 # end
 
-X_sim = typeof(zero(state(Z_track[1])))[]
+X_sim = typeof(Xref[1])[]
 push!(X_sim, X_traj[1])
 for k = 1:length(X_traj)-1
     # X_sim[k+1] = discrete_dynamics(TrajectoryOptimization.integration(prob_mpc), params.model, X_sim[k], U_traj[k], 0.0, params.dt)

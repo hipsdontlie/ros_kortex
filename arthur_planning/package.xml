@@ -45,7 +45,7 @@
   <run_depend>geometry_msgs</run_depend>
   <run_depend>trajectory_msgs</run_depend>
   <run_depend>message_runtime</run_depend>
-  <run_depend>kortex_moveit_config</run_depend>
+  <run_depend>kortex_move_it_config</run_depend>
   <run_depend>franka_description</run_depend>
   <run_depend>pluginlib</run_depend>
   <run_depend>moveit_core</run_depend>

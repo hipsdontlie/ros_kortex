@@ -49,7 +49,7 @@ generate_messages(
 )
 
 catkin_package(
-  INCLUDE_DIRS include
+  # INCLUDE_DIRS include
   CATKIN_DEPENDS message_runtime rospy roscpp std_msgs geometry_msgs trajectory_msgs
   LIBRARIES ${PROJECT_NAME}    # Added this line
   moveit_core

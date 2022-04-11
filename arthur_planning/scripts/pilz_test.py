@@ -192,7 +192,7 @@ class arthur_trajectory(object):
         # self.tf_endEffector(arthur)
         # print(type(arthur.cartesian_vel))
         # print(type(arthur.cartesian_vel[0]))
-        print("Num waypoints: ", len(arthur.cartesian_states.poses))
+        print("Num Waypoints ", len(arthur.cartesian_states.poses))
         # print(arthur.traj.points[0])
         # print(arthur.cartesian_states.poses[0])
         # print(arthur.cartesian_vel[0])
@@ -241,7 +241,7 @@ class arthur_trajectory(object):
         rate = rospy.Rate(10) # 10hz
 
         while not rospy.is_shutdown():
-            rospy.loginfo("Publishing sensor msg")
+            # rospy.loginfo("Publishing sensor msg")
             pub.publish(arthur)
             rate.sleep()
 
@@ -319,10 +319,9 @@ def main():
     rospy.loginfo("Reaching Cartesian Pose...")
     
     actual_pose = example.get_cartesian_pose()
-    
-    actual_pose.position.z -= 0.1
-    actual_pose.position.y -= 0.1
-    actual_pose.position.x -= 0.1
+    actual_pose.position.z -= 0.0
+    actual_pose.position.y += 0.0
+    actual_pose.position.x += 0.1
     success &= example.reach_cartesian_pose_pilz(pose=actual_pose, pos_tolerance=0.01, orientation_tolerance=0.005, constraints=None)
     print (success)
     
