@@ -170,20 +170,20 @@ while norm(X_traj[end] - Xref[end]) > 0.1# && iter < max_iters#&& norm(errors[it
     # x0 = [-0.012784051833563126, 0.2722778684209022, 3.170027245975045, -2.2336492735211575, 0.03408274619129692, 1.226885242471706, 1.5562949837009983, -0.0005575828038824746, 3.2918256112210627e-6, 0.0011079314450628355, -7.003196207031308e-6, -0.0003270387146453352, 6.465030966857781e-7, -5.557828320653166e-5]
     # x0 = Xref[1]
     # mpc_update(altro_mpc, prob_mpc, Z_track, cons, x0, t0)
-    # k_mpc = argmin(norm.([(Xref[k][1:7] - x0[1:7]) for k=1:length(Xref)]))
-    k_mpc = 1
+    k_mpc = argmin(norm.([(Xref[k][1:7] - x0[1:7]) for k=1:length(Xref)]))
+    # k_mpc = 1
     println(k_mpc)
-    println(norm(X_traj[end] - Xref[end]))
-    println(X_traj[end])
+    # println(norm(X_traj[end] - Xref[end]))
+    # println(X_traj[end])
     # println(prob_mpc.Z[1].dt)
     global prob_mpc = ArthurHorizonProblem(Xref, x0, params.H, start=k_mpc)
     global altro_mpc = ALTROSolver(prob_mpc, params.opts)
     solve!(altro_mpc)
-    println(states(altro_mpc))
-    println(controls(altro_mpc))
+    # println(states(altro_mpc))
+    # println(controls(altro_mpc))
     
     push!(X_traj, prob_mpc.x0)
-    println(U_traj[end])
+    # println(U_traj[end])
     # push!(errors, norm(X_traj[end] - Xref[end]))
     # solve!(altro_mpc)
 end
