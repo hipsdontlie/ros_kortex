@@ -1,15 +1,5 @@
 #!/usr/bin/env julia
 
-#Import Statements for MPC
-# import Pkg; Pkg.activate(@__DIR__); 
-# Pkg.instantiate()
-# include("Arthur.jl")
-# include("MPCUtil.jl")
-# using RigidBodyDynamics
-# using StaticArrays
-# using RobotDynamics
-# using Altro
-# using TrajectoryOptimization
 include("MPC.jl")
 
 # Black magic to make Julia and Python happy

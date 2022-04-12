@@ -148,7 +148,7 @@ function ArthurProblem(Xref; params=MPC_Params())
     dtref = [params.dt for k=1:N]
     traj = RobotDynamics.Traj(Xref, Uref, dtref, cumsum(dtref) .- dtref[1])
     obj = TrajectoryOptimization.TrackingObjective(params.Q, params.R, traj, Qf=params.Qf)
-    prob = Problem(params.model, obj, Xref[end], tf, x0=Xref[1], constraints=conSet, X0=Qref, U0=Uref, integration=RK4)
+    prob = Problem(params.model, obj, Xref[end], tf, x0=Xref[1], constraints=conSet, X0=Qref, U0=Uref, integration=RK3)
     return prob
 end
 
@@ -350,7 +350,7 @@ function ArthurHorizonProblem(Xref, x0, N; start=1, params=MPC_Params())
     # Z = Traj([prob.Z[end] for k = 1:params.LQRH])
     tf = params.LQRH*dt
     prob = TrajectoryOptimization.Problem(params.model, obj, xf, tf, x0=x0, constraints=cons,
-        integration=RK4
+        integration=RK3
     )
     initial_trajectory!(prob, Z)
     
@@ -398,7 +398,7 @@ struct MPC_Params
         )
 
         Q = 100.0*Diagonal(@SVector ones(n))
-        Qf = 100.0*Diagonal(@SVector ones(n))
+        Qf = 1000.0*Diagonal(@SVector ones(n))
         R = 1.0e-1*Diagonal(@SVector ones(m))
         new(model,n,m,H,LQRH,tf,dt,state,v̇,opts,Q,Qf,R)
     end
