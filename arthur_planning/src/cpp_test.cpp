@@ -37,26 +37,43 @@ int main(int argc, char** argv)
 
   moveit::planning_interface::MoveGroupInterface move_group_interface(PLANNING_GROUP);
 
-  namespace rvt = rviz_visual_tools;
-  moveit_visual_tools::MoveItVisualTools visual_tools("base_link");
-  visual_tools.deleteAllMarkers();
+  std::string default_planning_pipeline;
+    node_handle.getParam("move_group/default_planning_pipeline", default_planning_pipeline);
+  ROS_INFO("Current planning pipeline: %s", default_planning_pipeline.c_str());
 
-  Eigen::Isometry3d text_pose = Eigen::Isometry3d::Identity();
-  text_pose.translation().z() = 1.0;
-  visual_tools.publishText(text_pose, "MoveGroupInterface Demo", rvt::WHITE, rvt::XLARGE);
-  visual_tools.trigger();
+  // namespace rvt = rviz_visual_tools;
+  // moveit_visual_tools::MoveItVisualTools visual_tools("base_link");
+  // visual_tools.deleteAllMarkers();
 
-  const moveit::core::JointModelGroup* joint_model_group =
-      move_group_interface.getCurrentState()->getJointModelGroup(PLANNING_GROUP);
+  // Eigen::Isometry3d text_pose = Eigen::Isometry3d::Identity();
+  // text_pose.translation().z() = 1.0;
+  // visual_tools.publishText(text_pose, "MoveGroupInterface Demo", rvt::WHITE, rvt::XLARGE);
+  // visual_tools.trigger();
+
+  // const moveit::core::JointModelGroup* joint_model_group =
+  //     move_group_interface.getCurrentState()->getJointModelGroup(PLANNING_GROUP);
 
   ROS_INFO_NAMED("tutorial", "Available Planning Groups:");
   std::copy(move_group_interface.getJointModelGroupNames().begin(),
             move_group_interface.getJointModelGroupNames().end(), std::ostream_iterator<std::string>(std::cout, ", "));
 
-  ROS_INFO_NAMED("Arthur's planning group'", "Planning frame: %s", move_group_interface.getPlanningFrame().c_str());
+  ROS_INFO_NAMED("Arthur's Planning frame: %s", move_group_interface.getPlanningFrame().c_str());
+  ROS_INFO_NAMED("tutorial", "End effector link: %s", move_group_interface.getEndEffectorLink().c_str());
 
-  kinematic_state->setToRandomPositions(joint_model_group);
-  const Eigen::Isometry3d& end_effector_state = kinematic_state->getGlobalLinkTransform("end_effector_link");
+  const moveit::core::JointModelGroup* joint_model_group = kinematic_model->getJointModelGroup("arm");
+
+  const std::vector<std::string>& joint_names = joint_model_group->getVariableNames();
+  moveit::core::RobotStatePtr current_state = move_group_interface.getCurrentState();
+
+  std::vector<double> joint_values;
+  current_state->copyJointGroupPositions(joint_model_group, joint_values);
+  for (std::size_t i = 0; i < joint_names.size(); ++i)
+  {
+    ROS_INFO("Joint %s: %f", joint_names[i].c_str(), joint_values[i]);
+  }
+
+  // kinematic_state->setToRandomPositions(joint_model_group);
+  const Eigen::Isometry3d& end_effector_state = current_state->getGlobalLinkTransform("end_effector_link");
 
   /* Print end-effector pose. Remember that this is in the model frame */
   ROS_INFO_STREAM("Translation: \n" << end_effector_state.translation() << "\n");
@@ -77,7 +94,11 @@ int main(int argc, char** argv)
 
   geometry_msgs::Pose target_pose3 = target_msg;
 
-  target_pose3.position.x += 0.1;
+  target_pose3.position.x -= 0.1;
+
+  // target_pose3.position.x = 0.409954;
+  // target_pose3.position.y = 0.199208;
+  // target_pose3.position.z = 0.292865;
   waypoints.push_back(target_pose3);  // down
 
   // moveit::planning_interface::MoveGroupInterface::Plan my_plan;
@@ -98,12 +119,12 @@ int main(int argc, char** argv)
   std::cout << "Time taken by function: "
         << duration.count() << " microseconds" << std::endl;
 
-  visual_tools.deleteAllMarkers();
-  visual_tools.publishText(text_pose, "Cartesian Path", rvt::WHITE, rvt::XLARGE);
-  visual_tools.publishPath(waypoints, rvt::LIME_GREEN, rvt::SMALL);
-  for (std::size_t i = 0; i < waypoints.size(); ++i)
-    visual_tools.publishAxisLabeled(waypoints[i], "pt" + std::to_string(i), rvt::SMALL);
-  visual_tools.trigger();
+  // visual_tools.deleteAllMarkers();
+  // visual_tools.publishText(text_pose, "Cartesian Path", rvt::WHITE, rvt::XLARGE);
+  // visual_tools.publishPath(waypoints, rvt::LIME_GREEN, rvt::SMALL);
+  // for (std::size_t i = 0; i < waypoints.size(); ++i)
+  //   visual_tools.publishAxisLabeled(waypoints[i], "pt" + std::to_string(i), rvt::SMALL);
+  // visual_tools.trigger();
 
   // ROS_INFO_NAMED("tutorial", "Visualizing plan 1 (pose goal) %s", success ? "" : "FAILED");
 
