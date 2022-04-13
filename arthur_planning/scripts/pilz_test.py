@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from multiprocessing.dummy import shutdown
 import ros
 import tf
 import sys
@@ -13,11 +14,14 @@ from math import pi
 from std_srvs.srv import Empty
 from moveit.core.kinematic_constraints import constructGoalConstraints
 from moveit_msgs.srv import GetMotionPlan
-from control_msgs.msg import FollowJointTrajectoryAction
+from control_msgs.msg import FollowJointTrajectoryActionGoal
 from control_msgs.msg import FollowJointTrajectoryGoal
 from arthur_planning.msg import arthur_traj
 from moveit_msgs.srv import GetPositionFK, GetPositionFKRequest, GetPositionFKResponse
 from geometry_msgs.msg import Point
+from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
+from kortex_driver.msg import Base_JointSpeeds, JointSpeed
+import copy
 # from arthur_planning.msg import 
 
 class arthur_trajectory(object):
@@ -51,7 +55,7 @@ class arthur_trajectory(object):
             self.planning_frame = self.arm_group.get_planning_frame()
             self.eef_frame = self.arm_group.get_end_effector_link()
             self.get_plan = rospy.ServiceProxy(rospy.get_namespace() + "plan_kinematic_path", GetMotionPlan)
-            self.execute_plan = actionlib.SimpleActionClient(rospy.get_namespace() + "gen3_joint_trajectory_controller/follow_joint_trajectory/command", FollowJointTrajectoryAction)
+            # self.execute_plan = actionlib.SimpleActionClient(rospy.get_namespace() + "gen3_joint_trajectory_controller/follow_joint_trajectory/command", FollowJointTrajectoryAction)
             
             print("execute plan server: ", rospy.get_namespace() + "base/play_cartesian_trajectory")
 
@@ -143,6 +147,7 @@ class arthur_trajectory(object):
         # point.positions.append(mp_res.trajectory.joint_trajectory.points[0].positions[:])
         # point.append(mp_res.trajectory.joint_trajectory.points[0].velocities[:])
         arthur.traj = mp_res.trajectory.joint_trajectory
+        # print("Trajectory result from MI: ", mp_res)
         # print(arthur.traj)
         # print((arthur.traj.points[-1].positions[:]))
         total_time = (end-start)
@@ -200,11 +205,15 @@ class arthur_trajectory(object):
         # print(arthur.cartesian_states.poses[1])
         # print(arthur.cartesian_vel[1])
 
-        
+        # goal = moveit_msgs.msg.ExecuteTrajectoryGoal(trajectory=mp_res.trajectory)
+        # self.execute_plan.send_goal(goal)
+        # rospy.loginfo("Send goal to the trajectory server successfully!")
+        # self.execute_plan.wait_for_result()
 
         
 
         # print("Message: ", arthur)
+        self.execute_trajectory(arthur)
         self.arthur_traj_pub(arthur)
 
         # joint_traj = mp_res.trajectory
@@ -275,6 +284,73 @@ class arthur_trajectory(object):
         return output
 
 
+    def execute_trajectory(self, arthur):
+        # controller_name = '/my_gen3/gen3_joint_trajectory_controller/follow_joint_trajectory/command/goal'
+        controller_name = '/my_gen3/in/joint_velocity'
+
+        # trajectory_pub = rospy.Publisher(controller_name, FollowJointTrajectoryActionGoal, queue_size = 10)
+        trajectory_pub = rospy.Publisher(controller_name, Base_JointSpeeds, queue_size = 10)
+
+        # print(arthur)
+        # print("Joint angles: ", arthur.traj.points[0].positions[:])
+        # print("Joint angles: ", arthur.traj.points[1].positions[:])
+        # print("Joint angles: ", arthur.traj.points[4].positions[:])
+        jtp_speeds = Base_JointSpeeds()
+        # jtp_speeds = Base_JointSpeeds()
+        # jtp.goal.trajectory = arthur.traj
+        # jtp.header.stamp = rospy.Time()
+        # jtp.header.frame_id = 'base_link'
+        # print(arthur.traj.points)
+        jtp_list = []
+        print("Publishing trajectory execution")
+
+
+        for i in range(len(arthur.traj.points)):
+            # jtp_speeds = Base_JointSpeeds()
+            for j in range(7):
+                jtp_speed = JointSpeed()
+                jtp_speed.joint_identifier = j
+                jtp_speed.value = arthur.traj.points[i].velocities[j]
+                jtp_speed.duration = 1
+                jtp_speeds.joint_speeds.append(copy.copy(jtp_speed))
+
+            print(jtp_speeds)
+        # while not rospy.is_shutdown():
+        #     trajectory_pub.publish(jtp_speeds)
+
+            # print("original value")
+            # print(jtp_speed)
+            # print("After append")
+            # jtp_list.append(copy.copy(jtp_speed))
+            # print(jtp_list)
+        
+        # trajectory_pub.publish(jtp_speeds)
+            
+        
+        # print(jtp_speed)
+        # print(jtp_list)
+        # print(jtp_speeds)
+
+
+            # jtp.joint_speeds = arthur.traj.points[i].velocities
+            # jtp.duration = 1
+            # print("Joint step ", i, "=", jtp)
+            # trajectory_pub.publish(jtp)
+        # jtp.joint_speeds = arthur.traj.points.velocities
+
+        # print(jtp)
+        
+        # trajectory_pub.publish(jtp)
+        print("Executed trajectory")
+
+        # for i in range(len(arthur.traj.points)):
+        #     jtp = JointTrajectory()
+        #     jtp.points[0].positions = arthur.traj.points[i].positions[:]
+        #     jtp.points[0].velocities = arthur.traj.points[i].velocities[:]
+        #     trajectory_pub.publish(jtp)
+
+
+
 def main():
   example = arthur_trajectory()
 
@@ -321,8 +397,9 @@ def main():
     actual_pose = example.get_cartesian_pose()
     actual_pose.position.z -= 0.0
     actual_pose.position.y += 0.0
-    actual_pose.position.x += 0.1
+    actual_pose.position.x -= 0.1
     success &= example.reach_cartesian_pose_pilz(pose=actual_pose, pos_tolerance=0.01, orientation_tolerance=0.005, constraints=None)
+    rospy.spin()
     print (success)
     
 #   if example.degrees_of_freedom == 7 and success:
