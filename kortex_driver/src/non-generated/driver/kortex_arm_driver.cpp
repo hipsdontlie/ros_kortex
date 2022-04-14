@@ -367,9 +367,11 @@ void KortexArmDriver::verifyProductConfiguration()
     // Compare gripper type (EndEffectorType)
     if (!isGripperPresent())
     {
+        std::cout << product_config.end_effector_type();
         if (product_config.end_effector_type() != Kinova::Api::ProductConfiguration::EndEffectorType::END_EFFECTOR_TYPE_NOT_INSTALLED)
         {
             std::string error_string = "The gripper model specified in the launch file doesn't match the detected arm's gripper model, shutting down the node...";
+            std::cout << "condition 1" << endl;
             ROS_ERROR("%s", error_string.c_str());
             throw new std::runtime_error(error_string);
         }
@@ -379,6 +381,7 @@ void KortexArmDriver::verifyProductConfiguration()
         if (product_config.end_effector_type() != Kinova::Api::ProductConfiguration::EndEffectorType::END_EFFECTOR_TYPE_ROBOTIQ_2F_85)
         {
             std::string error_string = "The gripper model specified in the launch file doesn't match the detected arm's gripper model, shutting down the node...";
+            std::cout << "condition 2" << endl; 
             ROS_ERROR("%s", error_string.c_str());
             throw new std::runtime_error(error_string);
         }
@@ -388,6 +391,7 @@ void KortexArmDriver::verifyProductConfiguration()
         if (product_config.end_effector_type() != Kinova::Api::ProductConfiguration::EndEffectorType::END_EFFECTOR_TYPE_ROBOTIQ_2F_140)
         {
             std::string error_string = "The gripper model specified in the launch file doesn't match the detected arm's gripper model, shutting down the node...";
+            std::cout << "condition 3" << endl; 
             ROS_ERROR("%s", error_string.c_str());
             throw new std::runtime_error(error_string);
         }
@@ -397,6 +401,7 @@ void KortexArmDriver::verifyProductConfiguration()
         if (product_config.end_effector_type() != Kinova::Api::ProductConfiguration::EndEffectorType::END_EFFECTOR_TYPE_L31_GRIPPER_2F)
         {
             std::string error_string = "The gripper model specified in the launch file doesn't match the detected arm's gripper model, shutting down the node...";
+            std::cout << "condition 4" << endl; 
             ROS_ERROR("%s", error_string.c_str());
             throw new std::runtime_error(error_string);
         }
@@ -404,6 +409,7 @@ void KortexArmDriver::verifyProductConfiguration()
     else 
     {
         std::string error_string = "The gripper model specified in the launch file is not supported, shutting down the node...";
+        std::cout << "condition 5" << endl;
         ROS_ERROR("%s", error_string.c_str());
         throw new std::runtime_error(error_string);
     }
