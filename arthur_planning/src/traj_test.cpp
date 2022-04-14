@@ -3,7 +3,7 @@
 
 int main(int argc, char **argv)
 {
-    ros::init(argc, argv, "arthur_pose_test");
+    ros::init(argc, argv, "traj_test");
     ros::NodeHandle node_handle;
     ros::AsyncSpinner spinner(1);
     spinner.start();
@@ -32,6 +32,7 @@ int main(int argc, char **argv)
     //setting waypoints
     std::vector<geometry_msgs::Pose> waypoints;
     robot_state::RobotState start_state(*move_group.getCurrentState());
+    ROS_INFO("%f ", start_state);
     geometry_msgs::Pose start_pose;
     start_pose.orientation.y = sqrt(2) / 2;
     start_pose.orientation.w = sqrt(2) / 2;

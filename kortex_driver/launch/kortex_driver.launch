@@ -10,8 +10,7 @@
 
     <!-- Gripper configuration -->
     <!-- Default gripper for Gen3 is none, default gripper for Gen3 lite is gen3_lite_2f -->
-    <arg name="gripper" default="robotiq_2f_85" if="$(eval arg('arm') == 'gen3')"/>
-    <!-- <arg name="gripper" default="" if="$(eval arg('arm') == 'gen3')"/> -->
+    <arg name="gripper" default="" if="$(eval arg('arm') == 'gen3')"/>
     <arg name="gripper" default="gen3_lite_2f" if="$(eval arg('arm') == 'gen3_lite')"/>
 
     <!-- Namespace -->
@@ -106,8 +105,12 @@
         </node>
         <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
 
+        <!-- Camera to base TF-->
+
+         <node pkg="tf" type="static_transform_publisher" name="camera_to_base_tf" args="1.1399239172849993 0.09023395891162761 1.0752958147809923 -0.6771339911698675 -0.5865924981227996 0.28394671963862866 0.3417207332821372 base_link camera 100"/> 
+
         <!-- Start RViz -->
-        <node name="rviz" pkg="rviz" type="rviz" output="log" args="-f base_link" if="$(arg start_rviz)"/> 
+        <node name="rviz" pkg="rviz" type="rviz" output="log" args="-d $(find kortex_driver)/rviz/visualization.rviz"  if="$(arg start_rviz)"/> 
 
         <!-- Tests -->
         <!-- Initialization test and custom functional tests -->

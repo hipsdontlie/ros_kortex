@@ -29,6 +29,7 @@
   <group ns="$(arg robot_description)_planning">
     <rosparam command="load" file="$(find gen3_robotiq_2f_85_move_it_config)/config/$(arg dof)dof/default_joint_limits.yaml" unless="$(arg use_hard_limits)" subst_value="true"/>
     <rosparam command="load" file="$(find gen3_robotiq_2f_85_move_it_config)/config/$(arg dof)dof/hard_joint_limits.yaml" if="$(arg use_hard_limits)" subst_value="true"/>
+    <rosparam command="load" file="$(find gen3_robotiq_2f_85_move_it_config)/config/$(arg dof)dof/cartesian_limits.yaml" />
   </group>
 
   <!-- Load default settings for kinematics; these settings are overridden by settings in a node's namespace -->

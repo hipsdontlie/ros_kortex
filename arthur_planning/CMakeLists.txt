@@ -24,6 +24,7 @@ geometry_msgs
 trajectory_msgs
 roscpp
 rospy
+eigen_conversions
 )
 
 ## System dependencies are found with CMake's conventions
@@ -44,12 +45,13 @@ generate_messages(
   moveit_msgs
   geometry_msgs
   trajectory_msgs
+  
 )
 
 catkin_package(
   # INCLUDE_DIRS include
   CATKIN_DEPENDS message_runtime rospy roscpp std_msgs geometry_msgs trajectory_msgs
-  LIBRARIES ${PROJECT_NAME}    # Added this line
+  # LIBRARIES ${PROJECT_NAME}    # Added this line
   moveit_core
   moveit_visual_tools
   moveit_ros_planning_interface
@@ -66,5 +68,8 @@ add_dependencies(trajectory_test arthur_planning_generate_messages_cpp ${catkin_
 
 add_executable(traj_test src/traj_test.cpp)
 target_link_libraries(traj_test ${catkin_LIBRARIES})
+
+add_executable(cpp_test src/cpp_test.cpp)
+target_link_libraries(cpp_test ${catkin_LIBRARIES})
 
 
