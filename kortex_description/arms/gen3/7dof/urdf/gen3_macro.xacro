@@ -305,7 +305,7 @@
     <link name="${prefix}ee_adapter_link">
       <inertial>
         <origin xyz="-9.3E-05 0.000132 -0.022905" rpy="0 0 0" />
-        <mass value="0.130" />
+        <mass value="1.100" />
         <inertia ixx="0.000214" ixy="0" ixz="1E-06" iyy="0.000223" iyz="-2E-06" izz="0.00024" />
       </inertial>
       <visual>
