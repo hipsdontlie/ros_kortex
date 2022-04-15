@@ -87,7 +87,7 @@ class arthur_trajectory(object):
 
         # Get the current pose and display it
         pose = arm_group.get_current_pose()
-        print(pose)
+        # print(pose)
         rospy.loginfo("Actual cartesian pose is : ")
         rospy.loginfo(pose.pose)
 
@@ -113,7 +113,7 @@ class arthur_trajectory(object):
     def reach_cartesian_pose_pilz(self, pose, pos_tolerance, orientation_tolerance, constraints):
         cartesian_path = True
         velocity_scaling = 0.1
-        acc_scaling = 0.1
+        acc_scaling = 0.02
         arm_group = self.arm_group
         plan_req = moveit_msgs.msg.MotionPlanRequest()
         plan_req.pipeline_id = "pilz_industrial_motion_planner"
@@ -128,6 +128,8 @@ class arthur_trajectory(object):
 
         constraints = constructGoalConstraints(
             self.eef_frame, mp_req_pose_goal, pos_tolerance, orientation_tolerance)
+        
+        print("End effector frame: ", self.eef_frame)
 
         plan_req.goal_constraints.append(constraints)
         plan_req.max_velocity_scaling_factor = velocity_scaling
@@ -157,6 +159,8 @@ class arthur_trajectory(object):
         for i in range(len(arthur.traj.points)):
             joint_angles = arthur.traj.points[i].positions[:]
             output = self.endEffector_pose(joint_angles)
+            if i==0:
+                print("End effector pose: ", output)
             velocity = Point()
             # arthur = arthur_traj.cartesian_vel
             if len(arthur.cartesian_states.poses)==0:
@@ -213,7 +217,7 @@ class arthur_trajectory(object):
         
 
         # print("Message: ", arthur)
-        self.execute_trajectory(arthur)
+        # self.execute_trajectory(arthur)
         self.arthur_traj_pub(arthur)
 
         # joint_traj = mp_res.trajectory
@@ -275,7 +279,7 @@ class arthur_trajectory(object):
         fk_request = GetPositionFKRequest()
         fk_request.header.frame_id = "base_link"
         # fk_request.header.stamp = rospy.Time.now()
-        fk_request.fk_link_names = ['end_effector_link']
+        fk_request.fk_link_names = ['tool_frame']
         fk_request.robot_state.joint_state.name = ['joint_1', 'joint_2', 'joint_3', 'joint_4', 'joint_5', 'joint_6', 'joint_7']
         fk_request.robot_state.joint_state.position = joint_angles
         
@@ -397,7 +401,7 @@ def main():
     actual_pose = example.get_cartesian_pose()
     actual_pose.position.z -= 0.0
     actual_pose.position.y += 0.0
-    actual_pose.position.x -= 0.1
+    actual_pose.position.x += 0.1
     success &= example.reach_cartesian_pose_pilz(pose=actual_pose, pos_tolerance=0.01, orientation_tolerance=0.005, constraints=None)
     rospy.spin()
     print (success)
