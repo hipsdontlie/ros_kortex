@@ -399,9 +399,12 @@ def main():
     rospy.loginfo("Reaching Cartesian Pose...")
     
     actual_pose = example.get_cartesian_pose()
-    actual_pose.position.z -= 0.0
-    actual_pose.position.y += 0.0
-    actual_pose.position.x += 0.1
+    # actual_pose.position.z = 0.218
+    # actual_pose.position.y = 0.742
+    # actual_pose.position.x = 0.036
+    actual_pose.position.z += 0.0
+    actual_pose.position.y -= 0.1
+    actual_pose.position.x += 0.0
     success &= example.reach_cartesian_pose_pilz(pose=actual_pose, pos_tolerance=0.01, orientation_tolerance=0.005, constraints=None)
     rospy.spin()
     print (success)
