@@ -31,7 +31,7 @@ class arthur_trajectory(object):
         # Initialize the node and moveit commander
         super(arthur_trajectory, self).__init__()
         moveit_commander.roscpp_initialize(sys.argv)
-        rospy.init_node('pilz_test')
+        # rospy.init_node('pilz_test')
         
 
         try:
@@ -114,7 +114,7 @@ class arthur_trajectory(object):
     def reach_cartesian_pose_pilz(self, pose, pos_tolerance, orientation_tolerance, constraints):
         cartesian_path = True
         velocity_scaling = 0.1
-        acc_scaling = 0.02
+        acc_scaling = 0.01
         arm_group = self.arm_group
         plan_req = moveit_msgs.msg.MotionPlanRequest()
         plan_req.pipeline_id = "pilz_industrial_motion_planner"
@@ -355,7 +355,9 @@ class arthur_trajectory(object):
         #     trajectory_pub.publish(jtp)
 
 def set_pose_callback(end_point, args):
+    rospy.loginfo("Entered set pose")
     example = args[0]
+    success = args[1]
     actual_pose = example.get_cartesian_pose()
     # actual_pose.position.z = 0.218
     # actual_pose.position.y = 0.742
@@ -363,19 +365,19 @@ def set_pose_callback(end_point, args):
     actual_pose.position.x = end_point.pose.position.x
     actual_pose.position.y = end_point.pose.position.y
     actual_pose.position.z = end_point.pose.position.z
-    success &= example.reach_cartesian_pose_pilz(pose=actual_pose, pos_tolerance=0.01, orientation_tolerance=0.005, constraints=None)
     rospy.loginfo("Going to plan trajectory")
+    success &= example.reach_cartesian_pose_pilz(pose=actual_pose, pos_tolerance=0.01, orientation_tolerance=0.005, constraints=None)
 
 
 def main():
-  example = arthur_trajectory()
+    example = arthur_trajectory()
 
   # For testing purposes
-  success = example.is_init_success
-  try:
-      rospy.delete_param("/kortex_examples_test_results/moveit_general_python")
-  except:
-      pass
+    success = example.is_init_success
+    try:
+        rospy.delete_param("/kortex_examples_test_results/moveit_general_python")
+    except:
+        pass
 
 #   if success:
 #     rospy.loginfo("Reaching Named Target Vertical...")
@@ -407,12 +409,14 @@ def main():
 #     success &= example.reach_cartesian_pose(pose=actual_pose, tolerance=0.01, constraints=None)
 #     print (success)
 
-  if success:
-    rospy.loginfo("Welcome to main :)")
-    rospy.Subscriber("reaming_end_pose", PoseStamped, set_pose_callback, (example))
+    if success:
+        rospy.loginfo("Welcome to main :)")
+        rospy.Subscriber("/reaming_end_point", PoseStamped, set_pose_callback, (example, success))
 
 
-    rospy.loginfo("Reaching Cartesian Pose...")
+        rospy.loginfo("Reaching Cartesian Pose...")
+        print (success)
+
     
     # actual_pose = example.get_cartesian_pose()
     # # actual_pose.position.z = 0.218
@@ -423,7 +427,6 @@ def main():
     # actual_pose.position.x += 0.0
     # success &= example.reach_cartesian_pose_pilz(pose=actual_pose, pos_tolerance=0.01, orientation_tolerance=0.005, constraints=None)
     rospy.spin()
-    print (success)
     
 #   if example.degrees_of_freedom == 7 and success:
 #     rospy.loginfo("Reach Cartesian Pose with constraints...")
@@ -450,10 +453,11 @@ def main():
 #     print (success)
 
   # For testing purposes
-  rospy.set_param("/kortex_examples_test_results/moveit_general_python", success)
+    rospy.set_param("/kortex_examples_test_results/moveit_general_python", success)
 
-  if not success:
-      rospy.logerr("The example encountered an error.")
+    if not success:
+        rospy.logerr("The example encountered an error.")
 
 if __name__ == '__main__':
-  main()
+    rospy.init_node('pilz_test')
+    main()

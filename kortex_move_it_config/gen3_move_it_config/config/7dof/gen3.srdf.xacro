@@ -20,7 +20,7 @@
         <joint name="joint_7"/>
         <joint name="ee_joint"/>
         <joint name="end_effector"/>
-        <joint name="tool_frame_joint"/>
+        <joint name="tool_tip_frame_joint"/>
     </group>
     <!-- <group name="reamer">
         <joint name="ee_joint"/>
