@@ -29,7 +29,9 @@ catkin_package(
   DEPENDS
 )
 
-
+catkin_install_python(PROGRAMS wrench_control/scripts/ftsensor_listener.py
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
 
 # Install
 foreach(dir arms grippers)
