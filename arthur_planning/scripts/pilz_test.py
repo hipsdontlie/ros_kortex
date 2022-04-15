@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from doctest import Example
 from multiprocessing.dummy import shutdown
 import ros
 import tf
@@ -18,7 +19,7 @@ from control_msgs.msg import FollowJointTrajectoryActionGoal
 from control_msgs.msg import FollowJointTrajectoryGoal
 from arthur_planning.msg import arthur_traj
 from moveit_msgs.srv import GetPositionFK, GetPositionFKRequest, GetPositionFKResponse
-from geometry_msgs.msg import Point
+from geometry_msgs.msg import Point, PoseStamped
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 from kortex_driver.msg import Base_JointSpeeds, JointSpeed
 import copy
@@ -353,6 +354,17 @@ class arthur_trajectory(object):
         #     jtp.points[0].velocities = arthur.traj.points[i].velocities[:]
         #     trajectory_pub.publish(jtp)
 
+def set_pose_callback(end_point, args):
+    example = args[0]
+    actual_pose = example.get_cartesian_pose()
+    # actual_pose.position.z = 0.218
+    # actual_pose.position.y = 0.742
+    # actual_pose.position.x = 0.036
+    actual_pose.position.x = end_point.pose.position.x
+    actual_pose.position.y = end_point.pose.position.y
+    actual_pose.position.z = end_point.pose.position.z
+    success &= example.reach_cartesian_pose_pilz(pose=actual_pose, pos_tolerance=0.01, orientation_tolerance=0.005, constraints=None)
+    rospy.loginfo("Going to plan trajectory")
 
 
 def main():
@@ -396,16 +408,20 @@ def main():
 #     print (success)
 
   if success:
+    rospy.loginfo("Welcome to main :)")
+    rospy.Subscriber("reaming_end_pose", PoseStamped, set_pose_callback, (example))
+
+
     rospy.loginfo("Reaching Cartesian Pose...")
     
-    actual_pose = example.get_cartesian_pose()
-    # actual_pose.position.z = 0.218
-    # actual_pose.position.y = 0.742
-    # actual_pose.position.x = 0.036
-    actual_pose.position.z += 0.0
-    actual_pose.position.y -= 0.1
-    actual_pose.position.x += 0.0
-    success &= example.reach_cartesian_pose_pilz(pose=actual_pose, pos_tolerance=0.01, orientation_tolerance=0.005, constraints=None)
+    # actual_pose = example.get_cartesian_pose()
+    # # actual_pose.position.z = 0.218
+    # # actual_pose.position.y = 0.742
+    # # actual_pose.position.x = 0.036
+    # actual_pose.position.z += 0.0
+    # actual_pose.position.y -= 0.1
+    # actual_pose.position.x += 0.0
+    # success &= example.reach_cartesian_pose_pilz(pose=actual_pose, pos_tolerance=0.01, orientation_tolerance=0.005, constraints=None)
     rospy.spin()
     print (success)
     
