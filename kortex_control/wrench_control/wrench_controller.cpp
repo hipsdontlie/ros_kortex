@@ -126,7 +126,8 @@ void tfCallback(const geometry_msgs::Transform::ConstPtr &msg, double xyzrpy[6],
     pose[2] = (*msg).translation.z;
     tf::Quaternion q = tf::Quaternion((*msg).rotation.x, (*msg).rotation.y, (*msg).rotation.z, (*msg).rotation.w);
     // save orientation as rotation matrix for rotating torques later
-    (*rot) = tf::Matrix3x3(q);
+    (*rot) = tf::Matrix3x3(q).inverse();
+    // ROS_INFO("\n%f, %f, %f;\n %f, %f, %f;\n %f, %f, %f", (*rot)[0][0], (*rot)[0][1], (*rot)[0][2], (*rot)[1][0], (*rot)[1][1], (*rot)[1][2], (*rot)[2][0], (*rot)[2][1], (*rot)[2][2]);
     (*rot).getRPY(pose[4], pose[5], pose[6]);
 
     // calculate velocities
@@ -175,7 +176,7 @@ void trajCallback(const arthur_planning::arthur_traj::ConstPtr &msg, std::vector
             a[1] = (*msg).cartesian_states.poses[i].position.y;
             a[2] = (*msg).cartesian_states.poses[i].position.z;
             tf::Quaternion q = tf::Quaternion((*msg).cartesian_states.poses[i].orientation.x, (*msg).cartesian_states.poses[i].orientation.y, (*msg).cartesian_states.poses[i].orientation.z, (*msg).cartesian_states.poses[i].orientation.w);
-            (*desRot).push_back(tf::Matrix3x3(q));
+            (*desRot).push_back(tf::Matrix3x3(q).inverse());
             (*desRot).back().getRPY(a[4], a[5], a[6]);
             (*traj).push_back(a);
         }
@@ -233,17 +234,18 @@ void calculateDX(double dx[6], const std::array<double, 6> x1, const double x2[6
         dx[i] = x1[i] - x2[i];
     }
 
-    tf::Matrix3x3 transRot = desiredRot * currentRot.inverse();
+    tf::Matrix3x3 transRot = currentRot * desiredRot.inverse();
     transRot.getRPY(dx[3], dx[4], dx[5]);
 }
 
-void calculateFullWrench(float wrench[6], const double Kp[6], const double Kd[6], const tf::Matrix3x3 rot, const double dx[6], const double velocities[6], const float maxForce, const float maxTorque)
+void calculateFullWrench(float wrench[6], const double Kp[6], const double Ki[6], const double Kd[6], const tf::Matrix3x3 rot, const double dx[6], const double velocities[6], double accumError[6], ros::Time *time, const float maxForce, const float maxTorque)
 {
     // Calculate wrenches using PD control
     // Wrenches will be in base_link frame
+    
     for (int i = 0; i < 3; i++)
     {
-        wrench[i] = Kp[i] * dx[i] - Kd[i] * velocities[i];
+        wrench[i] = Kp[i] * dx[i] + Ki[i]*accumError[i] - Kd[i] * velocities[i];
     }
 
     double rototatedAngVel[3] = {0.0};
@@ -254,9 +256,18 @@ void calculateFullWrench(float wrench[6], const double Kp[6], const double Kd[6]
             rototatedAngVel[i] += rot[i][j] * velocities[j + 3];
         }
     }
-    for (int i = 3; i <6 ; i++)
+    ROS_INFO("Ang Vel: %f, %f, %f", rototatedAngVel[0], rototatedAngVel[1], rototatedAngVel[2]);
+    for (int i = 3; i < 6 ; i++)
     {
-        wrench[i] = Kp[i] * dx[i] - Kd[i] * rototatedAngVel[i-3];
+        wrench[i] = Kp[i] * dx[i] + Ki[i]*accumError[i] - Kd[i] * rototatedAngVel[i-3];
+    }
+
+    ros::Duration elapsed = ros::Time::now() - (*time);
+    double dt = elapsed.toSec();
+
+    for (int i = 0; i < 6; i++) {
+        accumError[i] += dx[i]*dt;
+        
     }
     // ROS_INFO("PD Wrenches: %f %f %f %f %f %f", wrench[0], wrench[1], wrench[2], wrench[3], wrench[4], wrench[5]);
     // Rotate torques to be in tool frame
@@ -291,6 +302,7 @@ void calculateFullWrench(float wrench[6], const double Kp[6], const double Kd[6]
             wrench[i] = maxTorque * wrench[i] / norms[1];
         }
     }
+    (*time) = ros::Time::now();
 }
 
 void calculateZWrench(float wrench[6], const double Kp[6], const double Kd[6], const double dx[6], const double velocities[6], const float maxForce)
@@ -324,14 +336,16 @@ int main(int argc, char **argv)
 
     ros::NodeHandle node;
     
-    double controller_rate = 10.0; // Rate of ros node pubsub
+    double controller_rate = 20.0; // Rate of ros node pubsub
 
     double xyzrpy[6] = {NAN};            // xyzrpy holds the ee frame pose wrt base_link frame
     tf::Matrix3x3 currentRot = tf::Matrix3x3(); // holds the rotation matrix from base_link to ee frame
     std::vector<tf::Matrix3x3> desiredRots;
     // tf::Quaternion q = tf::Quaternion();
     double velocities[6] = {NAN};        // holds the lin and ang velocities of ee frame wrt base_link frame
+    double accumError[6] = {0};
     ros::Time time = ros::Time::now();   // records the current time to be used when calculating dt for velocities
+    ros::Time time2 = ros::Time::now();
 
     std::vector<std::array<double, 6>> traj; // holds the trajectory information
     int current_waypoint = -1;               // has the current waypoint
@@ -345,12 +359,12 @@ int main(int argc, char **argv)
     int mode = 1;
 
     // Kp and Kd constants for PD control
-    const double Kp[6] = {500, 500, 500, 0, 0, 0};
+    const double Kp[6] = {500, 500, 500, 250, 250, 250};
     const double Ki[6] = {0, 0, 0, 0, 0, 0};
     const double Kd[6] = {350, 350, 350, 0, 0, 0};
     // Max F/T in N or Nm to apply
-    const float maxForce = 15.0;
-    const float maxTorque = 5.0;
+    const float maxForce = 18.0;
+    const float maxTorque = 8.0;
 
     
 
@@ -366,7 +380,7 @@ int main(int argc, char **argv)
     {
         // wrench to send; [force_x, force_y, force_z, torque_x, torque_y, torque_z]
         float wrench[6] = {0};
-        current_waypoint = traj.size()-1;
+        // current_waypoint = traj.size()-1;
         // ROS_INFO("Traj Length: %li", traj.size());
         ROS_INFO("Current Waypoint: %d", current_waypoint);
         // Don't modify wrench if trajectory and ee frame aren't detected
@@ -376,7 +390,7 @@ int main(int argc, char **argv)
             // We align orientation and position for first waypoint (waypoint = 0)
             // Then we just ream along tool-frame z-axis (waypoint > 0)
             // if (current_waypoint == 0)
-            if (current_waypoint == traj.size()-1)
+            if (true)
             {
                 // To align our ee, we use frame 1 (trans about base, rot about ee)
                 frame = 1;
@@ -402,7 +416,8 @@ int main(int argc, char **argv)
                 }
 
                 // Calculate the wrench vector (forces to translate in base_link frame, torques to orient in ee frame)
-                calculateFullWrench(wrench, Kp, Kd, currentRot, dx, velocities, maxForce, maxTorque);
+                calculateFullWrench(wrench, Kp, Ki, Kd, currentRot, dx, velocities, accumError, &time2, maxForce, maxTorque);
+                // ROS_INFO("Wrench Command: %f %f %f %f %f %f", wrench[0], wrench[1], wrench[2], wrench[3], wrench[4], wrench[5]);
             }
             // else if (current_waypoint > 0)
             // {

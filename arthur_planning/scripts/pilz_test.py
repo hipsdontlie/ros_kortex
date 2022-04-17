@@ -114,7 +114,7 @@ class arthur_trajectory(object):
     def reach_cartesian_pose_pilz(self, pose, pos_tolerance, orientation_tolerance, constraints):
         cartesian_path = True
         velocity_scaling = 0.1
-        acc_scaling = 0.01
+        acc_scaling = 0.4
         arm_group = self.arm_group
         plan_req = moveit_msgs.msg.MotionPlanRequest()
         plan_req.pipeline_id = "pilz_industrial_motion_planner"
@@ -139,6 +139,8 @@ class arthur_trajectory(object):
         start = time.time()
         mp_res = self.get_plan(plan_req).motion_plan_response
         end = time.time()
+        total_time = (end-start)
+        print("Time for execution: ", total_time)
 
         arthur = arthur_traj()
         
@@ -153,8 +155,6 @@ class arthur_trajectory(object):
         # print("Trajectory result from MI: ", mp_res)
         # print(arthur.traj)
         # print((arthur.traj.points[-1].positions[:]))
-        total_time = (end-start)
-        print("Time for execution: ", total_time)
         
 
         for i in range(len(arthur.traj.points)):
@@ -354,19 +354,32 @@ class arthur_trajectory(object):
         #     jtp.points[0].velocities = arthur.traj.points[i].velocities[:]
         #     trajectory_pub.publish(jtp)
 
-def set_pose_callback(end_point, args):
-    rospy.loginfo("Entered set pose")
-    example = args[0]
-    success = args[1]
-    actual_pose = example.get_cartesian_pose()
-    # actual_pose.position.z = 0.218
-    # actual_pose.position.y = 0.742
-    # actual_pose.position.x = 0.036
-    actual_pose.position.x = end_point.pose.position.x
-    actual_pose.position.y = end_point.pose.position.y
-    actual_pose.position.z = end_point.pose.position.z
-    rospy.loginfo("Going to plan trajectory")
-    success &= example.reach_cartesian_pose_pilz(pose=actual_pose, pos_tolerance=0.01, orientation_tolerance=0.005, constraints=None)
+    def set_pose_callback(self, end_point, args):
+        rospy.loginfo("Entered set pose")
+        example = args[0]
+        success = args[1]
+        actual_pose = example.get_cartesian_pose()
+        self.reaming_end_point = end_point
+        # actual_pose.position.z = 0.218
+        # actual_pose.position.y = 0.742
+        # actual_pose.position.x = 0.036
+        actual_pose.position.x = self.reaming_end_point.pose.position.x
+        actual_pose.position.y = self.reaming_end_point.pose.position.y
+        actual_pose.position.z = self.reaming_end_point.pose.position.z
+        rospy.loginfo("Going to plan trajectory")
+        success &= example.reach_cartesian_pose_pilz(pose=actual_pose, pos_tolerance=0.01, orientation_tolerance=0.005, constraints=None)
+
+    # def error_callback(self, error, args):
+    #     self.error = error
+
+    #     if self.error==True:
+    #         example = args[0]
+    #         success = args[1]
+    #         success &= example.reach_cartesian_pose_pilz(pose=actual_pose, pos_tolerance=0.01, orientation_tolerance=0.005, constraints=None)
+            
+
+
+
 
 
 def main():
@@ -411,7 +424,14 @@ def main():
 
     if success:
         rospy.loginfo("Welcome to main :)")
-        rospy.Subscriber("/reaming_end_point", PoseStamped, set_pose_callback, (example, success))
+        # rospy.Subscriber("/reaming_end_point", PoseStamped, set_pose_callback, (example, success))
+        # rospy.Subscriber("error", Pose, callback)
+        actual_pose = example.get_cartesian_pose()  
+        actual_pose.position.z += 0.05
+        actual_pose.position.y -= 0.1
+        actual_pose.position.x += 0.05
+        success &= example.reach_cartesian_pose_pilz(pose=actual_pose, pos_tolerance=0.01, orientation_tolerance=0.005, constraints=None)
+
 
 
         rospy.loginfo("Reaching Cartesian Pose...")
