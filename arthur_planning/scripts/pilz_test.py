@@ -143,6 +143,8 @@ class arthur_trajectory(object):
         print("Time for execution: ", total_time)
 
         arthur = arthur_traj()
+        if self.error_pose==True:
+            arthur.trajNum +=1
         
         # arthur.traj.points.resize(2)
         # print(mp_res.trajectory.joint_trajectory.points[0].positions[:])
@@ -363,19 +365,25 @@ class arthur_trajectory(object):
         # actual_pose.position.z = 0.218
         # actual_pose.position.y = 0.742
         # actual_pose.position.x = 0.036
-        actual_pose.position.x = self.reaming_end_point.pose.position.x
-        actual_pose.position.y = self.reaming_end_point.pose.position.y
-        actual_pose.position.z = self.reaming_end_point.pose.position.z
-        rospy.loginfo("Going to plan trajectory")
-        success &= example.reach_cartesian_pose_pilz(pose=actual_pose, pos_tolerance=0.01, orientation_tolerance=0.005, constraints=None)
+        if self.error_pose==False:
+            actual_pose.position.x = self.reaming_end_point.pose.position.x
+            actual_pose.position.y = self.reaming_end_point.pose.position.y
+            actual_pose.position.z = self.reaming_end_point.pose.position.z
+            rospy.loginfo("Going to plan trajectory")
+            success &= example.reach_cartesian_pose_pilz(pose=actual_pose, pos_tolerance=0.01, orientation_tolerance=0.005, constraints=None)
 
-    # def error_callback(self, error, args):
-    #     self.error = error
+    def error_callback(self, error, args):
+        self.error_pose = error
 
-    #     if self.error==True:
-    #         example = args[0]
-    #         success = args[1]
-    #         success &= example.reach_cartesian_pose_pilz(pose=actual_pose, pos_tolerance=0.01, orientation_tolerance=0.005, constraints=None)
+        if self.error_pose==True:
+            self.new_end_point = self.reaming_end_point
+            example = args[0]
+            success = args[1]
+            actual_pose = example.get_cartesian_pose()
+            actual_pose.position.x = self.reaming_end_point.pose.position.x
+            actual_pose.position.y = self.reaming_end_point.pose.position.y
+            actual_pose.position.z = self.reaming_end_point.pose.position.z
+            success &= example.reach_cartesian_pose_pilz(pose=actual_pose, pos_tolerance=0.01, orientation_tolerance=0.005, constraints=None)
             
 
 
