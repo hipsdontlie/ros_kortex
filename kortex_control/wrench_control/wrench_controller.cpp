@@ -238,7 +238,7 @@ void calculateDX(double dx[6], const std::array<double, 6> x1, const double x2[6
     transRot.getRPY(dx[3], dx[4], dx[5]);
 }
 
-void calculateFullWrench(float wrench[6], const double Kp[6], const double Ki[6], const double Kd[6], const tf::Matrix3x3 rot, const double dx[6], const double velocities[6], double accumError[6], ros::Time *time, const float maxForce, const float maxTorque)
+void calculateFullWrench(float wrench[6], const float Kp[6], const float Ki[6], const float Kd[6], const tf::Matrix3x3 rot, const double dx[6], const double velocities[6], float accumError[6], ros::Time *time, const float maxForce, const float maxTorque)
 {
     // Calculate wrenches using PD control
     // Wrenches will be in base_link frame
@@ -267,7 +267,11 @@ void calculateFullWrench(float wrench[6], const double Kp[6], const double Ki[6]
 
     for (int i = 0; i < 6; i++) {
         accumError[i] += dx[i]*dt;
-        
+        if (i < 3) {
+            accumError[i] = std::max(-1*maxForce/Ki[i], std::min(maxForce/Ki[i], accumError[i]));
+        } else {
+            accumError[i] = std::max(-1*maxTorque/Ki[i], std::min(maxTorque/Ki[i], accumError[i]));
+        }
     }
     // ROS_INFO("PD Wrenches: %f %f %f %f %f %f", wrench[0], wrench[1], wrench[2], wrench[3], wrench[4], wrench[5]);
     // Rotate torques to be in tool frame
@@ -305,7 +309,7 @@ void calculateFullWrench(float wrench[6], const double Kp[6], const double Ki[6]
     (*time) = ros::Time::now();
 }
 
-void calculateZWrench(float wrench[6], const double Kp[6], const double Kd[6], const double dx[6], const double velocities[6], const float maxForce)
+void calculateZWrench(float wrench[6], const float Kp[6], const float Kd[6], const double dx[6], const double velocities[6], const float maxForce)
 {
     // Calculate wrenches using PD control
     // Wrenches will be in ee frame
@@ -343,7 +347,7 @@ int main(int argc, char **argv)
     std::vector<tf::Matrix3x3> desiredRots;
     // tf::Quaternion q = tf::Quaternion();
     double velocities[6] = {NAN};        // holds the lin and ang velocities of ee frame wrt base_link frame
-    double accumError[6] = {0};
+    float accumError[6] = {0};
     ros::Time time = ros::Time::now();   // records the current time to be used when calculating dt for velocities
     ros::Time time2 = ros::Time::now();
 
@@ -359,9 +363,9 @@ int main(int argc, char **argv)
     int mode = 1;
 
     // Kp and Kd constants for PD control
-    const double Kp[6] = {500, 500, 500, 250, 250, 250};
-    const double Ki[6] = {0, 0, 0, 0, 0, 0};
-    const double Kd[6] = {350, 350, 350, 0, 0, 0};
+    const float Kp[6] = {300, 300, 300, 150, 150, 150};
+    const float Ki[6] = {300, 300, 300, 50, 50, 50};
+    const float Kd[6] = {350, 350, 350, 0, 0, 0};
     // Max F/T in N or Nm to apply
     const float maxForce = 18.0;
     const float maxTorque = 8.0;
@@ -382,7 +386,7 @@ int main(int argc, char **argv)
         float wrench[6] = {0};
         // current_waypoint = traj.size()-1;
         // ROS_INFO("Traj Length: %li", traj.size());
-        ROS_INFO("Current Waypoint: %d", current_waypoint);
+        ROS_INFO("Current Waypoint: %d out of %li", current_waypoint, traj.size());
         // Don't modify wrench if trajectory and ee frame aren't detected
         if (traj.size() > 0 && !isnan(xyzrpy[0]) && !isnan(velocities[0]))
         {
@@ -409,9 +413,18 @@ int main(int argc, char **argv)
                 // ROS_INFO("dx_norms: %f, %f", norms[0], norms[1]);
 
                 // if the error in translation and orientation are both small, set next waypoint
-                if (norms[0] < 2e-3 && norms[1] < 2e-2)
+                if (norms[0] < 1e-3) {
+                    for (int i = 0; i < 3; i++) {
+                        accumError[i] = 0;
+                    }
+                }
+                if (norms[1] < 1e-2) {
+                    for (int i = 3; i < 6; i++) {
+                        accumError[i] = 0;
+                    }
+                }
+                if (norms[0] < 1e-3 && norms[1] < 1e-2)
                 {
-                    //TODO: Add integral windup prevention
                     current_waypoint = std::max(0, std::min(current_waypoint + 1, (int)traj.size() - 1));
                 }
 
