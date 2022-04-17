@@ -143,7 +143,7 @@ class arthur_trajectory(object):
         print("Time for execution: ", total_time)
 
         arthur = arthur_traj()
-        if self.error_pose==True:
+        if self.error_bool==True:
             arthur.trajNum +=1
         
         # arthur.traj.points.resize(2)
@@ -357,25 +357,34 @@ class arthur_trajectory(object):
         #     trajectory_pub.publish(jtp)
 
     def set_pose_callback(self, end_point, args):
-        rospy.loginfo("Entered set pose")
+        # rospy.loginfo("Entered set pose")
         example = args[0]
         success = args[1]
         actual_pose = example.get_cartesian_pose()
         self.reaming_end_point = end_point
-        # actual_pose.position.z = 0.218
-        # actual_pose.position.y = 0.742
-        # actual_pose.position.x = 0.036
-        if self.error_pose==False:
+        self.planned = False
+        # actual_pose.position.z += 0.0
+        # actual_pose.position.y += 0.0
+        # actual_pose.position.x += 0.1
+        # rospy.loginfo("In set pose Error present: %s", self.error_pose)
+        if self.error_bool.data is False and self.planned is False:
+            rospy.loginfo("In set pose callback")
             actual_pose.position.x = self.reaming_end_point.pose.position.x
             actual_pose.position.y = self.reaming_end_point.pose.position.y
             actual_pose.position.z = self.reaming_end_point.pose.position.z
             rospy.loginfo("Going to plan trajectory")
             success &= example.reach_cartesian_pose_pilz(pose=actual_pose, pos_tolerance=0.01, orientation_tolerance=0.005, constraints=None)
+            self.planned = True
 
     def error_callback(self, error, args):
-        self.error_pose = error
+        self.error_bool = error
+        # rospy.loginfo("Error present: %s", self.error_bool)
+        # if self.error_bool.data is True:
+        #     self.planned = False
+        #     rospy.loginfo("Planned changed to false in DC")
 
-        if self.error_pose==True:
+        if self.error_bool.data is True:  #and self.planned is False:
+            rospy.loginfo("In dynamic compensation")
             self.new_end_point = self.reaming_end_point
             example = args[0]
             success = args[1]
@@ -384,6 +393,7 @@ class arthur_trajectory(object):
             actual_pose.position.y = self.reaming_end_point.pose.position.y
             actual_pose.position.z = self.reaming_end_point.pose.position.z
             success &= example.reach_cartesian_pose_pilz(pose=actual_pose, pos_tolerance=0.01, orientation_tolerance=0.005, constraints=None)
+            # self.planned = True
             
 
 
@@ -432,13 +442,13 @@ def main():
 
     if success:
         rospy.loginfo("Welcome to main :)")
-        # rospy.Subscriber("/reaming_end_point", PoseStamped, set_pose_callback, (example, success))
-        # rospy.Subscriber("error", Pose, callback)
-        actual_pose = example.get_cartesian_pose()  
-        actual_pose.position.z += 0.05
-        actual_pose.position.y -= 0.1
-        actual_pose.position.x += 0.05
-        success &= example.reach_cartesian_pose_pilz(pose=actual_pose, pos_tolerance=0.01, orientation_tolerance=0.005, constraints=None)
+        rospy.Subscriber("/pelvis_error", std_msgs.msg.Bool, example.error_callback, (example, success))
+        rospy.Subscriber("/reaming_end_point", PoseStamped, example.set_pose_callback, (example, success))
+        # actual_pose = example.get_cartesian_pose()  
+        # actual_pose.position.z += 0.05
+        # actual_pose.position.y -= 0.1
+        # actual_pose.position.x += 0.05
+        # success &= example.reach_cartesian_pose_pilz(pose=actual_pose, pos_tolerance=0.01, orientation_tolerance=0.005, constraints=None)
 
 
 
