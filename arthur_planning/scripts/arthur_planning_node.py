@@ -41,6 +41,7 @@ class arthur_trajectory(object):
                 self.gripper_joint_name = ""
             self.degrees_of_freedom = rospy.get_param(rospy.get_namespace() + "degrees_of_freedom", 7)
         
+            self.planned = None
             arm_group_name = "arm"
             self.robot = moveit_commander.RobotCommander("robot_description")
             self.scene = moveit_commander.PlanningSceneInterface(ns=rospy.get_namespace())
@@ -144,9 +145,10 @@ class arthur_trajectory(object):
         if self.planned is True:
             arthur.trajNum +=1
         
+        #copying joint states to arthur.traj
         arthur.traj = mp_res.trajectory.joint_trajectory
         
-
+        #populating arthur msg with cartesian states
         for i in range(len(arthur.traj.points)):
             joint_angles = arthur.traj.points[i].positions[:]
             output = self.endEffector_pose(joint_angles)
@@ -181,6 +183,7 @@ class arthur_trajectory(object):
 
         return True
 
+#arthur msg publisher
     def arthur_traj_pub(self, arthur):
         pub = rospy.Publisher('arthur_traj', arthur_traj, queue_size=10)
         rate = rospy.Rate(10) # 10hz
@@ -190,6 +193,7 @@ class arthur_trajectory(object):
             pub.publish(arthur)
             rate.sleep()
 
+#calculating end-effector pose using FK
     def endEffector_pose(self, joint_angles):
 
         compute_fk_srv = rospy.ServiceProxy("/my_gen3/compute_fk", GetPositionFK)
@@ -206,7 +210,7 @@ class arthur_trajectory(object):
 
         return output
 
-
+#trajectory following using joint velocities (not used)
     def execute_trajectory(self, arthur):
         # controller_name = '/my_gen3/gen3_joint_trajectory_controller/follow_joint_trajectory/command/goal'
         controller_name = '/my_gen3/in/joint_velocity'
