@@ -1,6 +1,4 @@
 #!/usr/bin/env python3
-from doctest import Example
-from multiprocessing.dummy import shutdown
 import ros
 import tf
 import sys
@@ -143,18 +141,10 @@ class arthur_trajectory(object):
         print("Time for execution: ", total_time)
 
         arthur = arthur_traj()
+        if self.planned is True:
+            arthur.trajNum +=1
         
-        # arthur.traj.points.resize(2)
-        # print(mp_res.trajectory.joint_trajectory.points[0].positions[:])
-        # print(type([mp_res.trajectory.joint_trajectory.points[0].positions[:]]))
-
-        # point = arthur.traj.points
-        # point.positions.append(mp_res.trajectory.joint_trajectory.points[0].positions[:])
-        # point.append(mp_res.trajectory.joint_trajectory.points[0].velocities[:])
         arthur.traj = mp_res.trajectory.joint_trajectory
-        # print("Trajectory result from MI: ", mp_res)
-        # print(arthur.traj)
-        # print((arthur.traj.points[-1].positions[:]))
         
 
         for i in range(len(arthur.traj.points)):
@@ -355,27 +345,46 @@ class arthur_trajectory(object):
         #     trajectory_pub.publish(jtp)
 
     def set_pose_callback(self, end_point, args):
-        rospy.loginfo("Entered set pose")
+        # rospy.loginfo("Entered set pose")
         example = args[0]
         success = args[1]
         actual_pose = example.get_cartesian_pose()
         self.reaming_end_point = end_point
-        # actual_pose.position.z = 0.218
-        # actual_pose.position.y = 0.742
-        # actual_pose.position.x = 0.036
-        actual_pose.position.x = self.reaming_end_point.pose.position.x
-        actual_pose.position.y = self.reaming_end_point.pose.position.y
-        actual_pose.position.z = self.reaming_end_point.pose.position.z
-        rospy.loginfo("Going to plan trajectory")
-        success &= example.reach_cartesian_pose_pilz(pose=actual_pose, pos_tolerance=0.01, orientation_tolerance=0.005, constraints=None)
+        # self.planned = False
+        # actual_pose.position.z += 0.0
+        # actual_pose.position.y += 0.0
+        # actual_pose.position.x += 0.1
+        # rospy.loginfo("In set pose Error present: %s", self.error_pose)
+        if self.planned is True:
+            rospy.loginfo("In set pose callback")
+            actual_pose.position.x = self.reaming_end_point.pose.position.x
+            actual_pose.position.y = self.reaming_end_point.pose.position.y
+            actual_pose.position.z = self.reaming_end_point.pose.position.z
+            rospy.loginfo("Going to plan trajectory")
+            success &= example.reach_cartesian_pose_pilz(pose=actual_pose, pos_tolerance=0.01, orientation_tolerance=0.005, constraints=None)
+            self.planned = False
 
     # def error_callback(self, error, args):
-    #     self.error = error
+    #     self.error_bool = error
+    #     # rospy.loginfo("Error present: %s", self.error_bool)
+    #     # if self.error_bool.data is True:
+    #     #     self.planned = False
+    #     #     rospy.loginfo("Planned changed to false in DC")
 
-    #     if self.error==True:
+    #     if self.error_bool.data is True:  #and self.planned is False:
+    #         rospy.loginfo("In dynamic compensation")
+    #         self.new_end_point = self.reaming_end_point
     #         example = args[0]
     #         success = args[1]
+    #         actual_pose = example.get_cartesian_pose()
+    #         actual_pose.position.x = self.reaming_end_point.pose.position.x
+    #         actual_pose.position.y = self.reaming_end_point.pose.position.y
+    #         actual_pose.position.z = self.reaming_end_point.pose.position.z
     #         success &= example.reach_cartesian_pose_pilz(pose=actual_pose, pos_tolerance=0.01, orientation_tolerance=0.005, constraints=None)
+    #         # self.planned = True
+
+    def start_planning_callback(self, data):
+        self.planned = data.data
             
 
 
@@ -424,13 +433,14 @@ def main():
 
     if success:
         rospy.loginfo("Welcome to main :)")
-        # rospy.Subscriber("/reaming_end_point", PoseStamped, set_pose_callback, (example, success))
-        # rospy.Subscriber("error", Pose, callback)
-        actual_pose = example.get_cartesian_pose()  
-        actual_pose.position.z += 0.05
-        actual_pose.position.y -= 0.1
-        actual_pose.position.x += 0.05
-        success &= example.reach_cartesian_pose_pilz(pose=actual_pose, pos_tolerance=0.01, orientation_tolerance=0.005, constraints=None)
+        rospy.Subscriber("/pelvis_error", std_msgs.msg.Bool, example.error_callback, (example, success))
+        rospy.Subscriber("/start_planning", std_msgs.msg.Bool, example.start_planning_callback, queue_size=10)
+        rospy.Subscriber("/reaming_end_point", PoseStamped, example.set_pose_callback, (example, success))
+        # actual_pose = example.get_cartesian_pose()  
+        # actual_pose.position.z += 0.05
+        # actual_pose.position.y -= 0.1
+        # actual_pose.position.x += 0.05
+        # success &= example.reach_cartesian_pose_pilz(pose=actual_pose, pos_tolerance=0.01, orientation_tolerance=0.005, constraints=None)
 
 
 
