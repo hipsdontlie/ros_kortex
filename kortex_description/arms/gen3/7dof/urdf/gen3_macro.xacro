@@ -432,7 +432,7 @@
     <joint
       name="${prefix}end_effector"
       type="fixed">
-      <origin xyz="0 0 0.29990848" rpy="0 0 0" />
+      <origin xyz="0 0 0" rpy="0 0 0" />
       <parent
         link="${prefix}ee_adapter_link" />
       <child
@@ -440,7 +440,7 @@
       <axis
         xyz="0 0 0" />
     </joint>
- 
+ <!-- 0.29990848 -->
      <!-- <joint
       name="${prefix}reamer_link"
       type="fixed">

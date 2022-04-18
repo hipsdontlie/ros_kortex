@@ -1,7 +1,10 @@
 #include <ros/ros.h>
 #include <tf/transform_listener.h>
 #include <geometry_msgs/Transform.h>
+#include <geometry_msgs/PoseStamped.h>
 #include <arthur_planning/arthur_traj.h>
+#include <std_msgs/Bool.h>
+#include <std_msgs/String.h>
 #include <kortex_driver/SendWrenchCommand.h>
 #include <boost/bind.hpp>
 #include <vector>
@@ -40,8 +43,13 @@ bool sendWrench(ros::ServiceClient wrench_commander, const int frame, const int 
 }
 
 // sends a wrench command to gen3 to hold the current position
-bool pauseControls(ros::ServiceClient wrench_commander)
+bool pauseControls(ros::ServiceClient wrench_commander, ros::Publisher reamer_commander)
 {
+    std_msgs::String reamer_msg;
+    std::string speed = "0";
+    reamer_msg.data = speed;
+    // reamer_commander.publish(reamer_msg);
+    
     kortex_driver::WrenchCommand wrench_command;
     wrench_command.duration = 0;
     wrench_command.mode = 1;
@@ -61,8 +69,29 @@ bool pauseControls(ros::ServiceClient wrench_commander)
     return wrench_commander.call(srv);
 }
 
+void pelvisTFCallback(const geometry_msgs::PoseStamped::ConstPtr &msg, std::array<double, 6> *xyzrpy, tf::Matrix3x3 *rot) {
+    tf::Quaternion q = tf::Quaternion((*msg).pose.orientation.x, (*msg).pose.orientation.y, (*msg).pose.orientation.z, (*msg).pose.orientation.w);
+    (*rot) = tf::Matrix3x3(q).inverse();
+    (*xyzrpy)[0] = (*msg).pose.position.x;
+    (*xyzrpy)[1] = (*msg).pose.position.y;
+    (*xyzrpy)[2] = (*msg).pose.position.z;
+    (*rot).getRPY((*xyzrpy)[3], (*xyzrpy)[4], (*xyzrpy)[5]);
+    double relPos[3] = {0, 0, -0.01};
+    double rotatedRelPos[3] = {0.0};
+    for (int i = 0; i < 3; i++)
+    {
+        for (int j = 0; j < 3; j++)
+        {
+            rotatedRelPos[i] += (*rot).inverse()[i][j] * relPos[j];
+        }
+    }
+    (*xyzrpy)[0] += rotatedRelPos[0];
+    (*xyzrpy)[1] += rotatedRelPos[1];
+    (*xyzrpy)[2] += rotatedRelPos[2];
+}
+
 // Updates the ee pose wrt to the base_link
-void tfCallback(const geometry_msgs::Transform::ConstPtr &msg, double xyzrpy[6], tf::Matrix3x3 rot, double velocities[6], ros::Time *time)
+void tfCallback(const geometry_msgs::Transform::ConstPtr &msg, double xyzrpy[6], std::array<double, 6> *retract_xyzrpy, tf::Matrix3x3 *rot, double velocities[6], ros::Time *time, const bool dynamicComp)
 {
     // extract pose from msg
     double pose[6];
@@ -71,8 +100,8 @@ void tfCallback(const geometry_msgs::Transform::ConstPtr &msg, double xyzrpy[6],
     pose[2] = (*msg).translation.z;
     tf::Quaternion q = tf::Quaternion((*msg).rotation.x, (*msg).rotation.y, (*msg).rotation.z, (*msg).rotation.w);
     // save orientation as rotation matrix for rotating torques later
-    rot = tf::Matrix3x3(q);
-    rot.getRPY(pose[4], pose[5], pose[6]);
+    (*rot) = tf::Matrix3x3(q).inverse();
+    (*rot).getRPY(pose[3], pose[4], pose[5]);
 
     // calculate velocities
     ros::Duration elapsed = ros::Time::now() - (*time);
@@ -91,41 +120,74 @@ void tfCallback(const geometry_msgs::Transform::ConstPtr &msg, double xyzrpy[6],
     xyzrpy[3] = pose[3];
     xyzrpy[4] = pose[4];
     xyzrpy[5] = pose[5];
+    
+    if (!dynamicComp) {
+        double relPos[3] = {0, 0, -0.01};
+        double rotatedRelPos[3] = {0.0};
+        for (int i = 0; i < 3; i++)
+        {
+            for (int j = 0; j < 3; j++)
+            {
+                rotatedRelPos[i] += (*rot).inverse()[i][j] * relPos[j];
+            }
+        }
+        (*retract_xyzrpy)[0] = rotatedRelPos[0];
+        (*retract_xyzrpy)[1] = rotatedRelPos[1];
+        (*retract_xyzrpy)[2] = rotatedRelPos[2];
+        (*retract_xyzrpy)[3] = pose[3];
+        (*retract_xyzrpy)[4] = pose[4];
+        (*retract_xyzrpy)[5] = pose[5];
+    }
     (*time) = ros::Time::now();
 }
 
 // Checks to see if there is a new trajectory. If yes, then update trajectory vector
-void trajCallback(const arthur_planning::arthur_traj::ConstPtr &msg, std::vector<std::array<double, 6>> traj, int *current_waypoint, int *trajNum, ros::ServiceClient wrench_commander)
+void trajCallback(const arthur_planning::arthur_traj::ConstPtr &msg, std::vector<std::array<double, 6>> *traj, int *current_waypoint, int *trajNum, std::vector<tf::Matrix3x3> *desRot, ros::ServiceClient wrench_commander, ros::Publisher reamer_commander)
 {
     // if new trajectory, do the following
     if ((*msg).trajNum != (*trajNum))
     {
         // stop wrench commands, and pause robot at current spot
-        while (!pauseControls(wrench_commander))
+        while (!pauseControls(wrench_commander, reamer_commander))
         {
             ROS_INFO("Trying to pause Reaming Operation!");
         }
         ROS_INFO("Pausing Reaming Operation for 3 seconds");
 
         // clear trajectory vector
-        traj.clear();
+        (*traj).clear();
+        (*desRot).clear();
         // for each pose in trajectory, store it in array and push into trajectory vector
         int len = (*msg).cartesian_states.poses.size();
-        for (int i = 0; i++; i < len)
+        for (int i = 0; i < len; i++)
         {
             std::array<double, 6> a = {0};
             a[0] = (*msg).cartesian_states.poses[i].position.x;
             a[1] = (*msg).cartesian_states.poses[i].position.y;
             a[2] = (*msg).cartesian_states.poses[i].position.z;
             tf::Quaternion q = tf::Quaternion((*msg).cartesian_states.poses[i].orientation.x, (*msg).cartesian_states.poses[i].orientation.y, (*msg).cartesian_states.poses[i].orientation.z, (*msg).cartesian_states.poses[i].orientation.w);
-            tf::Matrix3x3(q).getRPY(a[4], a[5], a[6]);
-            traj.push_back(a);
+            (*desRot).push_back(tf::Matrix3x3(q).inverse());
+            (*desRot).back().getRPY(a[4], a[5], a[6]);
+            (*traj).push_back(a);
         }
         (*current_waypoint) = 0;     // reset waypoint back to 0
         (*trajNum) = (*msg).trajNum; // save current trajectory number for detecting new trajectory
 
         // pause control node for 3 seconds
         ros::Duration(3).sleep();
+    }
+}
+
+void dynamicCompTrigger(const std_msgs::Bool::ConstPtr &msg, bool *dynamicComp, bool *startPlanner, bool *finished, ros::ServiceClient wrench_commander, ros::Publisher reamer_commander) {
+    if ((*msg).data) {
+        (*dynamicComp) = true;
+        (*startPlanner) = false;
+        (*finished) = false;
+        // TODO: Stop reamer
+        while (!pauseControls(wrench_commander, reamer_commander))
+        {
+            ROS_INFO("Trying to pause Reaming Operation!");
+        }
     }
 }
 
@@ -165,38 +227,52 @@ void calculateNorms(float norms[2], const float wrench[6])
     norms[1] = sqrt(accum[1]);
 }
 
-void calculateDX(double dx[6], const std::array<double, 6> x1, const double x2[6])
+void calculateDX(double dx[6], const std::array<double, 6> x1, const double x2[6], const tf::Matrix3x3 desiredRot, const tf::Matrix3x3 currentRot)
 {
-    for (int i = 0; i++; i < 6)
+    for (int i = 0; i < 3; i++)
     {
         dx[i] = x1[i] - x2[i];
     }
+
+    tf::Matrix3x3 transRot = currentRot * desiredRot.inverse();
+    transRot.getRPY(dx[3], dx[4], dx[5]);
 }
 
-void calculateFullWrench(float wrench[6], const double Kp[6], const double Kd[6], const tf::Matrix3x3 rot, const double dx[6], const double velocities[6], const float maxForce, const float maxTorque)
+void calculateFullWrench(float wrench[6], const float Kp[6], const float Ki[6], const float Kd[6], const tf::Matrix3x3 rot, const double dx[6], const double velocities[6], float accumError[6], ros::Time *time, const float maxForce, const float maxTorque)
 {
     // Calculate wrenches using PD control
     // Wrenches will be in base_link frame
-    for (int i = 0; i < 6; i++)
+    for (int i = 0; i < 3; i++)
     {
-        wrench[i] = Kp[i] * dx[i] - Kd[i] * velocities[i];
+        wrench[i] = Kp[i] * dx[i] + Ki[i]*accumError[i] - Kd[i] * velocities[i];
     }
 
-    // Rotate torques to be in tool frame
-    double rotTorques[3] = {0.0};
+    double rototatedAngVel[3] = {0.0};
     for (int i = 0; i < 3; i++)
     {
         for (int j = 0; j < 3; j++)
         {
-            rotTorques[i] += rot[i][j] * wrench[j + 3];
+            rototatedAngVel[i] += rot[i][j] * velocities[j + 3];
         }
     }
-    for (int i = 0; i < 3; i++)
+    ROS_INFO("Ang Vel: %f, %f, %f", rototatedAngVel[0], rototatedAngVel[1], rototatedAngVel[2]);
+    for (int i = 3; i < 6 ; i++)
     {
-        wrench[i + 3] = rotTorques[i];
+        wrench[i] = Kp[i] * dx[i] + Ki[i]*accumError[i] - Kd[i] * rototatedAngVel[i-3];
     }
 
-    // Calculate norms of forces and torques; if above maximums, scale wrench
+    ros::Duration elapsed = ros::Time::now() - (*time);
+    double dt = elapsed.toSec();
+
+    for (int i = 0; i < 6; i++) {
+        accumError[i] += dx[i]*dt;
+        if (i < 3) {
+            accumError[i] = std::max(-1*maxForce/Ki[i], std::min(maxForce/Ki[i], accumError[i]));
+        } else {
+            accumError[i] = std::max(-1*maxTorque/Ki[i], std::min(maxTorque/Ki[i], accumError[i]));
+        }
+    }
+    
     float norms[2] = {0.0};
     calculateNorms(norms, wrench);
     if (norms[0] > maxForce)
@@ -213,41 +289,136 @@ void calculateFullWrench(float wrench[6], const double Kp[6], const double Kd[6]
             wrench[i] = maxTorque * wrench[i] / norms[1];
         }
     }
+    (*time) = ros::Time::now();
 }
 
-void calculateZWrench(float wrench[6], const double Kp[6], const double Kd[6], const double dx[6], const double velocities[6], const float maxForce)
+void calculateOrientationWrench(float wrench[6], const float Kp[6], const float Ki[6], const float Kd[6], const tf::Matrix3x3 rot, const double dx[6], const double velocities[6], float accumError[6], ros::Time *time, const float maxForce, const float maxTorque)
 {
     // Calculate wrenches using PD control
-    // Wrenches will be in ee frame
-    float forces[3] = {0.0};
+    // Wrenches will be in base_link frame
     for (int i = 0; i < 3; i++)
     {
-        forces[i] = Kp[i] * dx[i] - Kd[i] * velocities[i];
+        wrench[i] = 0;
     }
 
-    float accum = 0.0;
+    double rototatedAngVel[3] = {0.0};
     for (int i = 0; i < 3; i++)
     {
-        accum += forces[i] * forces[i];
+        for (int j = 0; j < 3; j++)
+        {
+            rototatedAngVel[i] += rot[i][j] * velocities[j + 3];
+        }
     }
-    float normForce = sqrt(accum);
+    ROS_INFO("Ang Vel: %f, %f, %f", rototatedAngVel[0], rototatedAngVel[1], rototatedAngVel[2]);
+    for (int i = 3; i < 6 ; i++)
+    {
+        wrench[i] = Kp[i] * dx[i] + Ki[i]*accumError[i] - Kd[i] * rototatedAngVel[i-3];
+    }
 
-    wrench[0] = 0;
-    wrench[1] = 0;
-    wrench[2] = std::min(normForce, maxForce);
-    wrench[3] = 0;
-    wrench[4] = 0;
-    wrench[5] = 0;
+    ros::Duration elapsed = ros::Time::now() - (*time);
+    double dt = elapsed.toSec();
+
+    for (int i = 0; i < 6; i++) {
+        accumError[i] += dx[i]*dt;
+        if (i < 3) {
+            accumError[i] = std::max(-1*maxForce/Ki[i], std::min(maxForce/Ki[i], accumError[i]));
+        } else {
+            accumError[i] = std::max(-1*maxTorque/Ki[i], std::min(maxTorque/Ki[i], accumError[i]));
+        }
+    }
+    
+    float norms[2] = {0.0};
+    calculateNorms(norms, wrench);
+    if (norms[0] > maxForce)
+    {
+        for (int i = 0; i < 3; i++)
+        {
+            wrench[i] = maxForce * wrench[i] / norms[0];
+        }
+    }
+    if (norms[1] > maxTorque)
+    {
+        for (int i = 3; i < 6; i++)
+        {
+            wrench[i] = maxTorque * wrench[i] / norms[1];
+        }
+    }
+    (*time) = ros::Time::now();
+}
+
+void calculatePositionWrench(float wrench[6], const float Kp[6], const float Ki[6], const float Kd[6], const tf::Matrix3x3 rot, const double dx[6], const double velocities[6], float accumError[6], ros::Time *time, const float maxForce, const float maxTorque)
+{
+    // Calculate wrenches using PD control
+    // Wrenches will be in base_link frame
+    for (int i = 0; i < 3; i++)
+    {
+        wrench[i] = Kp[i] * dx[i] + Ki[i]*accumError[i] - Kd[i] * velocities[i];
+    }
+
+    for (int i = 3; i < 6 ; i++)
+    {
+        wrench[i] = 0;
+    }
+
+    ros::Duration elapsed = ros::Time::now() - (*time);
+    double dt = elapsed.toSec();
+
+    for (int i = 0; i < 6; i++) {
+        accumError[i] += dx[i]*dt;
+        if (i < 3) {
+            accumError[i] = std::max(-1*maxForce/Ki[i], std::min(maxForce/Ki[i], accumError[i]));
+        } else {
+            accumError[i] = std::max(-1*maxTorque/Ki[i], std::min(maxTorque/Ki[i], accumError[i]));
+        }
+    }
+    
+    float norms[2] = {0.0};
+    calculateNorms(norms, wrench);
+    if (norms[0] > maxForce)
+    {
+        for (int i = 0; i < 3; i++)
+        {
+            wrench[i] = maxForce * wrench[i] / norms[0];
+        }
+    }
+    if (norms[1] > maxTorque)
+    {
+        for (int i = 3; i < 6; i++)
+        {
+            wrench[i] = maxTorque * wrench[i] / norms[1];
+        }
+    }
+    (*time) = ros::Time::now();
 }
 
 int main(int argc, char **argv)
 {
-    double controller_rate = 40.0; // Rate of ros node pubsub
+    ros::init(argc, argv, "wrench_controller");
 
-    double xyzrpy[6] = {NAN};            // xyzrpy holds the ee frame pose wrt base_link frame
-    tf::Matrix3x3 rot = tf::Matrix3x3(); // holds the rotation matrix from base_link to ee frame
+    ros::NodeHandle node;
+    
+    double controller_rate = 20.0; // Rate of ros node pubsub
+
+    std_msgs::Bool planner_msg;
+    bool startPlanner = false;
+    bool finished = false;
+    bool dynamicComp = false;
+
+    std_msgs::String reamer_msg;
+    std::string speed = "0";
+    reamer_msg.data = speed;
+
+    double xyzrpy[6] = {NAN};  
+    std::array<double, 6> pelvis_xyzrpy = {NAN}; // pelvis_xyzrpy holds the pelvis frame pose wrt base_link frame
+    std::array<double, 6> retract_xyzrpy = {NAN}; // retract_xyzrpy holds the retraction frame pose wrt base_link frame
+    tf::Matrix3x3 currentRot = tf::Matrix3x3(); // holds the rotation matrix from base_link to ee frame
+    tf::Matrix3x3 pelvisRot = tf::Matrix3x3();
+    std::vector<tf::Matrix3x3> desiredRots;
+    // tf::Quaternion q = tf::Quaternion();
     double velocities[6] = {NAN};        // holds the lin and ang velocities of ee frame wrt base_link frame
+    float accumError[6] = {0};
     ros::Time time = ros::Time::now();   // records the current time to be used when calculating dt for velocities
+    ros::Time time2 = ros::Time::now();
 
     std::vector<std::array<double, 6>> traj; // holds the trajectory information
     int current_waypoint = -1;               // has the current waypoint
@@ -261,85 +432,166 @@ int main(int argc, char **argv)
     int mode = 1;
 
     // Kp and Kd constants for PD control
-    const double Kp[6] = {0, 0, 0, 0, 0, 0};
-    const double Kd[6] = {0, 0, 0, 0, 0, 0};
+    const float Kp[6] = {300, 300, 300, 150, 150, 150};
+    const float Ki[6] = {300, 300, 300, 50, 50, 50};
+    const float Kd[6] = {350, 350, 350, 0, 0, 0};
     // Max F/T in N or Nm to apply
-    const float maxForce = 15.0;
-    const float maxTorque = 5.0;
+    const float maxForce = 20.0;
+    const float maxTorque = 8.0;
 
-    ros::init(argc, argv, "wrench_controller");
-
-    ros::NodeHandle node;
+    
 
     // sends wrench commands to kortex_driver service
     ros::ServiceClient wrench_commander = node.serviceClient<kortex_driver::SendWrenchCommand>("/my_gen3/base/send_wrench_command");
+    // sends speeds to reamer
+    ros::Publisher reamer_commander = node.advertise<std_msgs::String>("/reamer_speed", 1);
     // sub to get ee pose wrt base_link
-    ros::Subscriber transform_sub = node.subscribe<geometry_msgs::Transform>("/my_gen3/ee_tf", 1, boost::bind(&tfCallback, _1, xyzrpy, rot, velocities, &time));
+    ros::Subscriber transform_sub = node.subscribe<geometry_msgs::Transform>("/my_gen3/ee_tf", 1, boost::bind(&tfCallback, _1, xyzrpy, &retract_xyzrpy, &currentRot, velocities, &time, dynamicComp));
+    // sub to get pelvis orientation wrt base_link
+    ros::Subscriber transform_sub = node.subscribe<geometry_msgs::Transform>("/reaming_end_point", 1, boost::bind(&pelvisTFCallback, _1, &pelvis_xyzrpy, &pelvisRot));
     // sub to get trajectory information
-    ros::Subscriber trajectory_sub = node.subscribe<arthur_planning::arthur_traj>("/my_gen3/arthur_traj", 1, boost::bind(&trajCallback, _1, traj, &current_waypoint, &trajNum, wrench_commander));
+    ros::Subscriber trajectory_sub = node.subscribe<arthur_planning::arthur_traj>("/my_gen3/arthur_traj", 1, boost::bind(&trajCallback, _1, &traj, &current_waypoint, &trajNum, &desiredRots, wrench_commander, reamer_commander));
+    // sub to see dynamic comp
+    ros::Subscriber dynamic_compensation_listener = node.subscribe<std_msgs::Bool>("/pelvis_error", 1, boost::bind(&dynamicCompTrigger, _1, &dynamicComp, &startPlanner, &finished, wrench_commander, reamer_commander));
+    // pub to notify planner to start planning
+    ros::Publisher notify_planner = node.advertise<std_msgs::Bool>("/start_planning", 1);
 
     ros::Rate rate(controller_rate);
     while (ros::ok())
     {
+        if (startPlanner) {
+            planner_msg.data = startPlanner;
+            notify_planner.publish(planner_msg);
+            startPlanner = false;
+        } else {
+            planner_msg.data = startPlanner;
+            notify_planner.publish(planner_msg);
+        }
+        
         // wrench to send; [force_x, force_y, force_z, torque_x, torque_y, torque_z]
         float wrench[6] = {0};
-
+        
         // Don't modify wrench if trajectory and ee frame aren't detected
-        if (traj.size() > 0 && !isnan(xyzrpy[0]) && !isnan(velocities[0]))
+        if (!isnan(xyzrpy[0]) && !isnan(velocities[0] && !isnan(pelvis_xyzrpy[0])))
         {
             // Controller Code
-            // We align orientation and position for first waypoint (waypoint = 0)
-            // Then we just ream along tool-frame z-axis (waypoint > 0)
-            if (current_waypoint == 0)
+            // We align orientation to pelvis reaming axis, then we follow trajectory
+            // If dynamic compensation kicks in, we stop reaming, and back up; then we reorient and restart
+            if ((!startPlanner || finished) && !dynamicComp)
             {
                 // To align our ee, we use frame 1 (trans about base, rot about ee)
                 frame = 1;
 
+                // ROS_INFO("xyzrpy: %f, %f, %f, %f, %f, %f", xyzrpy[0], xyzrpy[1], xyzrpy[2], xyzrpy[3], xyzrpy[4], xyzrpy[5]);
+                // ROS_INFO("traj_waypoint: %f, %f, %f, %f, %f, %f", traj[current_waypoint][0], traj[current_waypoint][1], traj[current_waypoint][2], traj[current_waypoint][3], traj[current_waypoint][4], traj[current_waypoint][5]);
+
                 // Calculate the error in pose wrt base_link
                 double dx[6] = {0.0};
-                calculateDX(dx, traj[current_waypoint], xyzrpy);
+                calculateDX(dx, pelvis_xyzrpy, xyzrpy, pelvisRot, currentRot);
+                ROS_INFO("dx: %f, %f, %f, %f, %f, %f", dx[0], dx[1], dx[2], dx[3], dx[4], dx[5]);
 
                 // Calculate norm of translation error and norm of orientation error separately
                 double norms[2] = {0.0};
                 calculateNorms(norms, dx);
 
                 // if the error in translation and orientation are both small, set next waypoint
-                if (norms[0] < 2e-3 && norms[1] < 2e-2)
+                if (norms[0] < 1e-3) {
+                    for (int i = 0; i < 3; i++) {
+                        accumError[i] = 0;
+                    }
+                }
+                if (norms[1] < 1e-2) {
+                    for (int i = 3; i < 6; i++) {
+                        accumError[i] = 0;
+                    }
+                }
+                if (norms[0] < 1e-3 && norms[1] < 1e-2)
                 {
-                    current_waypoint = std::min(current_waypoint + 1, (int)traj.size() - 1);
+                    startPlanner = true;
+                    ROS_INFO("Starting Reaming");
+                    if (!finished) {
+                        // TODO: Modify start reamer
+                        speed = "0";
+                        reamer_msg.data = speed;
+                        // reamer_commander.publish(reamer_msg);
+                    }
+                } else {
+                    ROS_INFO("Moving to start point!");
                 }
 
                 // Calculate the wrench vector (forces to translate in base_link frame, torques to orient in ee frame)
-                calculateFullWrench(wrench, Kp, Kd, rot, dx, velocities, maxForce, maxTorque);
-            }
-            else if (current_waypoint > 0)
-            {
-                // Now that our orientation is good, we can just apply force along z-axis of ee frame, use frame = 0
-                frame = 0;
+                if (!finished) {
+                    calculateFullWrench(wrench, Kp, Ki, Kd, currentRot, dx, velocities, accumError, &time2, maxForce, maxTorque);
+                } else {
+                    calculatePositionWrench(wrench, Kp, Ki, Kd, currentRot, dx, velocities, accumError, &time2, maxForce, maxTorque);
+                }
+                
+            } else if (startPlanner && current_waypoint >= 0 && traj.size() > 0 && !dynamicComp) {
+                ROS_INFO("Current Waypoint: %d out of %li", current_waypoint, traj.size()-1);
+                // To align our ee, we use frame 1 (trans about base, rot about ee)
+                frame = 1;
+
+                // ROS_INFO("xyzrpy: %f, %f, %f, %f, %f, %f", xyzrpy[0], xyzrpy[1], xyzrpy[2], xyzrpy[3], xyzrpy[4], xyzrpy[5]);
+                // ROS_INFO("traj_waypoint: %f, %f, %f, %f, %f, %f", traj[current_waypoint][0], traj[current_waypoint][1], traj[current_waypoint][2], traj[current_waypoint][3], traj[current_waypoint][4], traj[current_waypoint][5]);
 
                 // Calculate the error in pose wrt base_link
                 double dx[6] = {0.0};
-                calculateDX(dx, traj[current_waypoint], xyzrpy);
+                calculateDX(dx, traj[current_waypoint], xyzrpy, desiredRots[current_waypoint], currentRot);
+                ROS_INFO("dx: %f, %f, %f, %f, %f, %f", dx[0], dx[1], dx[2], dx[3], dx[4], dx[5]);
 
                 // Calculate norm of translation error and norm of orientation error separately
                 double norms[2] = {0.0};
                 calculateNorms(norms, dx);
 
-                // if the error in translation is small, set next waypoint
-                if (norms[0] < 2e-3)
-                {
-                    current_waypoint = std::min(current_waypoint + 1, (int)traj.size() - 1);
+                // if the error in translation and orientation are both small, set next waypoint
+                if (norms[0] < 1.5e-3) {
+                    for (int i = 0; i < 6; i++) {
+                        accumError[i] = 0;
+                    }
+                    if (current_waypoint >= traj.size()-1) {
+                        finished = true;
+                        // TODO: Add stop reamer code using pauseControls
+                        while (!pauseControls(wrench_commander, reamer_commander))
+                        {
+                            ROS_INFO("Trying to pause Reaming Operation!");
+                        }
+                    }
+                    current_waypoint = std::max(0, std::min(current_waypoint + 1, (int)traj.size() - 1));
                 }
 
-                // Calculate the wrench vector (should only have force in z since we are using frame = 0)
-                calculateZWrench(wrench, Kp, Kd, dx, velocities, maxForce);
+                // Calculate the wrench vector (forces to translate in base_link frame, torques to orient in ee frame)
+                calculatePositionWrench(wrench, Kp, Ki, Kd, currentRot, dx, velocities, accumError, &time2, maxForce, maxTorque);
+            } else if (dynamicComp) {
+                // To align our ee, we use frame 1 (trans about base, rot about ee)
+                frame = 1;
+
+                // ROS_INFO("xyzrpy: %f, %f, %f, %f, %f, %f", xyzrpy[0], xyzrpy[1], xyzrpy[2], xyzrpy[3], xyzrpy[4], xyzrpy[5]);
+                // ROS_INFO("traj_waypoint: %f, %f, %f, %f, %f, %f", traj[current_waypoint][0], traj[current_waypoint][1], traj[current_waypoint][2], traj[current_waypoint][3], traj[current_waypoint][4], traj[current_waypoint][5]);
+
+                // Calculate the error in pose wrt base_link
+                double dx[6] = {0.0};
+                calculateDX(dx, retract_xyzrpy, xyzrpy, pelvisRot, currentRot);
+                ROS_INFO("dx: %f, %f, %f, %f, %f, %f", dx[0], dx[1], dx[2], dx[3], dx[4], dx[5]);
+
+                // Calculate norm of translation error and norm of orientation error separately
+                double norms[2] = {0.0};
+                calculateNorms(norms, dx);
+
+                if (norms[0] < 3e-3) {
+                    dynamicComp = false;
+                    for (int i = 0; i < 3; i++) {
+                        accumError[i] = 0;
+                    }
+                }
+
+                calculatePositionWrench(wrench, Kp, Ki, Kd, currentRot, dx, velocities, accumError, &time2, maxForce, maxTorque);
             }
         }
-
+        
         // sends wrench to robot
         if (sendWrench(wrench_commander, frame, mode, duration, wrench))
         {
-            ROS_INFO("Sent wrench command successfully! \n %.3f %.3f %.3f %.3f %.3f %.3f", wrench[0], wrench[1], wrench[2], wrench[3], wrench[4], wrench[5]);
+            ROS_INFO("Sent wrench command successfully: %.6f %.6f %.6f %.6f %.6f %.6f", wrench[0], wrench[1], wrench[2], wrench[3], wrench[4], wrench[5]);
         }
         else
         {
@@ -350,3 +602,101 @@ int main(int argc, char **argv)
     }
     return 0;
 };
+
+/**
+ * @brief This is code for calculating dx and then wrenches
+ * 
+ */
+// // To align our ee, we use frame 1 (trans about base, rot about ee)
+// frame = 1;
+
+// // ROS_INFO("xyzrpy: %f, %f, %f, %f, %f, %f", xyzrpy[0], xyzrpy[1], xyzrpy[2], xyzrpy[3], xyzrpy[4], xyzrpy[5]);
+// // ROS_INFO("traj_waypoint: %f, %f, %f, %f, %f, %f", traj[current_waypoint][0], traj[current_waypoint][1], traj[current_waypoint][2], traj[current_waypoint][3], traj[current_waypoint][4], traj[current_waypoint][5]);
+
+// // Calculate the error in pose wrt base_link
+// double dx[6] = {0.0};
+// calculateDX(dx, traj[current_waypoint], xyzrpy, desiredRots[current_waypoint], currentRot);
+// ROS_INFO("dx: %f, %f, %f, %f, %f, %f", dx[0], dx[1], dx[2], dx[3], dx[4], dx[5]);
+
+// // Calculate norm of translation error and norm of orientation error separately
+// double norms[2] = {0.0};
+// calculateNorms(norms, dx);
+
+// // if the error in translation and orientation are both small, set next waypoint
+// if (norms[0] < 1e-3) {
+//     for (int i = 0; i < 3; i++) {
+//         accumError[i] = 0;
+//     }
+// }
+// if (norms[1] < 1e-2) {
+//     for (int i = 3; i < 6; i++) {
+//         accumError[i] = 0;
+//     }
+// }
+// if (norms[0] < 1e-3 && norms[1] < 1e-2)
+// {
+//     current_waypoint = std::max(0, std::min(current_waypoint + 1, (int)traj.size() - 1));
+// }
+
+// // Calculate the wrench vector (forces to translate in base_link frame, torques to orient in ee frame)
+// calculateFullWrench(wrench, Kp, Ki, Kd, currentRot, dx, velocities, accumError, &time2, maxForce, maxTorque);
+
+// void getSkewMat(double skewMat[3][3], const tf::Quaternion q) {
+//     skewMat[0][1] = -1*q.getZ();
+//     skewMat[1][0] = q.getZ();
+//     skewMat[0][2] = q.getY();
+//     skewMat[2][0] = -1*q.getY();
+//     skewMat[1][2] = -1*q.getX();
+//     skewMat[2][1] = q.getX();
+// }
+
+// void getL(double L[4][4], const tf::Quaternion q) {
+//     double skewMat[3][3] = {0};
+//     getSkewMat(skewMat, q);
+//     double sI[3][3] = {0};
+//     sI[0][0] = q.getW();
+//     sI[1][1] = q.getW();
+//     sI[2][2] = q.getW();
+//     L[0][0] = q.getW();
+//     L[0][1] = -1*q.getX();
+//     L[0][2] = -1*q.getY();
+//     L[0][3] = -1*q.getZ();
+//     L[1][0] = q.getX();
+//     L[2][0] = q.getY();
+//     L[3][0] = q.getZ();
+//     for (int i = 0; i < 3; i++) {
+//         for (int j = 0; j < 3; j++) {
+//             L[i+1][j+1] = sI[i][j] - skewMat[i][j];
+//         }
+//     }
+// }
+
+
+/**
+ * @brief This is code for quaternion math
+ * 
+ */
+// void transpose(double transposed[4][4], const double M[4][4]) {
+//     for (int i = 0; i < 4; i++) {
+//         for (int j = 0; j < 4; j++) {
+//             transposed[i][j] = M[j][i];
+//         }
+//     }
+// }
+
+// void getDq(tf::Quaternion *dq, const tf::Quaternion q1, const tf::Quaternion q2) {
+//     double L[4][4] = {0};
+//     getL(L, q1);
+//     double LTransposed[4][4] = {0};
+//     transpose(LTransposed, L);
+//     double q2_wxyz[4] = {0};
+//     q2_wxyz[0] = q2.getW();
+//     q2_wxyz[1] = q2.getX();
+//     q2_wxyz[2] = q2.getY();
+//     q2_wxyz[3] = q2.getZ();
+
+//     (*dq).setW(LTransposed[0][0]*q2_wxyz[0] + LTransposed[0][1]*q2_wxyz[1] + LTransposed[0][2]*q2_wxyz[2] + LTransposed[0][3]*q2_wxyz[3]);
+//     (*dq).setX(LTransposed[1][0]*q2_wxyz[0] + LTransposed[1][1]*q2_wxyz[1] + LTransposed[1][2]*q2_wxyz[2] + LTransposed[1][3]*q2_wxyz[3]);
+//     (*dq).setY(LTransposed[2][0]*q2_wxyz[0] + LTransposed[2][1]*q2_wxyz[1] + LTransposed[2][2]*q2_wxyz[2] + LTransposed[2][3]*q2_wxyz[3]);
+//     (*dq).setZ(LTransposed[3][0]*q2_wxyz[0] + LTransposed[3][1]*q2_wxyz[1] + LTransposed[3][2]*q2_wxyz[2] + LTransposed[3][3]*q2_wxyz[3]);
+// }

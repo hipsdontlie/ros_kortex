@@ -56,7 +56,7 @@ def main():
     fk_request = GetPositionFKRequest()
     fk_request.header.frame_id = "base_link"
     # fk_request.header.stamp = rospy.Time.now()
-    fk_request.fk_link_names = ['end_effector_link']
+    fk_request.fk_link_names = ['tool_frame']
     fk_request.robot_state.joint_state.name = ['joint_1', 'joint_2', 'joint_3', 'joint_4', 'joint_5', 'joint_6', 'joint_7']
     fk_request.robot_state.joint_state.position = [4.3277119443629886e-06, 0.260162077999877, 3.140033090338544, -2.2700807449440203, -2.3753016797911641e-07, 0.9598476470557813, 1.5699991584482955]
     

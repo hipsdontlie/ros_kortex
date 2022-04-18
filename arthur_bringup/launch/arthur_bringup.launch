@@ -1,0 +1,33 @@
+
+<launch>
+
+<!-- The only node not written is start_camera.launch since that requires you to enter the password -->
+
+    <arg name="testing" default="False"/>
+
+    <!-- Start kortex_driver -->
+    <include file="$(find kortex_driver)/launch/kortex_driver.launch"/>
+
+    <!-- Start FT sensor listener -->
+    <node pkg="kortex_control" type="ftsensor_listener.py" name="ftsensor_listener" output="screen"/>
+
+    <!-- Start perception node -->
+    <include file="$(find arthur_perception)/launch/registration.launch">
+        <arg name="testing" value="$(arg testing)"/>
+    </include>
+
+    <!-- Start Planning node -->
+    <node pkg="arthur_planning" type="arthur_planning_node.py" name="arthur_planning" output="screen" ns="my_gen3"/>
+
+    <!-- Start arduino serial node -->
+    <node pkg="rosserial_python" type="serial_node.py" name="serial_node" output="screen"/>
+
+    <!-- Start EE TF listener -->
+    <node pkg="kortex_control" type="ee_tf_listener" name="ee_tf_listener" output="screen"/>
+
+    <!-- Start wrench controller -->
+    <node pkg="kortex_control" type="wrench_controller" name="wrench_controller" />
+
+</launch>
+
+
