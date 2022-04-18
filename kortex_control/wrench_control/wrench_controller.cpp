@@ -307,11 +307,13 @@ void calculateFullWrench(float wrench[6], const float Kp[6], const float Ki[6], 
     double dt = elapsed.toSec();
 
     for (int i = 0; i < 6; i++) {
-        accumError[i] += dx[i]*dt;
-        if (i < 3) {
-            accumError[i] = std::max(-1*maxForce/Ki[i], std::min(maxForce/Ki[i], accumError[i]));
-        } else {
-            accumError[i] = std::max(-1*maxTorque/Ki[i], std::min(maxTorque/Ki[i], accumError[i]));
+        if (Ki[i] != 0) {
+            accumError[i] += dx[i]*dt;
+            if (i < 3) {
+                accumError[i] = std::max(-1*maxForce/Ki[i], std::min(maxForce/Ki[i], accumError[i]));
+            } else {
+                accumError[i] = std::max(-1*maxTorque/Ki[i], std::min(maxTorque/Ki[i], accumError[i]));
+            }
         }
     }
     
@@ -361,11 +363,13 @@ void calculateOrientationWrench(float wrench[6], const float Kp[6], const float 
     double dt = elapsed.toSec();
 
     for (int i = 0; i < 6; i++) {
-        accumError[i] += dx[i]*dt;
-        if (i < 3) {
-            accumError[i] = std::max(-1*maxForce/Ki[i], std::min(maxForce/Ki[i], accumError[i]));
-        } else {
-            accumError[i] = std::max(-1*maxTorque/Ki[i], std::min(maxTorque/Ki[i], accumError[i]));
+        if (Ki[i] != 0) {
+            accumError[i] += dx[i]*dt;
+            if (i < 3) {
+                accumError[i] = std::max(-1*maxForce/Ki[i], std::min(maxForce/Ki[i], accumError[i]));
+            } else {
+                accumError[i] = std::max(-1*maxTorque/Ki[i], std::min(maxTorque/Ki[i], accumError[i]));
+            }
         }
     }
     
@@ -406,11 +410,13 @@ void calculatePositionWrench(float wrench[6], const float Kp[6], const float Ki[
     double dt = elapsed.toSec();
 
     for (int i = 0; i < 6; i++) {
-        accumError[i] += dx[i]*dt;
-        if (i < 3) {
-            accumError[i] = std::max(-1*maxForce/Ki[i], std::min(maxForce/Ki[i], accumError[i]));
-        } else {
-            accumError[i] = std::max(-1*maxTorque/Ki[i], std::min(maxTorque/Ki[i], accumError[i]));
+        if (Ki[i] != 0) {
+            accumError[i] += dx[i]*dt;
+            if (i < 3) {
+                accumError[i] = std::max(-1*maxForce/Ki[i], std::min(maxForce/Ki[i], accumError[i]));
+            } else {
+                accumError[i] = std::max(-1*maxTorque/Ki[i], std::min(maxTorque/Ki[i], accumError[i]));
+            }
         }
     }
     
@@ -622,7 +628,7 @@ int main(int argc, char **argv)
 
                 if (norms[0] < 3e-3) {
                     dynamicComp = false;
-                    for (int i = 0; i < 3; i++) {
+                    for (int i = 0; i < 6; i++) {
                         accumError[i] = 0;
                     }
                 }
