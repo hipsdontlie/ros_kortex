@@ -41,7 +41,8 @@ class arthur_trajectory(object):
                 self.gripper_joint_name = ""
             self.degrees_of_freedom = rospy.get_param(rospy.get_namespace() + "degrees_of_freedom", 7)
         
-            self.planned = None
+            self.planned = False
+            self.arthur = arthur_traj()
             arm_group_name = "arm"
             self.robot = moveit_commander.RobotCommander("robot_description")
             self.scene = moveit_commander.PlanningSceneInterface(ns=rospy.get_namespace())
@@ -89,7 +90,7 @@ class arthur_trajectory(object):
         pose = arm_group.get_current_pose()
         # print(pose)
         rospy.loginfo("Actual cartesian pose is : ")
-        rospy.loginfo(pose.pose)
+        # rospy.loginfo(pose.pose)
 
         return pose.pose
 
@@ -141,45 +142,45 @@ class arthur_trajectory(object):
         total_time = (end-start)
         print("Time for execution: ", total_time)
 
-        arthur = arthur_traj()
+        
         if self.planned is True:
-            arthur.trajNum +=1
+            self.arthur.trajNum +=1
         
         #copying joint states to arthur.traj
-        arthur.traj = mp_res.trajectory.joint_trajectory
+        self.arthur.traj = mp_res.trajectory.joint_trajectory
         
         #populating arthur msg with cartesian states
-        for i in range(len(arthur.traj.points)):
-            joint_angles = arthur.traj.points[i].positions[:]
+        for i in range(len(self.arthur.traj.points)):
+            joint_angles = self.arthur.traj.points[i].positions[:]
             output = self.endEffector_pose(joint_angles)
             if i==0:
                 print("End effector pose: ", output)
             velocity = Point()
             # arthur = arthur_traj.cartesian_vel
-            if len(arthur.cartesian_states.poses)==0:
+            if len(self.arthur.cartesian_states.poses)==0:
                 # arthur.cartesian_vel.append([0,0,0])
 
                 velocity.x = 0
                 velocity.y = 0
                 velocity.z = 0
 
-                arthur.cartesian_vel.append(velocity)
+                self.arthur.cartesian_vel.append(velocity)
 
-                arthur.cartesian_states.poses.append(output.pose_stamped[0].pose)
+                self.arthur.cartesian_states.poses.append(output.pose_stamped[0].pose)
 
             else:
-                arthur.cartesian_states.poses.append(output.pose_stamped[0].pose)
+                self.arthur.cartesian_states.poses.append(output.pose_stamped[0].pose)
                 # print(arthur.cartesian_states.poses[i].position.x)
                 
-                velocity.x = ((arthur.cartesian_states.poses[i].position.x - arthur.cartesian_states.poses[i-1].position.x)/0.1)
-                velocity.y = ((arthur.cartesian_states.poses[i].position.y - arthur.cartesian_states.poses[i-1].position.y)/0.1)
-                velocity.z = ((arthur.cartesian_states.poses[i].position.z - arthur.cartesian_states.poses[i-1].position.z)/0.1)
+                velocity.x = ((self.arthur.cartesian_states.poses[i].position.x - self.arthur.cartesian_states.poses[i-1].position.x)/0.1)
+                velocity.y = ((self.arthur.cartesian_states.poses[i].position.y - self.arthur.cartesian_states.poses[i-1].position.y)/0.1)
+                velocity.z = ((self.arthur.cartesian_states.poses[i].position.z - self.arthur.cartesian_states.poses[i-1].position.z)/0.1)
 
-                arthur.cartesian_vel.append(velocity)
+                self.arthur.cartesian_vel.append(velocity)
 
-        print("Num Waypoints ", len(arthur.cartesian_states.poses))
+        print("Num Waypoints ", len(self.arthur.cartesian_states.poses))
 
-        self.arthur_traj_pub(arthur)      
+        self.arthur_traj_pub(self.arthur)      
 
         return True
 
@@ -188,10 +189,13 @@ class arthur_trajectory(object):
         pub = rospy.Publisher('arthur_traj', arthur_traj, queue_size=10)
         rate = rospy.Rate(10) # 10hz
 
-        while not rospy.is_shutdown():
+        # while not rospy.is_shutdown():
+        while self.planned is True:
+            self.planned = False
             # rospy.loginfo("Publishing sensor msg")
             pub.publish(arthur)
             rate.sleep()
+
 
 #calculating end-effector pose using FK
     def endEffector_pose(self, joint_angles):
@@ -241,6 +245,7 @@ class arthur_trajectory(object):
         success = args[1]
         actual_pose = example.get_cartesian_pose()
         self.reaming_end_point = end_point
+        print("Self.planned: ", self.planned)
         if self.planned is True:
             rospy.loginfo("In set pose callback")
             actual_pose.position.x = self.reaming_end_point.pose.position.x
