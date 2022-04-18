@@ -281,7 +281,7 @@ def main():
 
     if success:
         rospy.loginfo("Welcome to main :)")
-        rospy.Subscriber("/pelvis_error", std_msgs.msg.Bool, example.error_callback, (example, success))
+        # rospy.Subscriber("/pelvis_error", std_msgs.msg.Bool, example.error_callback, (example, success))
         rospy.Subscriber("/start_planning", std_msgs.msg.Bool, example.start_planning_callback, queue_size=10)
         rospy.Subscriber("/reaming_end_point", PoseStamped, example.set_pose_callback, (example, success))
 

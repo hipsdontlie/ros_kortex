@@ -3,7 +3,7 @@
 
 <!-- The only node not written is start_camera.launch since that requires you to enter the password -->
 
-    <arg name="testing" default="True"/>
+    <arg name="testing" default="False"/>
 
     <!-- Start kortex_driver -->
     <include file="$(find kortex_driver)/launch/kortex_driver.launch"/>
