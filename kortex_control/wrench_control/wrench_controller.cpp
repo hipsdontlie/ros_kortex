@@ -67,6 +67,7 @@ bool pauseControls(ros::ServiceClient wrench_commander, ros::Publisher reamer_co
 
     kortex_driver::SendWrenchCommand srv;
     srv.request.input = wrench_command;
+    ROS_INFO("Reamer Velocity: %f", (*reamerVel));
     return wrench_commander.call(srv) && ((*reamerVel) <= 0.01 && (*reamerVel) >= -0.01);
 }
 
@@ -134,9 +135,9 @@ void tfCallback(const geometry_msgs::Transform::ConstPtr &msg, double xyzrpy[6],
     xyzrpy[3] = pose[3];
     xyzrpy[4] = pose[4];
     xyzrpy[5] = pose[5];
-    ROS_INFO("Dynamic comp: %d", (*dynamicComp));
+    // ROS_INFO("Dynamic comp: %d", (*dynamicComp));
     if (!(*dynamicComp)) {
-        ROS_INFO("Updating retract xyzrpy");
+        // ROS_INFO("Updating retract xyzrpy");
         // double relPos[3] = {0, 0, -0.01};
         // double rotatedRelPos[3] = {0.0};
         // for (int i = 0; i < 3; i++)
@@ -165,7 +166,7 @@ void tfCallback(const geometry_msgs::Transform::ConstPtr &msg, double xyzrpy[6],
         H[1][3] = (*msg).translation.y;
         H[2][3] = (*msg).translation.z;
         H[3][3] = 1;
-        double relPos[4] = {0, 0, -0.1, 1};
+        double relPos[4] = {0, 0, -0.05, 1};
         double rotatedRelPos[4] = {0.0};
         rotatedRelPos[3] = 1;
         for (int i = 0; i < 4; i++)
@@ -195,6 +196,8 @@ void trajCallback(const arthur_planning::arthur_traj::ConstPtr &msg, std::vector
         while (!pauseControls(wrench_commander, reamer_commander, reamerVel))
         {
             ROS_INFO("Trying to pause Reaming Operation!");
+            ROS_INFO("Reamer Vel trajCallback: %f", (*reamerVel));
+            ros::spinOnce();
         }
         ROS_INFO("Pausing Reaming Operation for 3 seconds");
 
@@ -232,6 +235,8 @@ void dynamicCompTrigger(const std_msgs::Bool::ConstPtr &msg, bool *dynamicComp, 
         while (!pauseControls(wrench_commander, reamer_commander, reamerVel))
         {
             ROS_INFO("Trying to pause Reaming Operation!");
+            ROS_INFO("Reamer Vel dynCompTrig: %f", (*reamerVel));
+            ros::spinOnce();
         }
     }
 }
@@ -459,10 +464,11 @@ int main(int argc, char **argv)
     bool planned = false;
     bool finished = false;
     bool dynamicComp = false;
+    bool stopRecordingTraj = false;
 
     std_msgs::Int16 reamer_msg;
     reamer_msg.data = 0;
-    int defaultSpeed = 400; // default speed of reamer when starting reaming (rpm)
+    int defaultSpeed = 300; // default speed of reamer when starting reaming (rpm)
     double reamerVel = 0.0; // variable to keep track of current reamer velocity (rpm)
 
     double xyzrpy[6] = {NAN};  
@@ -491,7 +497,7 @@ int main(int argc, char **argv)
 
     // Kp and Kd constants for PD control
     const float Kp[6] = {300, 300, 300, 150, 150, 150};
-    const float defaultKi[6] = {50, 50, 50, 5, 5, 5};
+    const float defaultKi[6] = {50, 50, 50, 10, 10, 10};
     float Ki[6] = {0.0};
     // const float Ki[6] = {0, 0, 0, 0, 0, 0};
     const float Kd[6] = {350, 350, 350, 0, 0, 0};
@@ -523,6 +529,7 @@ int main(int argc, char **argv)
     ros::Rate rate(controller_rate);
     while (ros::ok())
     {
+        ROS_INFO("ReamerVel Main Loop: %f", reamerVel);
         if (startPlanner) {
             planner_msg.data = startPlanner;
             notify_planner.publish(planner_msg);
@@ -542,20 +549,15 @@ int main(int argc, char **argv)
         // Don't modify wrench if trajectory and ee frame aren't detected
         if (!isnan(xyzrpy[0]) && !isnan(velocities[0] && !isnan(pelvis_xyzrpy[0])))
         {
-            ROS_INFO("Traj Size: %li", traj.size());
-            ROS_INFO("Current Waypoint: %d", current_waypoint);
-            ROS_INFO("trajNum: %d", trajNum);
+            // ROS_INFO("Traj Size: %li", traj.size());
+            // ROS_INFO("Current Waypoint: %d", current_waypoint);
+            // ROS_INFO("trajNum: %d", trajNum);
             // Controller Code
             // We align orientation to pelvis reaming axis, then we follow trajectory
             // If dynamic compensation kicks in, we stop reaming, and back up; then we reorient and restart
             if (!planned && (!startPlanner || finished) && !dynamicComp)
             {
-                Ki[0] = 250;
-                Ki[1] = 250;
-                Ki[2] = 250;
-                Ki[3] = 10;
-                Ki[4] = 10;
-                Ki[5] = 10;
+                
                 // To align our ee, we use frame 1 (trans about base, rot about ee)
                 frame = 1;
 
@@ -572,25 +574,21 @@ int main(int argc, char **argv)
                 calculateNorms(norms, dx);
 
                 // if the error in translation and orientation are both small, set next waypoint
-                if (norms[0] < 1e-3) {
+                if (norms[0] < 2e-3) {
                     for (int i = 0; i < 3; i++) {
                         accumError[i] = 0;
                     }
                 }
-                if (norms[1] < 1e-2) {
+                if (norms[1] < 4e-2) {
                     for (int i = 3; i < 6; i++) {
                         accumError[i] = 0;
                     }
                 }
-                if (norms[0] < 1e-2 && norms[1] < 1e-1)
+                if (norms[0] < 2e-3 && norms[1] < 4e-2)
                 {
                     startPlanner = true;
                     ROS_INFO("Starting Reaming");
-                    if (!finished) {
-                        // TODO: Modify start reamer
-                        reamer_msg.data = defaultSpeed;
-                        reamer_commander.publish(reamer_msg);
-                    }
+                    
                 } else {
                     ROS_INFO("Moving to start point!");
                 }
@@ -604,6 +602,22 @@ int main(int argc, char **argv)
                 
             } else if (planned && current_waypoint >= 0 && traj.size() > 0 && !dynamicComp) {
                 ROS_INFO("Current Waypoint: %d out of %li", current_waypoint, traj.size()-1);
+                Ki[0] = 150;
+                Ki[1] = 150;
+                Ki[2] = 150;
+                Ki[3] = 5;
+                Ki[4] = 5;
+                Ki[5] = 5;
+
+                if (!finished && abs(reamerVel) <= 0.01) {
+                    // TODO: Modify start reamer
+                    reamer_msg.data = defaultSpeed;
+                    reamer_commander.publish(reamer_msg);
+                } else if (finished) {
+                    reamer_msg.data = 0;
+                    reamer_commander.publish(reamer_msg);
+                }
+
                 // To align our ee, we use frame 1 (trans about base, rot about ee)
                 frame = 1;
 
@@ -621,15 +635,17 @@ int main(int argc, char **argv)
 
                 // if the error in translation and orientation are both small, set next waypoint
                 if (norms[0] < 1.5e-3) {
-                    geometry_msgs::Pose eval_pose;
-                    eval_pose.position.x = xyzrpy[0];
-                    eval_pose.position.y = xyzrpy[1];
-                    eval_pose.position.z = xyzrpy[2];
-                    eval_pose.orientation.x = qForTrajEval.getX();
-                    eval_pose.orientation.y = qForTrajEval.getY();
-                    eval_pose.orientation.z = qForTrajEval.getZ();
-                    eval_pose.orientation.w = qForTrajEval.getW();
-                    traj_eval_pub.publish(eval_pose);
+                    if (!stopRecordingTraj) {
+                        geometry_msgs::Pose eval_pose;
+                        eval_pose.position.x = xyzrpy[0];
+                        eval_pose.position.y = xyzrpy[1];
+                        eval_pose.position.z = xyzrpy[2];
+                        eval_pose.orientation.x = qForTrajEval.getX();
+                        eval_pose.orientation.y = qForTrajEval.getY();
+                        eval_pose.orientation.z = qForTrajEval.getZ();
+                        eval_pose.orientation.w = qForTrajEval.getW();
+                        traj_eval_pub.publish(eval_pose);
+                    }
                     for (int i = 0; i < 6; i++) {
                         accumError[i] = 0;
                     }
@@ -639,7 +655,11 @@ int main(int argc, char **argv)
                         while (!pauseControls(wrench_commander, reamer_commander, &reamerVel))
                         {
                             ROS_INFO("Trying to pause Reaming Operation!");
+                            ros::spinOnce();
                         }
+                    }
+                    if (current_waypoint == traj.size()-1) {
+                        stopRecordingTraj = true;
                     }
                     current_waypoint = std::max(0, std::min(current_waypoint + 1, (int)traj.size() - 1));
                 }
@@ -662,7 +682,7 @@ int main(int argc, char **argv)
                 // Calculate norm of translation error and norm of orientation error separately
                 double norms[2] = {0.0};
                 calculateNorms(norms, dx);
-                ROS_INFO("Normal: %f", norms[0]);
+                // ROS_INFO("Normal: %f", norms[0]);
                 if (norms[0] < 3e-2) {
                     dynamicComp = false;
                     for (int i = 0; i < 6; i++) {

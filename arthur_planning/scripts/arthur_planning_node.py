@@ -41,8 +41,8 @@ class arthur_trajectory(object):
                 self.gripper_joint_name = ""
             self.degrees_of_freedom = rospy.get_param(rospy.get_namespace() + "degrees_of_freedom", 7)
         
+            self.numTraj = 0
             self.planned = False
-            self.arthur = arthur_traj()
             arm_group_name = "arm"
             self.robot = moveit_commander.RobotCommander("robot_description")
             self.scene = moveit_commander.PlanningSceneInterface(ns=rospy.get_namespace())
@@ -122,6 +122,8 @@ class arthur_trajectory(object):
         plan_req.planner_id = "LIN"
         plan_req.group_name = "arm"
         plan_req.num_planning_attempts = 1
+        arthur = arthur_traj()
+
 
         mp_req_pose_goal = geometry_msgs.msg.PoseStamped(
             header=std_msgs.msg.Header(frame_id=self.planning_frame), pose=pose)
@@ -144,43 +146,44 @@ class arthur_trajectory(object):
 
         
         if self.planned is True:
-            self.arthur.trajNum +=1
+            self.numTraj += 1
+            arthur.trajNum = self.numTraj
         
         #copying joint states to arthur.traj
-        self.arthur.traj = mp_res.trajectory.joint_trajectory
+        arthur.traj = mp_res.trajectory.joint_trajectory
         
         #populating arthur msg with cartesian states
-        for i in range(len(self.arthur.traj.points)):
-            joint_angles = self.arthur.traj.points[i].positions[:]
+        for i in range(len(arthur.traj.points)):
+            joint_angles = arthur.traj.points[i].positions[:]
             output = self.endEffector_pose(joint_angles)
             if i==0:
                 print("End effector pose: ", output)
             velocity = Point()
             # arthur = arthur_traj.cartesian_vel
-            if len(self.arthur.cartesian_states.poses)==0:
+            if len(arthur.cartesian_states.poses)==0:
                 # arthur.cartesian_vel.append([0,0,0])
 
                 velocity.x = 0
                 velocity.y = 0
                 velocity.z = 0
 
-                self.arthur.cartesian_vel.append(velocity)
+                arthur.cartesian_vel.append(velocity)
 
-                self.arthur.cartesian_states.poses.append(output.pose_stamped[0].pose)
+                arthur.cartesian_states.poses.append(output.pose_stamped[0].pose)
 
             else:
-                self.arthur.cartesian_states.poses.append(output.pose_stamped[0].pose)
+                arthur.cartesian_states.poses.append(output.pose_stamped[0].pose)
                 # print(arthur.cartesian_states.poses[i].position.x)
                 
-                velocity.x = ((self.arthur.cartesian_states.poses[i].position.x - self.arthur.cartesian_states.poses[i-1].position.x)/0.1)
-                velocity.y = ((self.arthur.cartesian_states.poses[i].position.y - self.arthur.cartesian_states.poses[i-1].position.y)/0.1)
-                velocity.z = ((self.arthur.cartesian_states.poses[i].position.z - self.arthur.cartesian_states.poses[i-1].position.z)/0.1)
+                velocity.x = ((arthur.cartesian_states.poses[i].position.x - arthur.cartesian_states.poses[i-1].position.x)/0.1)
+                velocity.y = ((arthur.cartesian_states.poses[i].position.y - arthur.cartesian_states.poses[i-1].position.y)/0.1)
+                velocity.z = ((arthur.cartesian_states.poses[i].position.z - arthur.cartesian_states.poses[i-1].position.z)/0.1)
 
-                self.arthur.cartesian_vel.append(velocity)
+                arthur.cartesian_vel.append(velocity)
 
-        print("Num Waypoints ", len(self.arthur.cartesian_states.poses))
+        print("Num Waypoints ", len(arthur.cartesian_states.poses))
 
-        self.arthur_traj_pub(self.arthur)      
+        self.arthur_traj_pub(arthur)      
 
         return True
 

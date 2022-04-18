@@ -141,8 +141,8 @@ class arthur_trajectory(object):
         print("Time for execution: ", total_time)
 
         arthur = arthur_traj()
-        if self.planned is True:
-            arthur.trajNum +=1
+        # if self.planned is True:
+        #     arthur.trajNum +=1
         
         arthur.traj = mp_res.trajectory.joint_trajectory
         
@@ -433,14 +433,14 @@ def main():
 
     if success:
         rospy.loginfo("Welcome to main :)")
-        rospy.Subscriber("/pelvis_error", std_msgs.msg.Bool, example.error_callback, (example, success))
-        rospy.Subscriber("/start_planning", std_msgs.msg.Bool, example.start_planning_callback, queue_size=10)
-        rospy.Subscriber("/reaming_end_point", PoseStamped, example.set_pose_callback, (example, success))
-        # actual_pose = example.get_cartesian_pose()  
-        # actual_pose.position.z += 0.05
-        # actual_pose.position.y -= 0.1
-        # actual_pose.position.x += 0.05
-        # success &= example.reach_cartesian_pose_pilz(pose=actual_pose, pos_tolerance=0.01, orientation_tolerance=0.005, constraints=None)
+        # rospy.Subscriber("/pelvis_error", std_msgs.msg.Bool, example.error_callback, (example, success))
+        # rospy.Subscriber("/start_planning", std_msgs.msg.Bool, example.start_planning_callback, queue_size=10)
+        # rospy.Subscriber("/reaming_end_point", PoseStamped, example.set_pose_callback, (example, success))
+        actual_pose = example.get_cartesian_pose()  
+        actual_pose.position.z += 0.05
+        actual_pose.position.y -= 0.1
+        actual_pose.position.x += 0.05
+        success &= example.reach_cartesian_pose_pilz(pose=actual_pose, pos_tolerance=0.01, orientation_tolerance=0.005, constraints=None)
 
 
 
