@@ -2,6 +2,7 @@
 #include <tf/transform_listener.h>
 #include <geometry_msgs/Transform.h>
 #include <geometry_msgs/PoseStamped.h>
+#include <geometry_msgs/Pose.h>
 #include <arthur_planning/arthur_traj.h>
 #include <std_msgs/Bool.h>
 #include <std_msgs/Int16.h>
@@ -104,16 +105,16 @@ void pelvisTFCallback(const geometry_msgs::PoseStamped::ConstPtr &msg, std::arra
 }
 
 // Updates the ee pose wrt to the base_link
-void tfCallback(const geometry_msgs::Transform::ConstPtr &msg, double xyzrpy[6], std::array<double, 6> *retract_xyzrpy, tf::Matrix3x3 *rot, double velocities[6], ros::Time *time, const bool *dynamicComp)
+void tfCallback(const geometry_msgs::Transform::ConstPtr &msg, double xyzrpy[6], std::array<double, 6> *retract_xyzrpy, tf::Matrix3x3 *rot, double velocities[6], ros::Time *time, const bool *dynamicComp, tf::Quaternion *q)
 {
     // extract pose from msg
     double pose[6];
     pose[0] = (*msg).translation.x;
     pose[1] = (*msg).translation.y;
     pose[2] = (*msg).translation.z;
-    tf::Quaternion q = tf::Quaternion((*msg).rotation.x, (*msg).rotation.y, (*msg).rotation.z, (*msg).rotation.w);
+    (*q) = tf::Quaternion((*msg).rotation.x, (*msg).rotation.y, (*msg).rotation.z, (*msg).rotation.w);
     // save orientation as rotation matrix for rotating torques later
-    (*rot) = tf::Matrix3x3(q).inverse();
+    (*rot) = tf::Matrix3x3((*q)).inverse();
     (*rot).getRPY(pose[3], pose[4], pose[5]);
 
     // calculate velocities
@@ -468,6 +469,7 @@ int main(int argc, char **argv)
     std::array<double, 6> pelvis_xyzrpy = {NAN}; // pelvis_xyzrpy holds the pelvis frame pose wrt base_link frame
     std::array<double, 6> retract_xyzrpy = {NAN}; // retract_xyzrpy holds the retraction frame pose wrt base_link frame
     tf::Matrix3x3 currentRot = tf::Matrix3x3(); // holds the rotation matrix from base_link to ee frame
+    tf::Quaternion qForTrajEval = tf::Quaternion(); 
     tf::Matrix3x3 pelvisRot = tf::Matrix3x3();
     std::vector<tf::Matrix3x3> desiredRots;
     // tf::Quaternion q = tf::Quaternion();
@@ -506,7 +508,7 @@ int main(int argc, char **argv)
     // sub to get current reamer velocity
     ros::Subscriber reamer_sub = node.subscribe<std_msgs::Float64>("/reamer_velocity", 1, boost::bind(&reamerVelCallback, _1, &reamerVel));
     // sub to get ee pose wrt base_link
-    ros::Subscriber transform_sub = node.subscribe<geometry_msgs::Transform>("/my_gen3/ee_tf", 1, boost::bind(&tfCallback, _1, xyzrpy, &retract_xyzrpy, &currentRot, velocities, &time, &dynamicComp));
+    ros::Subscriber transform_sub = node.subscribe<geometry_msgs::Transform>("/my_gen3/ee_tf", 1, boost::bind(&tfCallback, _1, xyzrpy, &retract_xyzrpy, &currentRot, velocities, &time, &dynamicComp, &qForTrajEval));
     // sub to get pelvis orientation wrt base_link
     ros::Subscriber pelvis_transform_sub = node.subscribe<geometry_msgs::PoseStamped>("/reaming_end_point", 1, boost::bind(&pelvisTFCallback, _1, &pelvis_xyzrpy, &pelvisRot));
     // sub to get trajectory information
@@ -515,6 +517,8 @@ int main(int argc, char **argv)
     ros::Subscriber dynamic_compensation_listener = node.subscribe<std_msgs::Bool>("/pelvis_error", 1, boost::bind(&dynamicCompTrigger, _1, &dynamicComp, &startPlanner, &finished, &planned, wrench_commander, reamer_commander, &reamerVel));
     // pub to notify planner to start planning
     ros::Publisher notify_planner = node.advertise<std_msgs::Bool>("/start_planning", 1);
+    // pub to send actual pose to trajectory evaluator
+    ros::Publisher traj_eval_pub = node.advertise<geometry_msgs::Pose>("/actual_traj", 1);
 
     ros::Rate rate(controller_rate);
     while (ros::ok())
@@ -617,6 +621,15 @@ int main(int argc, char **argv)
 
                 // if the error in translation and orientation are both small, set next waypoint
                 if (norms[0] < 1.5e-3) {
+                    geometry_msgs::Pose eval_pose;
+                    eval_pose.position.x = xyzrpy[0];
+                    eval_pose.position.y = xyzrpy[1];
+                    eval_pose.position.z = xyzrpy[2];
+                    eval_pose.orientation.x = qForTrajEval.getX();
+                    eval_pose.orientation.y = qForTrajEval.getY();
+                    eval_pose.orientation.z = qForTrajEval.getZ();
+                    eval_pose.orientation.w = qForTrajEval.getW();
+                    traj_eval_pub.publish(eval_pose);
                     for (int i = 0; i < 6; i++) {
                         accumError[i] = 0;
                     }
