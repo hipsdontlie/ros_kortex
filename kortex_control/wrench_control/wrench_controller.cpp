@@ -72,22 +72,35 @@ bool pauseControls(ros::ServiceClient wrench_commander, ros::Publisher reamer_co
 void pelvisTFCallback(const geometry_msgs::PoseStamped::ConstPtr &msg, std::array<double, 6> *xyzrpy, tf::Matrix3x3 *rot) {
     tf::Quaternion q = tf::Quaternion((*msg).pose.orientation.x, (*msg).pose.orientation.y, (*msg).pose.orientation.z, (*msg).pose.orientation.w);
     (*rot) = tf::Matrix3x3(q).inverse();
-    (*xyzrpy)[0] = (*msg).pose.position.x;
-    (*xyzrpy)[1] = (*msg).pose.position.y;
-    (*xyzrpy)[2] = (*msg).pose.position.z;
+    // (*xyzrpy)[0] = (*msg).pose.position.x;
+    // (*xyzrpy)[1] = (*msg).pose.position.y;
+    // (*xyzrpy)[2] = (*msg).pose.position.z;
     (*rot).getRPY((*xyzrpy)[3], (*xyzrpy)[4], (*xyzrpy)[5]);
-    double relPos[3] = {0, 0, -0.01};
-    double rotatedRelPos[3] = {0.0};
+    double H[4][4] = {0};
     for (int i = 0; i < 3; i++)
     {
         for (int j = 0; j < 3; j++)
         {
-            rotatedRelPos[i] += (*rot).inverse()[i][j] * relPos[j];
+            H[i][j] = (*rot).inverse()[i][j];
         }
     }
-    (*xyzrpy)[0] += rotatedRelPos[0];
-    (*xyzrpy)[1] += rotatedRelPos[1];
-    (*xyzrpy)[2] += rotatedRelPos[2];
+    H[0][3] = (*msg).pose.position.x;
+    H[1][3] = (*msg).pose.position.y;
+    H[2][3] = (*msg).pose.position.z;
+    H[3][3] = 1;
+    double relPos[4] = {0, 0, -0.01, 1};
+    double rotatedRelPos[4] = {0.0};
+    rotatedRelPos[3] = 1;
+    for (int i = 0; i < 4; i++)
+    {
+        for (int j = 0; j < 4; j++)
+        {
+            rotatedRelPos[i] += H[i][j] * relPos[j];
+        }
+    }
+    (*xyzrpy)[0] = rotatedRelPos[0];
+    (*xyzrpy)[1] = rotatedRelPos[1];
+    (*xyzrpy)[2] = rotatedRelPos[2];
 }
 
 // Updates the ee pose wrt to the base_link
@@ -122,13 +135,42 @@ void tfCallback(const geometry_msgs::Transform::ConstPtr &msg, double xyzrpy[6],
     xyzrpy[5] = pose[5];
     
     if (!dynamicComp) {
-        double relPos[3] = {0, 0, -0.01};
-        double rotatedRelPos[3] = {0.0};
+        // double relPos[3] = {0, 0, -0.01};
+        // double rotatedRelPos[3] = {0.0};
+        // for (int i = 0; i < 3; i++)
+        // {
+        //     for (int j = 0; j < 3; j++)
+        //     {
+        //         rotatedRelPos[i] += (*rot).inverse()[i][j] * relPos[j];
+        //     }
+        // }
+        // (*retract_xyzrpy)[0] = rotatedRelPos[0];
+        // (*retract_xyzrpy)[1] = rotatedRelPos[1];
+        // (*retract_xyzrpy)[2] = rotatedRelPos[2];
+        // (*retract_xyzrpy)[3] = pose[3];
+        // (*retract_xyzrpy)[4] = pose[4];
+        // (*retract_xyzrpy)[5] = pose[5];
+
+        double H[4][4] = {0};
         for (int i = 0; i < 3; i++)
         {
             for (int j = 0; j < 3; j++)
             {
-                rotatedRelPos[i] += (*rot).inverse()[i][j] * relPos[j];
+                H[i][j] = (*rot).inverse()[i][j];
+            }
+        }
+        H[0][3] = (*msg).translation.x;
+        H[1][3] = (*msg).translation.y;
+        H[2][3] = (*msg).translation.z;
+        H[3][3] = 1;
+        double relPos[4] = {0, 0, -0.01, 1};
+        double rotatedRelPos[4] = {0.0};
+        rotatedRelPos[3] = 1;
+        for (int i = 0; i < 4; i++)
+        {
+            for (int j = 0; j < 4; j++)
+            {
+                rotatedRelPos[i] += H[i][j] * relPos[j];
             }
         }
         (*retract_xyzrpy)[0] = rotatedRelPos[0];
