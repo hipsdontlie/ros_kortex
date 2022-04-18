@@ -88,7 +88,7 @@ void pelvisTFCallback(const geometry_msgs::PoseStamped::ConstPtr &msg, std::arra
     H[1][3] = (*msg).pose.position.y;
     H[2][3] = (*msg).pose.position.z;
     H[3][3] = 1;
-    double relPos[4] = {0, 0, -0.01, 1};
+    double relPos[4] = {0, 0, -0.1, 1};
     double rotatedRelPos[4] = {0.0};
     rotatedRelPos[3] = 1;
     for (int i = 0; i < 4; i++)
@@ -163,7 +163,7 @@ void tfCallback(const geometry_msgs::Transform::ConstPtr &msg, double xyzrpy[6],
         H[1][3] = (*msg).translation.y;
         H[2][3] = (*msg).translation.z;
         H[3][3] = 1;
-        double relPos[4] = {0, 0, -0.01, 1};
+        double relPos[4] = {0, 0, -0.1, 1};
         double rotatedRelPos[4] = {0.0};
         rotatedRelPos[3] = 1;
         for (int i = 0; i < 4; i++)
@@ -475,11 +475,12 @@ int main(int argc, char **argv)
 
     // Kp and Kd constants for PD control
     const float Kp[6] = {300, 300, 300, 150, 150, 150};
-    const float Ki[6] = {300, 300, 300, 50, 50, 50};
+    // const float Ki[6] = {300, 300, 300, 50, 50, 50};
+    const float Ki[6] = {0, 0, 0, 0, 0, 0};
     const float Kd[6] = {350, 350, 350, 0, 0, 0};
     // Max F/T in N or Nm to apply
-    const float maxForce = 20.0;
-    const float maxTorque = 8.0;
+    const float maxForce = 15.0;
+    const float maxTorque = 7.0;
 
     
 
