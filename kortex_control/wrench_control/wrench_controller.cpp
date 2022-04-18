@@ -4,7 +4,8 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <arthur_planning/arthur_traj.h>
 #include <std_msgs/Bool.h>
-#include <std_msgs/String.h>
+#include <std_msgs/Int16.h>
+#include <std_msgs/Float64.h>
 #include <kortex_driver/SendWrenchCommand.h>
 #include <boost/bind.hpp>
 #include <vector>
@@ -43,12 +44,11 @@ bool sendWrench(ros::ServiceClient wrench_commander, const int frame, const int 
 }
 
 // sends a wrench command to gen3 to hold the current position
-bool pauseControls(ros::ServiceClient wrench_commander, ros::Publisher reamer_commander)
+bool pauseControls(ros::ServiceClient wrench_commander, ros::Publisher reamer_commander, double *reamerVel)
 {
-    std_msgs::String reamer_msg;
-    std::string speed = "0";
-    reamer_msg.data = speed;
-    // reamer_commander.publish(reamer_msg);
+    std_msgs::Int16 reamer_msg;
+    reamer_msg.data = 0;
+    reamer_commander.publish(reamer_msg);
     
     kortex_driver::WrenchCommand wrench_command;
     wrench_command.duration = 0;
@@ -66,7 +66,7 @@ bool pauseControls(ros::ServiceClient wrench_commander, ros::Publisher reamer_co
 
     kortex_driver::SendWrenchCommand srv;
     srv.request.input = wrench_command;
-    return wrench_commander.call(srv);
+    return wrench_commander.call(srv) && ((*reamerVel) <= 0.01 && (*reamerVel) >= -0.01);
 }
 
 void pelvisTFCallback(const geometry_msgs::PoseStamped::ConstPtr &msg, std::array<double, 6> *xyzrpy, tf::Matrix3x3 *rot) {
@@ -185,13 +185,13 @@ void tfCallback(const geometry_msgs::Transform::ConstPtr &msg, double xyzrpy[6],
 }
 
 // Checks to see if there is a new trajectory. If yes, then update trajectory vector
-void trajCallback(const arthur_planning::arthur_traj::ConstPtr &msg, std::vector<std::array<double, 6>> *traj, int *current_waypoint, int *trajNum, std::vector<tf::Matrix3x3> *desRot, ros::ServiceClient wrench_commander, ros::Publisher reamer_commander, bool *planned)
+void trajCallback(const arthur_planning::arthur_traj::ConstPtr &msg, std::vector<std::array<double, 6>> *traj, int *current_waypoint, int *trajNum, std::vector<tf::Matrix3x3> *desRot, ros::ServiceClient wrench_commander, ros::Publisher reamer_commander, bool *planned, double *reamerVel)
 {
     // if new trajectory, do the following
     if ((*msg).trajNum != (*trajNum))
     {
         // stop wrench commands, and pause robot at current spot
-        while (!pauseControls(wrench_commander, reamer_commander))
+        while (!pauseControls(wrench_commander, reamer_commander, reamerVel))
         {
             ROS_INFO("Trying to pause Reaming Operation!");
         }
@@ -221,18 +221,22 @@ void trajCallback(const arthur_planning::arthur_traj::ConstPtr &msg, std::vector
     }
 }
 
-void dynamicCompTrigger(const std_msgs::Bool::ConstPtr &msg, bool *dynamicComp, bool *startPlanner, bool *finished, bool *planned, ros::ServiceClient wrench_commander, ros::Publisher reamer_commander) {
+void dynamicCompTrigger(const std_msgs::Bool::ConstPtr &msg, bool *dynamicComp, bool *startPlanner, bool *finished, bool *planned, ros::ServiceClient wrench_commander, ros::Publisher reamer_commander, double *reamerVel) {
     if ((*msg).data) {
         (*dynamicComp) = true;
         (*startPlanner) = false;
         (*finished) = false;
         (*planned) = false;
         // TODO: Stop reamer
-        while (!pauseControls(wrench_commander, reamer_commander))
+        while (!pauseControls(wrench_commander, reamer_commander, reamerVel))
         {
             ROS_INFO("Trying to pause Reaming Operation!");
         }
     }
+}
+
+void reamerVelCallback(const std_msgs::Float64::ConstPtr &msg, double *reamerVel) {
+    (*reamerVel) = (*msg).data;
 }
 
 /**
@@ -447,7 +451,7 @@ int main(int argc, char **argv)
 
     ros::NodeHandle node;
     
-    double controller_rate = 10.0; // Rate of ros node pubsub
+    double controller_rate = 20.0; // Rate of ros node pubsub
 
     std_msgs::Bool planner_msg;
     bool startPlanner = false;
@@ -455,9 +459,10 @@ int main(int argc, char **argv)
     bool finished = false;
     bool dynamicComp = false;
 
-    std_msgs::String reamer_msg;
-    std::string speed = "0";
-    reamer_msg.data = speed;
+    std_msgs::Int16 reamer_msg;
+    reamer_msg.data = 0;
+    int defaultSpeed = 400; // default speed of reamer when starting reaming (rpm)
+    double reamerVel = 0.0; // variable to keep track of current reamer velocity (rpm)
 
     double xyzrpy[6] = {NAN};  
     std::array<double, 6> pelvis_xyzrpy = {NAN}; // pelvis_xyzrpy holds the pelvis frame pose wrt base_link frame
@@ -484,7 +489,8 @@ int main(int argc, char **argv)
 
     // Kp and Kd constants for PD control
     const float Kp[6] = {300, 300, 300, 150, 150, 150};
-    const float Ki[6] = {50, 50, 50, 5, 5, 5};
+    const float defaultKi[6] = {50, 50, 50, 5, 5, 5};
+    float Ki[6] = {0.0};
     // const float Ki[6] = {0, 0, 0, 0, 0, 0};
     const float Kd[6] = {350, 350, 350, 0, 0, 0};
     // Max F/T in N or Nm to apply
@@ -496,15 +502,17 @@ int main(int argc, char **argv)
     // sends wrench commands to kortex_driver service
     ros::ServiceClient wrench_commander = node.serviceClient<kortex_driver::SendWrenchCommand>("/my_gen3/base/send_wrench_command");
     // sends speeds to reamer
-    ros::Publisher reamer_commander = node.advertise<std_msgs::String>("/reamer_speed", 1);
+    ros::Publisher reamer_commander = node.advertise<std_msgs::Int16>("/reamer_speed", 1);
+    // sub to get current reamer velocity
+    ros::Subscriber reamer_sub = node.subscribe<std_msgs::Float64>("/reamer_velocity", 1, boost::bind(&reamerVelCallback, _1, &reamerVel));
     // sub to get ee pose wrt base_link
     ros::Subscriber transform_sub = node.subscribe<geometry_msgs::Transform>("/my_gen3/ee_tf", 1, boost::bind(&tfCallback, _1, xyzrpy, &retract_xyzrpy, &currentRot, velocities, &time, &dynamicComp));
     // sub to get pelvis orientation wrt base_link
     ros::Subscriber pelvis_transform_sub = node.subscribe<geometry_msgs::PoseStamped>("/reaming_end_point", 1, boost::bind(&pelvisTFCallback, _1, &pelvis_xyzrpy, &pelvisRot));
     // sub to get trajectory information
-    ros::Subscriber trajectory_sub = node.subscribe<arthur_planning::arthur_traj>("/my_gen3/arthur_traj", 1, boost::bind(&trajCallback, _1, &traj, &current_waypoint, &trajNum, &desiredRots, wrench_commander, reamer_commander, &planned));
+    ros::Subscriber trajectory_sub = node.subscribe<arthur_planning::arthur_traj>("/my_gen3/arthur_traj", 1, boost::bind(&trajCallback, _1, &traj, &current_waypoint, &trajNum, &desiredRots, wrench_commander, reamer_commander, &planned, &reamerVel));
     // sub to see dynamic comp
-    ros::Subscriber dynamic_compensation_listener = node.subscribe<std_msgs::Bool>("/pelvis_error", 1, boost::bind(&dynamicCompTrigger, _1, &dynamicComp, &startPlanner, &finished, &planned, wrench_commander, reamer_commander));
+    ros::Subscriber dynamic_compensation_listener = node.subscribe<std_msgs::Bool>("/pelvis_error", 1, boost::bind(&dynamicCompTrigger, _1, &dynamicComp, &startPlanner, &finished, &planned, wrench_commander, reamer_commander, &reamerVel));
     // pub to notify planner to start planning
     ros::Publisher notify_planner = node.advertise<std_msgs::Bool>("/start_planning", 1);
 
@@ -518,6 +526,10 @@ int main(int argc, char **argv)
         } else {
             planner_msg.data = startPlanner;
             notify_planner.publish(planner_msg);
+        }
+
+        for (int i = 0; i < 6; i++) {
+            Ki[i] = defaultKi[i];
         }
         
         // wrench to send; [force_x, force_y, force_z, torque_x, torque_y, torque_z]
@@ -534,6 +546,12 @@ int main(int argc, char **argv)
             // If dynamic compensation kicks in, we stop reaming, and back up; then we reorient and restart
             if (!planned && (!startPlanner || finished) && !dynamicComp)
             {
+                Ki[0] = 250;
+                Ki[1] = 250;
+                Ki[2] = 250;
+                Ki[3] = 10;
+                Ki[4] = 10;
+                Ki[5] = 10;
                 // To align our ee, we use frame 1 (trans about base, rot about ee)
                 frame = 1;
 
@@ -566,9 +584,8 @@ int main(int argc, char **argv)
                     ROS_INFO("Starting Reaming");
                     if (!finished) {
                         // TODO: Modify start reamer
-                        speed = "0";
-                        reamer_msg.data = speed;
-                        // reamer_commander.publish(reamer_msg);
+                        reamer_msg.data = defaultSpeed;
+                        reamer_commander.publish(reamer_msg);
                     }
                 } else {
                     ROS_INFO("Moving to start point!");
@@ -606,7 +623,7 @@ int main(int argc, char **argv)
                     if (current_waypoint >= traj.size()-1) {
                         finished = true;
                         // TODO: Add stop reamer code using pauseControls
-                        while (!pauseControls(wrench_commander, reamer_commander))
+                        while (!pauseControls(wrench_commander, reamer_commander, &reamerVel))
                         {
                             ROS_INFO("Trying to pause Reaming Operation!");
                         }
