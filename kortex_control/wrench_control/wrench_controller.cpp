@@ -717,6 +717,8 @@ int main(int argc, char **argv)
             {
                 ROS_INFO("Failed to send wrench command");
             }
+        } else {
+            pauseControls(wrench_commander, reamer_commander, &reamerVel);
         }
         ros::spinOnce();
         rate.sleep();
