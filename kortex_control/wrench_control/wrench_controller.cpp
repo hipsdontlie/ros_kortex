@@ -468,7 +468,7 @@ int main(int argc, char **argv)
 
     std_msgs::Int16 reamer_msg;
     reamer_msg.data = 0;
-    int defaultSpeed = 300; // default speed of reamer when starting reaming (rpm)
+    int defaultSpeed = 250; // default speed of reamer when starting reaming (rpm)
     double reamerVel = 0.0; // variable to keep track of current reamer velocity (rpm)
 
     double xyzrpy[6] = {NAN};  
@@ -496,11 +496,11 @@ int main(int argc, char **argv)
     int mode = 1;
 
     // Kp and Kd constants for PD control
-    const float Kp[6] = {300, 300, 300, 150, 150, 150};
-    const float defaultKi[6] = {50, 50, 50, 10, 10, 10};
+    const float Kp[6] = {200, 200, 200, 150, 150, 150};
+    const float defaultKi[6] = {100, 100, 100, 15, 15, 15};
     float Ki[6] = {0.0};
     // const float Ki[6] = {0, 0, 0, 0, 0, 0};
-    const float Kd[6] = {350, 350, 350, 0, 0, 0};
+    const float Kd[6] = {450, 450, 450, 0, 0, 0};
     // Max F/T in N or Nm to apply
     const float maxForce = 15.0;
     const float maxTorque = 7.0;
@@ -555,7 +555,7 @@ int main(int argc, char **argv)
             // Controller Code
             // We align orientation to pelvis reaming axis, then we follow trajectory
             // If dynamic compensation kicks in, we stop reaming, and back up; then we reorient and restart
-            if (!planned && (!startPlanner || finished) && !dynamicComp)
+            if (!finished && !planned && !startPlanner && !dynamicComp)
             {
                 
                 // To align our ee, we use frame 1 (trans about base, rot about ee)
@@ -600,16 +600,23 @@ int main(int argc, char **argv)
                     calculatePositionWrench(wrench, Kp, Ki, Kd, currentRot, dx, velocities, accumError, &time2, maxForce, maxTorque);
                 }
                 
-            } else if (planned && current_waypoint >= 0 && traj.size() > 0 && !dynamicComp) {
+            } else if (!finished && planned && current_waypoint >= 0 && traj.size() > 0 && !dynamicComp) {
                 ROS_INFO("Current Waypoint: %d out of %li", current_waypoint, traj.size()-1);
-                Ki[0] = 150;
-                Ki[1] = 150;
-                Ki[2] = 150;
+                Ki[0] = 50;
+                Ki[1] = 50;
+                Ki[2] = 50;
                 Ki[3] = 5;
                 Ki[4] = 5;
                 Ki[5] = 5;
 
-                if (!finished && abs(reamerVel) <= 0.01) {
+                double accum = 0.0;
+                for (int i = 0; i < 6; i++)
+                {
+                    accum += velocities[i] * velocities[i];
+                }
+                double normVel = sqrt(accum);
+
+                if (!finished && abs(reamerVel) <= 0.01 && current_waypoint > 0 && normVel < 1e-6) {
                     // TODO: Modify start reamer
                     reamer_msg.data = defaultSpeed;
                     reamer_commander.publish(reamer_msg);
@@ -666,8 +673,12 @@ int main(int argc, char **argv)
 
                 // Calculate the wrench vector (forces to translate in base_link frame, torques to orient in ee frame)
                 calculatePositionWrench(wrench, Kp, Ki, Kd, currentRot, dx, velocities, accumError, &time2, maxForce, maxTorque);
-            } else if (dynamicComp) {
-                ROS_INFO("Dynamic Compensation; Retracting Arm");
+            } else if (dynamicComp || finished) {
+                if (dynamicComp) {
+                    ROS_INFO("Dynamic Compensation; Retracting Arm");
+                } else {
+                    ROS_INFO("FINISHED REAMING!!! YAY!!!");
+                }
                 // To align our ee, we use frame 1 (trans about base, rot about ee)
                 frame = 1;
 
@@ -684,7 +695,9 @@ int main(int argc, char **argv)
                 calculateNorms(norms, dx);
                 // ROS_INFO("Normal: %f", norms[0]);
                 if (norms[0] < 3e-2) {
-                    dynamicComp = false;
+                    if (dynamicComp) {
+                        dynamicComp = false;
+                    }
                     for (int i = 0; i < 6; i++) {
                         accumError[i] = 0;
                     }
