@@ -31,7 +31,7 @@
 
     <!-- Record ROS bags for trajectory evaluation -->
     <node pkg="rosbag" type="record" name="trajectory_ground_truth" output="screen"
-       args="record -o $(find arthur_planning)/bags/gt /arthur_traj"
+       args="record -o $(find arthur_planning)/bags/gt /my_gen3/arthur_traj"
        if="$(arg rosbag)" />
 
     <node pkg="rosbag" type="record" name="trajectory_actual" output="screen"

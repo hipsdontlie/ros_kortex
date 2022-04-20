@@ -37,10 +37,10 @@ if __name__ == '__main__':
     Extracts IMU messages from bagfile.
     ''')
 
-    bag = 'bags/trajectory_actual.bag'
+    bag = 'bags/trajectory_act.bag'
     msg_type = 'Pose'
     topic = '/actual_traj'
-    output= 'actual_traj.txt'
+    output= 'stamped_traj_estimate.txt'
 
     out_dir = os.path.dirname(os.path.abspath(bag))
     out_fn = os.path.join(out_dir, output)

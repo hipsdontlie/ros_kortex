@@ -67,7 +67,7 @@ bool pauseControls(ros::ServiceClient wrench_commander, ros::Publisher reamer_co
 
     kortex_driver::SendWrenchCommand srv;
     srv.request.input = wrench_command;
-    ROS_INFO("Reamer Velocity: %f", (*reamerVel));
+    // ROS_INFO("Reamer Velocity: %f", (*reamerVel));
     return wrench_commander.call(srv) && ((*reamerVel) <= 0.01 && (*reamerVel) >= -0.01);
 }
 
@@ -106,7 +106,7 @@ void pelvisTFCallback(const geometry_msgs::PoseStamped::ConstPtr &msg, std::arra
 }
 
 // Updates the ee pose wrt to the base_link
-void tfCallback(const geometry_msgs::Transform::ConstPtr &msg, double xyzrpy[6], std::array<double, 6> *retract_xyzrpy, tf::Matrix3x3 *rot, double velocities[6], ros::Time *time, const bool *dynamicComp, tf::Quaternion *q)
+void tfCallback(const geometry_msgs::Transform::ConstPtr &msg, double xyzrpy[6], std::array<double, 6> *retract_xyzrpy, tf::Matrix3x3 *rot, double velocities[6], ros::Time *time, const bool *dynamicComp, const bool *finished, tf::Quaternion *q)
 {
     // extract pose from msg
     double pose[6];
@@ -136,7 +136,7 @@ void tfCallback(const geometry_msgs::Transform::ConstPtr &msg, double xyzrpy[6],
     xyzrpy[4] = pose[4];
     xyzrpy[5] = pose[5];
     // ROS_INFO("Dynamic comp: %d", (*dynamicComp));
-    if (!(*dynamicComp)) {
+    if (!(*dynamicComp) && !(*finished)) {
         // ROS_INFO("Updating retract xyzrpy");
         // double relPos[3] = {0, 0, -0.01};
         // double rotatedRelPos[3] = {0.0};
@@ -196,7 +196,7 @@ void trajCallback(const arthur_planning::arthur_traj::ConstPtr &msg, std::vector
         while (!pauseControls(wrench_commander, reamer_commander, reamerVel))
         {
             ROS_INFO("Trying to pause Reaming Operation!");
-            ROS_INFO("Reamer Vel trajCallback: %f", (*reamerVel));
+            // ROS_INFO("Reamer Vel trajCallback: %f", (*reamerVel));
             ros::spinOnce();
         }
         ROS_INFO("Pausing Reaming Operation for 3 seconds");
@@ -235,7 +235,7 @@ void dynamicCompTrigger(const std_msgs::Bool::ConstPtr &msg, bool *dynamicComp, 
         while (!pauseControls(wrench_commander, reamer_commander, reamerVel))
         {
             ROS_INFO("Trying to pause Reaming Operation!");
-            ROS_INFO("Reamer Vel dynCompTrig: %f", (*reamerVel));
+            // ROS_INFO("Reamer Vel dynCompTrig: %f", (*reamerVel));
             ros::spinOnce();
         }
     }
@@ -468,7 +468,7 @@ int main(int argc, char **argv)
 
     std_msgs::Int16 reamer_msg;
     reamer_msg.data = 0;
-    int defaultSpeed = 250; // default speed of reamer when starting reaming (rpm)
+    int defaultSpeed = 0; // default speed of reamer when starting reaming (rpm)
     double reamerVel = 0.0; // variable to keep track of current reamer velocity (rpm)
 
     double xyzrpy[6] = {NAN};  
@@ -496,14 +496,16 @@ int main(int argc, char **argv)
     int mode = 1;
 
     // Kp and Kd constants for PD control
-    const float Kp[6] = {200, 200, 200, 150, 150, 150};
-    const float defaultKi[6] = {100, 100, 100, 15, 15, 15};
+
+    const float defaultKp[6] = {500, 500, 500, 200, 200, 200};
+    float Kp[6] = {0.0};
+    const float defaultKi[6] = {75, 75, 75, 15, 15, 15};
     float Ki[6] = {0.0};
     // const float Ki[6] = {0, 0, 0, 0, 0, 0};
-    const float Kd[6] = {450, 450, 450, 0, 0, 0};
+    const float Kd[6] = {650, 650, 650, 0, 0, 0};
     // Max F/T in N or Nm to apply
     const float maxForce = 15.0;
-    const float maxTorque = 7.0;
+    const float maxTorque = 8.0;
 
     
 
@@ -514,7 +516,7 @@ int main(int argc, char **argv)
     // sub to get current reamer velocity
     ros::Subscriber reamer_sub = node.subscribe<std_msgs::Float64>("/reamer_velocity", 1, boost::bind(&reamerVelCallback, _1, &reamerVel));
     // sub to get ee pose wrt base_link
-    ros::Subscriber transform_sub = node.subscribe<geometry_msgs::Transform>("/my_gen3/ee_tf", 1, boost::bind(&tfCallback, _1, xyzrpy, &retract_xyzrpy, &currentRot, velocities, &time, &dynamicComp, &qForTrajEval));
+    ros::Subscriber transform_sub = node.subscribe<geometry_msgs::Transform>("/my_gen3/ee_tf", 1, boost::bind(&tfCallback, _1, xyzrpy, &retract_xyzrpy, &currentRot, velocities, &time, &dynamicComp, &finished, &qForTrajEval));
     // sub to get pelvis orientation wrt base_link
     ros::Subscriber pelvis_transform_sub = node.subscribe<geometry_msgs::PoseStamped>("/reaming_end_point", 1, boost::bind(&pelvisTFCallback, _1, &pelvis_xyzrpy, &pelvisRot));
     // sub to get trajectory information
@@ -529,7 +531,7 @@ int main(int argc, char **argv)
     ros::Rate rate(controller_rate);
     while (ros::ok())
     {
-        ROS_INFO("ReamerVel Main Loop: %f", reamerVel);
+        // ROS_INFO("ReamerVel Main Loop: %f", reamerVel);
         if (startPlanner) {
             planner_msg.data = startPlanner;
             notify_planner.publish(planner_msg);
@@ -540,6 +542,7 @@ int main(int argc, char **argv)
         }
 
         for (int i = 0; i < 6; i++) {
+            Kp[i] = defaultKp[i];
             Ki[i] = defaultKi[i];
         }
         
@@ -574,17 +577,17 @@ int main(int argc, char **argv)
                 calculateNorms(norms, dx);
 
                 // if the error in translation and orientation are both small, set next waypoint
-                if (norms[0] < 2e-3) {
+                if (norms[0] < 5e-3) {
                     for (int i = 0; i < 3; i++) {
                         accumError[i] = 0;
                     }
                 }
-                if (norms[1] < 4e-2) {
+                if (norms[1] < 5e-2) {
                     for (int i = 3; i < 6; i++) {
                         accumError[i] = 0;
                     }
                 }
-                if (norms[0] < 2e-3 && norms[1] < 4e-2)
+                if (norms[0] < 5e-3 && norms[1] < 5e-2)
                 {
                     startPlanner = true;
                     ROS_INFO("Starting Reaming");
@@ -602,9 +605,15 @@ int main(int argc, char **argv)
                 
             } else if (!finished && planned && current_waypoint >= 0 && traj.size() > 0 && !dynamicComp) {
                 ROS_INFO("Current Waypoint: %d out of %li", current_waypoint, traj.size()-1);
-                Ki[0] = 50;
-                Ki[1] = 50;
-                Ki[2] = 50;
+                Kp[0] = 400;
+                Kp[1] = 400;
+                Kp[2] = 400;
+                Kp[3] = 150;
+                Kp[4] = 150;
+                Kp[5] = 150;
+                Ki[0] = 30;
+                Ki[1] = 30;
+                Ki[2] = 30;
                 Ki[3] = 5;
                 Ki[4] = 5;
                 Ki[5] = 5;
@@ -615,11 +624,12 @@ int main(int argc, char **argv)
                     accum += velocities[i] * velocities[i];
                 }
                 double normVel = sqrt(accum);
-
-                if (!finished && abs(reamerVel) <= 0.01 && current_waypoint > 0 && normVel < 1e-6) {
+                ROS_INFO("Norm of Velocity: %e", normVel);
+                if (!finished && abs(reamerVel) <= 0.01 && current_waypoint >= 5 && normVel < 1e-8) {
                     // TODO: Modify start reamer
                     reamer_msg.data = defaultSpeed;
                     reamer_commander.publish(reamer_msg);
+                    ROS_INFO("Reamer On!");
                 } else if (finished) {
                     reamer_msg.data = 0;
                     reamer_commander.publish(reamer_msg);
@@ -641,7 +651,7 @@ int main(int argc, char **argv)
                 calculateNorms(norms, dx);
 
                 // if the error in translation and orientation are both small, set next waypoint
-                if (norms[0] < 1.5e-3) {
+                if (norms[0] < 3.5e-3) {
                     if (!stopRecordingTraj) {
                         geometry_msgs::Pose eval_pose;
                         eval_pose.position.x = xyzrpy[0];
