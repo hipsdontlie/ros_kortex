@@ -1,4 +1,14 @@
+<!-- 
+File Name: arthur_bringup.launch
 
+Team Name: Team 4, Hipster 
+
+Author(s): Kaushik Balasundar 
+
+Team Members: Kaushik Balasundar, Anthony Kyu, Gunjan Sethi, Sundaram Seivur, Parker Hill
+
+High Level Description: Starts the all vital functionalities for the ArThur System, except camera
+Date of first revision: 28th Aoril 2022 -->
 <launch>
 
 <!-- The only node not written is start_camera.launch since that requires you to enter the password -->
