@@ -1,3 +1,14 @@
+/**
+ * @file wrench_controller.cpp
+ * @author Anthony Kyu (akyu@andrew.cmu.edu)
+ * Team Members: Parker Hill, Kaushik Balasundar, Sundaram Seivur, Gunjan Sethi
+ * @brief This is the wrench controller which calculates the wrenches needed to get to desired positions
+ * @version 1.0
+ * @date 2022-04-06
+ * 
+ * @copyright Hipster Copyright (c) 2022
+ * 
+ */
 #include <ros/ros.h>
 #include <tf/transform_listener.h>
 #include <geometry_msgs/Transform.h>

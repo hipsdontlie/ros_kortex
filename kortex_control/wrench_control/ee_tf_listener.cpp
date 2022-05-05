@@ -1,3 +1,14 @@
+/**
+ * @file ee_tf_listener.cpp
+ * @author Anthony Kyu (akyu@andrew.cmu.edu)
+ * Team Members: Parker Hill, Kaushik Balasundar, Sundaram Seivur, Gunjan Sethi
+ * @brief This listens for the end-effector transform frame that is broadcasted and then publishes it.
+ * @version 1.0
+ * @date 2022-04-06
+ * 
+ * @copyright Hipster Copyright (c) 2022
+ * 
+ */
 #include <ros/ros.h>
 #include <tf/transform_listener.h>
 #include <geometry_msgs/Transform.h>
@@ -14,6 +25,7 @@ int main(int argc, char** argv){
 
   ros::Rate rate(40.0);
   while (ros::ok()){
+    // Gets the broadcasted frame called tool_frame
     tf::StampedTransform stamped_transform;
     try{
       listener.lookupTransform("base_link", "tool_frame",  
@@ -24,6 +36,7 @@ int main(int argc, char** argv){
       ros::Duration(1.0).sleep();
     }
 
+    // Puts frame into transform struct to be published
     geometry_msgs::Transform transform;
     transform.translation.x = stamped_transform.getOrigin().x();
     transform.translation.y = stamped_transform.getOrigin().y();
@@ -35,6 +48,7 @@ int main(int argc, char** argv){
     transform.rotation.z = q[2];
     transform.rotation.w = q[3];
     
+    // publish transform to be used by wrench controller
     transform_pub.publish(transform);
     ros::spinOnce();
     rate.sleep();
