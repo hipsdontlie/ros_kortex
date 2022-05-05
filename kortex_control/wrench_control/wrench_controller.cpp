@@ -3,6 +3,7 @@
 #include <geometry_msgs/Transform.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/Pose.h>
+#include <geometry_msgs/Vector3.h>
 #include <arthur_planning/arthur_traj.h>
 #include <std_msgs/Bool.h>
 #include <std_msgs/Int16.h>
@@ -229,7 +230,7 @@ void dynamicCompTrigger(const std_msgs::Bool::ConstPtr &msg, bool *dynamicComp, 
     if ((*msg).data) {
         (*dynamicComp) = true;
         (*startPlanner) = false;
-        (*finished) = false;
+        // (*finished) = false;
         (*planned) = false;
         // TODO: Stop reamer
         while (!pauseControls(wrench_commander, reamer_commander, reamerVel))
@@ -243,6 +244,12 @@ void dynamicCompTrigger(const std_msgs::Bool::ConstPtr &msg, bool *dynamicComp, 
 
 void reamerVelCallback(const std_msgs::Float64::ConstPtr &msg, double *reamerVel) {
     (*reamerVel) = (*msg).data;
+}
+
+void forceSensorCallback(const geometry_msgs::Vector3::ConstPtr &msg, double force[3]) {
+    force[0] = (*msg).x;
+    force[1] = (*msg).y;
+    force[2] = (*msg).z;
 }
 
 /**
@@ -424,11 +431,11 @@ void calculatePositionWrench(float wrench[6], const float Kp[6], const float Ki[
     for (int i = 0; i < 6; i++) {
         if (Ki[i] != 0) {
             accumError[i] += dx[i]*dt;
-            if (i < 3) {
-                accumError[i] = std::max(-1*maxForce/Ki[i], std::min(maxForce/Ki[i], accumError[i]));
-            } else {
-                accumError[i] = std::max(-1*maxTorque/Ki[i], std::min(maxTorque/Ki[i], accumError[i]));
-            }
+            // if (i < 3) {
+            //     accumError[i] = std::max(-3*maxForce/Ki[i], std::min(3*maxForce/Ki[i], accumError[i]));
+            // } else {
+            //     accumError[i] = std::max(-3*maxTorque/Ki[i], std::min(3*maxTorque/Ki[i], accumError[i]));
+            // }
         }
     }
     
@@ -468,7 +475,7 @@ int main(int argc, char **argv)
 
     std_msgs::Int16 reamer_msg;
     reamer_msg.data = 0;
-    int defaultSpeed = 0; // default speed of reamer when starting reaming (rpm)
+    int defaultSpeed = 300; // default speed of reamer when starting reaming (rpm)
     double reamerVel = 0.0; // variable to keep track of current reamer velocity (rpm)
 
     double xyzrpy[6] = {NAN};  
@@ -483,6 +490,8 @@ int main(int argc, char **argv)
     float accumError[6] = {0};
     ros::Time time = ros::Time::now();   // records the current time to be used when calculating dt for velocities
     ros::Time time2 = ros::Time::now();
+
+    double forces[3] = {0}; // holds the forces measured from the force/torque sensor
 
     std::vector<std::array<double, 6>> traj; // holds the trajectory information
     int current_waypoint = -1;               // has the current waypoint
@@ -506,7 +515,6 @@ int main(int argc, char **argv)
     // Max F/T in N or Nm to apply
     const float maxForce = 15.0;
     const float maxTorque = 8.0;
-
     
 
     // sends wrench commands to kortex_driver service
@@ -523,6 +531,8 @@ int main(int argc, char **argv)
     ros::Subscriber trajectory_sub = node.subscribe<arthur_planning::arthur_traj>("/my_gen3/arthur_traj", 1, boost::bind(&trajCallback, _1, &traj, &current_waypoint, &trajNum, &desiredRots, wrench_commander, reamer_commander, &planned, &reamerVel));
     // sub to see dynamic comp
     ros::Subscriber dynamic_compensation_listener = node.subscribe<std_msgs::Bool>("/pelvis_error", 1, boost::bind(&dynamicCompTrigger, _1, &dynamicComp, &startPlanner, &finished, &planned, wrench_commander, reamer_commander, &reamerVel));
+    // sub to get forces at end-effector
+    ros::Subscriber force_listener = node.subscribe<geometry_msgs::Vector3>("/sensor_force", 1, boost::bind(&forceSensorCallback, _1, forces));
     // pub to notify planner to start planning
     ros::Publisher notify_planner = node.advertise<std_msgs::Bool>("/start_planning", 1);
     // pub to send actual pose to trajectory evaluator
@@ -548,6 +558,7 @@ int main(int argc, char **argv)
         
         // wrench to send; [force_x, force_y, force_z, torque_x, torque_y, torque_z]
         float wrench[6] = {0};
+        // ROS_INFO("Measured Forces: %f, %f, %f", forces[0], forces[1], forces[2]);
         
         // Don't modify wrench if trajectory and ee frame aren't detected
         if (!isnan(xyzrpy[0]) && !isnan(velocities[0] && !isnan(pelvis_xyzrpy[0])))
@@ -577,7 +588,7 @@ int main(int argc, char **argv)
                 calculateNorms(norms, dx);
 
                 // if the error in translation and orientation are both small, set next waypoint
-                if (norms[0] < 5e-3) {
+                if (norms[0] < 7e-3) {
                     for (int i = 0; i < 3; i++) {
                         accumError[i] = 0;
                     }
@@ -587,7 +598,7 @@ int main(int argc, char **argv)
                         accumError[i] = 0;
                     }
                 }
-                if (norms[0] < 5e-3 && norms[1] < 5e-2)
+                if (norms[0] < 7e-3 && norms[1] < 5e-2)
                 {
                     startPlanner = true;
                     ROS_INFO("Starting Reaming");
@@ -605,35 +616,20 @@ int main(int argc, char **argv)
                 
             } else if (!finished && planned && current_waypoint >= 0 && traj.size() > 0 && !dynamicComp) {
                 ROS_INFO("Current Waypoint: %d out of %li", current_waypoint, traj.size()-1);
-                Kp[0] = 400;
-                Kp[1] = 400;
-                Kp[2] = 400;
+                Kp[0] = 2000;
+                Kp[1] = 2000;
+                Kp[2] = 2000;
                 Kp[3] = 150;
                 Kp[4] = 150;
                 Kp[5] = 150;
-                Ki[0] = 30;
-                Ki[1] = 30;
-                Ki[2] = 30;
+                Ki[0] = 200;
+                Ki[1] = 200;
+                Ki[2] = 200;
                 Ki[3] = 5;
                 Ki[4] = 5;
                 Ki[5] = 5;
 
-                double accum = 0.0;
-                for (int i = 0; i < 6; i++)
-                {
-                    accum += velocities[i] * velocities[i];
-                }
-                double normVel = sqrt(accum);
-                ROS_INFO("Norm of Velocity: %e", normVel);
-                if (!finished && abs(reamerVel) <= 0.01 && current_waypoint >= 5 && normVel < 1e-8) {
-                    // TODO: Modify start reamer
-                    reamer_msg.data = defaultSpeed;
-                    reamer_commander.publish(reamer_msg);
-                    ROS_INFO("Reamer On!");
-                } else if (finished) {
-                    reamer_msg.data = 0;
-                    reamer_commander.publish(reamer_msg);
-                }
+                
 
                 // To align our ee, we use frame 1 (trans about base, rot about ee)
                 frame = 1;
@@ -649,6 +645,23 @@ int main(int argc, char **argv)
                 // Calculate norm of translation error and norm of orientation error separately
                 double norms[2] = {0.0};
                 calculateNorms(norms, dx);
+
+                double accum = 0.0;
+                for (int i = 0; i < 3; i++)
+                {
+                    accum += forces[i] * forces[i];
+                }
+                double normForces = sqrt(accum);
+                ROS_INFO("Norm of Forces: %e", normForces);
+                if (!finished && abs(reamerVel) <= 0.01 && normForces >= 3 && norms[0] < 3e-2) {
+                    // TODO: Modify start reamer
+                    reamer_msg.data = defaultSpeed;
+                    reamer_commander.publish(reamer_msg);
+                    ROS_INFO("Reamer On!");
+                } else if (finished) {
+                    reamer_msg.data = 0;
+                    reamer_commander.publish(reamer_msg);
+                }
 
                 // if the error in translation and orientation are both small, set next waypoint
                 if (norms[0] < 3.5e-3) {
@@ -686,8 +699,12 @@ int main(int argc, char **argv)
             } else if (dynamicComp || finished) {
                 if (dynamicComp) {
                     ROS_INFO("Dynamic Compensation; Retracting Arm");
+                    reamer_msg.data = 0;
+                    reamer_commander.publish(reamer_msg);
                 } else {
                     ROS_INFO("FINISHED REAMING!!! YAY!!!");
+                    reamer_msg.data = 0;
+                    reamer_commander.publish(reamer_msg);
                 }
                 // To align our ee, we use frame 1 (trans about base, rot about ee)
                 frame = 1;
