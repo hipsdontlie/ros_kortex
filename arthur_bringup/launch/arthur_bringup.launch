@@ -27,16 +27,16 @@
     <node pkg="arthur_planning" type="arthur_planning_node.py" name="arthur_planning" output="screen" ns="my_gen3"/>
 
     <!-- Start arduino serial node -->
-    <node pkg="rosserial_python" type="serial_node.py" name="serial_node" output="screen"/>
+    <!-- <node pkg="rosserial_python" type="serial_node.py" name="serial_node" output="screen"/> -->
 
     <!-- Record ROS bags for trajectory evaluation -->
-    <node pkg="rosbag" type="record" name="trajectory_ground_truth" output="screen"
+    <!-- <node pkg="rosbag" type="record" name="trajectory_ground_truth" output="screen"
        args="record -o $(find arthur_planning)/bags/gt /my_gen3/arthur_traj"
        if="$(arg rosbag)" />
 
     <node pkg="rosbag" type="record" name="trajectory_actual" output="screen"
        args="record -o $(find arthur_planning)/bags/actual /actual_traj"
-       if="$(arg rosbag)"/>
+       if="$(arg rosbag)"/> -->
 
 </launch>
 
