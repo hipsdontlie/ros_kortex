@@ -207,11 +207,11 @@ void trajCallback(const arthur_planning::arthur_traj::ConstPtr &msg, std::vector
         // stop wrench commands, and pause robot at current spot
         while (!pauseControls(wrench_commander, reamer_commander, reamerVel))
         {
-            ROS_INFO("Trying to pause Reaming Operation!");
+            // ROS_INFO("Trying to pause Reaming Operation!");
             // ROS_INFO("Reamer Vel trajCallback: %f", (*reamerVel));
             ros::spinOnce();
         }
-        ROS_INFO("Pausing Reaming Operation for 3 seconds");
+        // ROS_INFO("Pausing Reaming Operation for 3 seconds");
 
         // clear trajectory vector
         (*traj).clear();
@@ -246,7 +246,7 @@ void dynamicCompTrigger(const std_msgs::Bool::ConstPtr &msg, bool *dynamicComp, 
         // TODO: Stop reamer
         while (!pauseControls(wrench_commander, reamer_commander, reamerVel))
         {
-            ROS_INFO("Trying to pause Reaming Operation!");
+            // ROS_INFO("Trying to pause Reaming Operation!");
             // ROS_INFO("Reamer Vel dynCompTrig: %f", (*reamerVel));
             ros::spinOnce();
         }
@@ -475,7 +475,7 @@ int main(int argc, char **argv)
 
     ros::NodeHandle node;
     
-    double controller_rate = 60.0; // Rate of ros node pubsub
+    double controller_rate = 200.0; // Rate of ros node pubsub
 
     std_msgs::Bool planner_msg;
     bool startPlanner = false;
@@ -517,15 +517,15 @@ int main(int argc, char **argv)
 
     // Kp and Kd constants for PD control
 
-    const float defaultKp[6] = {500, 500, 500, 200, 200, 200};
+    const float defaultKp[6] = {2000, 2000, 2000, 250, 250, 250};
     float Kp[6] = {0.0};
     const float defaultKi[6] = {75, 75, 75, 15, 15, 15};
     float Ki[6] = {0.0};
     // const float Ki[6] = {0, 0, 0, 0, 0, 0};
     const float Kd[6] = {650, 650, 650, 0, 0, 0};
     // Max F/T in N or Nm to apply
-    const float maxForce = 15.0;
-    const float maxTorque = 8.0;
+    const float maxForce = 30.0;
+    const float maxTorque = 10.0;
     
 
     // sends wrench commands to kortex_driver service
@@ -592,7 +592,7 @@ int main(int argc, char **argv)
                 // Calculate the error in pose wrt base_link
                 double dx[6] = {0.0};
                 calculateDX(dx, pelvis_xyzrpy, xyzrpy, pelvisRot, currentRot);
-                ROS_INFO("dx: %f, %f, %f, %f, %f, %f", dx[0], dx[1], dx[2], dx[3], dx[4], dx[5]);
+                // ROS_INFO("dx: %f, %f, %f, %f, %f, %f", dx[0], dx[1], dx[2], dx[3], dx[4], dx[5]);
 
                 // Calculate norm of translation error and norm of orientation error separately
                 double norms[2] = {0.0};
@@ -611,11 +611,11 @@ int main(int argc, char **argv)
                 }
                 if (norms[0] < 7e-3 && norms[1] < 5e-2)
                 {
-                    startPlanner = true;
-                    ROS_INFO("Starting Reaming");
+                    // startPlanner = true;
+                    // ROS_INFO("Starting Reaming");
                     
                 } else {
-                    ROS_INFO("Moving to start point!");
+                    // ROS_INFO("Moving to start point!");
                 }
 
                 // Calculate the wrench vector (forces to translate in base_link frame, torques to orient in ee frame)
@@ -753,11 +753,11 @@ int main(int argc, char **argv)
         if (!isnan(wrench[0]) && !isnan(wrench[1]) && !isnan(wrench[2]) && !isnan(wrench[3]) && !isnan(wrench[4]) && !isnan(wrench[5])) {
             if (sendWrench(wrench_commander, frame, mode, duration, wrench))
             {
-                ROS_INFO("Sent wrench command successfully: %.6f %.6f %.6f %.6f %.6f %.6f", wrench[0], wrench[1], wrench[2], wrench[3], wrench[4], wrench[5]);
+                // ROS_INFO("Sent wrench command successfully: %.6f %.6f %.6f %.6f %.6f %.6f", wrench[0], wrench[1], wrench[2], wrench[3], wrench[4], wrench[5]);
             }
             else
             {
-                ROS_INFO("Failed to send wrench command");
+                // ROS_INFO("Failed to send wrench command");
             }
         } else {
             pauseControls(wrench_commander, reamer_commander, &reamerVel);
