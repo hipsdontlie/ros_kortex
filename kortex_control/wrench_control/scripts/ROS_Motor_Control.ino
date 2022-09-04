@@ -1,3 +1,14 @@
+/**
+ * @file ROS_Motor_Control.ino
+ * @author Parker Hill (pjhill@andrew.cmu.edu)
+ * Team Members: Anthony Kyu, Kaushik Balasundar, Sundaram Seivur, Gunjan Sethi
+ * @brief Controls the reamer velocity and gets the current reamer velocity and publishes to ROS
+ * @version 0.1
+ * @date 2022-04-06
+ * 
+ * @copyright Hipster Copyright (c) 2022
+ * 
+ */
 #include <ros.h>
 #include <std_msgs/Int16.h>
 #include <std_msgs/Float64.h>

@@ -1,4 +1,13 @@
 #!/usr/bin/env python
+
+## ftsensor_listener.py
+# Parker Hill (pjhill@andrew.cmu.edu)
+# Team Members: Anthony Kyu, Kaushik Balasundar, Sundaram Seivur, Gunjan Sethi
+# Description: Logs into F/T sensor through Telnet, gets F/T and publishes it to ROS
+# Version 1.0
+# Date: 2022-04-06
+# Copyright (c) Hipster 2022
+
 import time
 from telnetlib import Telnet
 import rospy

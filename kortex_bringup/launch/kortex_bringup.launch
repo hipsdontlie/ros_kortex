@@ -1,0 +1,13 @@
+<<launch>
+    <!-- Start kortex driver -->
+
+    <include file="$(find kortex_driver)/launch//kortex_driver.launch/"/>
+
+    <!-- Start planning -->
+    <node pkg="arthur_planning" type="/* exec_name */" name="/* node_name */" output="screen"/>
+
+    <!-- Start controls-->
+    <node pkg="kortex_control" type="wrench_controller" name="wrench_controller" output="screen"/>
+
+
+</launch>
