@@ -12,7 +12,7 @@ int main(int argc, char** argv){
 
   tf::TransformListener listener;
 
-  ros::Rate rate(40.0);
+  ros::Rate rate(60.0);
   while (ros::ok()){
     tf::StampedTransform stamped_transform;
     try{
