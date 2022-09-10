@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<launch>
+
+    
+    <node pkg="kortex_control" type="master_controller" name="master_controller" output="screen" >
+        <param name="robot_description" command="xacro $(find kortex_control)/arm_description/robot_model.xacro" />
+        <param name="base_frame" value="base_link" />
+        <param name="tip_frame" value="end_effector_link" />
+    </node>
+
+
+</launch>

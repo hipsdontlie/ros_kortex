@@ -12,9 +12,14 @@ roslaunch
 moveit_msgs
 trajectory_msgs
 arthur_planning
+kdl_parser
+urdf
 )
 
-include_directories(include ${catkin_INCLUDE_DIRS}) 
+find_package(orocos_kdl REQUIRED
+urdf_model REQUIRED
+Eigen 3 3.3 REQUIRED
+)
 
 generate_messages(
   DEPENDENCIES
@@ -23,11 +28,16 @@ generate_messages(
 )
 
 catkin_package(
-  # INCLUDE_DIRS include
+  INCLUDE_DIRS priority_control/include ${Eigen3_INCLUDE_DIRS}
   # LIBRARIES ${PROJECT_NAME}   # Added this line
-  CATKIN_DEPENDS arthur_planning message_runtime roscpp std_msgs geometry_msgs tf 
-  DEPENDS
+  CATKIN_DEPENDS arthur_planning message_runtime roscpp std_msgs geometry_msgs tf kdl_parser urdf eigen
+  DEPENDS orocos_kdl urdf_model
 )
+
+include_directories( 
+  priority_control/include
+  ${catkin_INCLUDE_DIRS}
+) 
 
 catkin_install_python(PROGRAMS wrench_control/scripts/ftsensor_listener.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
@@ -48,3 +58,11 @@ add_dependencies(wrench_controller ${${PROJECT_NAME}_EXPORTED_TARGETS})
 add_dependencies(wrench_controller ${catkin_EXPORTED_TARGETS})
 add_dependencies(wrench_controller arthur_planning_generate_messages_cpp)
 target_link_libraries(wrench_controller ${catkin_LIBRARIES})
+
+add_executable(master_controller priority_control/master_controller.cpp
+                                  priority_control/include/arthur_robot_model.hpp
+                                  priority_control/arthur_robot_model.cpp
+                                  )
+add_dependencies(master_controller ${${PROJECT_NAME}_EXPORTED_TARGETS})
+add_dependencies(master_controller ${catkin_EXPORTED_TARGETS})
+target_link_libraries(master_controller ${catkin_LIBRARIES})
