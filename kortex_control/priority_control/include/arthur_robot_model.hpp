@@ -15,15 +15,15 @@ namespace priority_control
     class ArthurRobotModel
     {
         public:
-        static const double DEFAULT_JOINT_LIMIT_AVOIDANCE_BANDWIDTH;
-        static const size_t CARTESIAN_DOF;
+        static constexpr double DEFAULT_JOINT_LIMIT_AVOIDANCE_BANDWIDTH = 0.1;
+        static constexpr size_t CARTESIAN_DOF = 6;
 
         std::shared_ptr<KDL::ChainJntToJacSolver> jac_solver_;
         std::shared_ptr<KDL::ChainFkSolverPos> fk_pos_solver_;
-        std::shared_ptr<Eigen::JacobiSVD<Eigen::MatrixXd>> svd_full_solver;
-        std::shared_ptr<Eigen::JacobiSVD<Eigen::MatrixXd>> svd_fast_solver;
+        std::shared_ptr<Eigen::JacobiSVD<Eigen::MatrixXd>> svd_full_solver_;
+        std::shared_ptr<Eigen::JacobiSVD<Eigen::MatrixXd>> svd_fast_solver_;
 
-        ArthurRobotModel(std::string robot_description, std::string base_frame, std::string tip_frame);
+        ArthurRobotModel(const std::string& robot_description, const std::string& base_frame, const std::string& tip_frame);
         std::vector<double> const& upper_joint_limit();
         std::vector<double> const& lower_joint_limit();
         std::vector<double> const& upper_damping_threshold();
@@ -31,6 +31,7 @@ namespace priority_control
         std::vector<double> const& joint_rom();
         std::vector<double> const& joint_vel_limit();
         size_t nj();
+        Eigen::MatrixXd& identity_matrix();
 
         private:
         urdf::Model urdf_model_;
@@ -45,6 +46,7 @@ namespace priority_control
         std::vector<double> lower_damping_threshold_;
         std::vector<double> joint_rom_;
         std::vector<double> joint_vel_limit_;
+        Eigen::MatrixXd I_;
 
         bool compute_joint_limits(const std::string& base_frame, const std::string& tip_frame);
         void compute_joint_limit_avoidance_thresholds();

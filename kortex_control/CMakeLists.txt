@@ -53,6 +53,10 @@ add_executable(ee_tf_listener wrench_control/ee_tf_listener.cpp)
 add_dependencies(ee_tf_listener ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(ee_tf_listener ${catkin_LIBRARIES})
 
+add_executable(tf_listener priority_control/tf_listener.cpp)
+add_dependencies(tf_listener ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(tf_listener ${catkin_LIBRARIES})
+
 add_executable(wrench_controller wrench_control/wrench_controller.cpp)
 add_dependencies(wrench_controller ${${PROJECT_NAME}_EXPORTED_TARGETS})
 add_dependencies(wrench_controller ${catkin_EXPORTED_TARGETS})
@@ -62,6 +66,8 @@ target_link_libraries(wrench_controller ${catkin_LIBRARIES})
 add_executable(master_controller priority_control/master_controller.cpp
                                   priority_control/include/arthur_robot_model.hpp
                                   priority_control/arthur_robot_model.cpp
+                                  priority_control/include/task.hpp
+                                  priority_control/task.cpp
                                   )
 add_dependencies(master_controller ${${PROJECT_NAME}_EXPORTED_TARGETS})
 add_dependencies(master_controller ${catkin_EXPORTED_TARGETS})

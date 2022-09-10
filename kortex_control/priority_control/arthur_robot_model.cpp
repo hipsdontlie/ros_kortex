@@ -2,11 +2,11 @@
 
 namespace priority_control
 {
-    const double ArthurRobotModel::DEFAULT_JOINT_LIMIT_AVOIDANCE_BANDWIDTH = 0.1;
-    const size_t ArthurRobotModel::CARTESIAN_DOF = 6;
+    constexpr size_t ArthurRobotModel::CARTESIAN_DOF;
 
-    ArthurRobotModel::ArthurRobotModel(std::string robot_description, std::string base_frame, std::string tip_frame)
+    ArthurRobotModel::ArthurRobotModel(const std::string& robot_description, const std::string& base_frame, const std::string& tip_frame)
     {
+        // TODO: Add error checking for inputs
         joint_limit_avoidance_bandwidth_ = DEFAULT_JOINT_LIMIT_AVOIDANCE_BANDWIDTH;
 
         robot_description_ = robot_description;
@@ -35,8 +35,9 @@ namespace priority_control
         
         jac_solver_ = std::make_shared<KDL::ChainJntToJacSolver>(kdl_chain_);
         fk_pos_solver_ = std::make_shared<KDL::ChainFkSolverPos_recursive>(kdl_chain_);
-        svd_full_solver = std::make_shared<Eigen::JacobiSVD<Eigen::MatrixXd>>(CARTESIAN_DOF, number_joints_, Eigen::ComputeFullU | Eigen::ComputeFullV);
-        svd_fast_solver = std::make_shared<Eigen::JacobiSVD<Eigen::MatrixXd>>(CARTESIAN_DOF, number_joints_);
+        svd_full_solver_ = std::make_shared<Eigen::JacobiSVD<Eigen::MatrixXd>>(CARTESIAN_DOF, number_joints_, Eigen::ComputeFullU | Eigen::ComputeFullV);
+        svd_fast_solver_ = std::make_shared<Eigen::JacobiSVD<Eigen::MatrixXd>>(CARTESIAN_DOF, number_joints_);
+        I_ = Eigen::MatrixXd::Identity(number_joints_, number_joints_);
     }
 
     std::vector<double> const& ArthurRobotModel::upper_joint_limit()
@@ -62,6 +63,10 @@ namespace priority_control
     size_t ArthurRobotModel::nj()
     {
         return number_joints_;
+    }
+    Eigen::MatrixXd& ArthurRobotModel::identity_matrix()
+    {
+        return I_;
     }
 
     bool ArthurRobotModel::compute_joint_limits(const std::string& base_frame, const std::string& tip_frame)
@@ -108,7 +113,7 @@ namespace priority_control
 
     void ArthurRobotModel::compute_joint_limit_avoidance_thresholds()
     {
-        for (size_t i = 0; i < number_joints_; i++)
+        for (size_t i = 0; i < number_joints_; ++i)
         {
             lower_damping_threshold_[i] = (1.0 - joint_limit_avoidance_bandwidth_) * lower_joint_limit_[i] + joint_limit_avoidance_bandwidth_ * upper_joint_limit_[i];
             upper_damping_threshold_[i] = (1.0 - joint_limit_avoidance_bandwidth_) * upper_joint_limit_[i] + joint_limit_avoidance_bandwidth_ * lower_joint_limit_[i];
