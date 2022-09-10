@@ -167,4 +167,6 @@
     
     </group>
 
+    <!-- <include file="$(find kortex_control)/launch/priority_control.launch"/> -->
+
 </launch>

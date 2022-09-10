@@ -49,7 +49,7 @@ void errorCallback(const geometry_msgs::Transform::ConstPtr &msg, geometry_msgs:
 
 Eigen::VectorXd pid_controller(geometry_msgs::Transform& error)
 {
-    std::array<double, 6> Kp = {1, 1, 1, 1, 1, 1};
+    std::array<double, 6> Kp = {0.001, 0.001, 0.001, 0.001, 0.001, 0.001};
     std::array<double, 6> Ki = {0, 0, 0, 0, 0, 0};
     std::array<double, 6> Kd = {0, 0, 0, 0, 0, 0};
     Eigen::VectorXd twist = Eigen::VectorXd::Zero(6);
@@ -86,6 +86,8 @@ int main(int argc, char **argv)
 
     KDL::JntArray q_pos_ = KDL::JntArray(robot_->nj());
     Eigen::VectorXd q_vel_ = Eigen::VectorXd::Zero(robot_->nj());
+    Eigen::VectorXd sample_twist = Eigen::VectorXd::Zero(6);
+    sample_twist(2) = 0;
 
     geometry_msgs::Transform error_;
 
@@ -118,11 +120,12 @@ int main(int argc, char **argv)
     ros::spinOnce();
     while (ros::ok())
     {
-        task_->update_task(q_pos_, pid_controller(error_));
+        // task_->update_task(q_pos_, pid_controller(error_));
+        task_->update_task(q_pos_, sample_twist);
         task_->compute_kinematic_matrices(robot_->identity_matrix());
         q_vel_ = task_->pseudoinverse_jacobian() * task_->task_twist();
         // TODO: Check if velocity and positions are valid
-        sendJointSpeeds(joint_speed_commander_, q_vel_, robot_);
+        // sendJointSpeeds(joint_speed_commander_, q_vel_, robot_);
         ros::spinOnce();
         rate.sleep();
     }

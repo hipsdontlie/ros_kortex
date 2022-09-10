@@ -77,7 +77,7 @@ namespace priority_control
         int i = number_joints_ - 1;
         while (link && link->name != base_frame) 
         {
-            std::cout << link->name << std::endl;
+            // std::cout << link->name << std::endl;
             if (i < 0)
             {
                 ROS_ERROR("compute_joint_limits::Joint mismatch!");

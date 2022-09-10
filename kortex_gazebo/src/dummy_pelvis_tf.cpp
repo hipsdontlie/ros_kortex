@@ -13,22 +13,22 @@ void dummyPoseBroadcaster(float t){
   transformStamped.header.stamp = ros::Time::now();
   transformStamped.header.frame_id = "world";
   transformStamped.child_frame_id = "dummy_pelvis";
-  double pi = 3.14159265359;
-  t = t * pi / 180; 
-  float x = 0.25*sin(t);
-  float y = 0.25*sin(t);
-  transformStamped.transform.translation.x = x;
-  transformStamped.transform.translation.y = y;
-  transformStamped.transform.translation.z = 0.0;
+  transformStamped.transform.translation.x = 0.757;
+  transformStamped.transform.translation.y = 0.001;
+  transformStamped.transform.translation.z = 0.433;
+  //-0.001, -0.434, -0.756
+  //[0.500, 0.500, 0.500, -0.500]
   tf2::Quaternion q;
-  q.setRPY(0, 0, 0.15);
-  transformStamped.transform.rotation.x = q.x();
-  transformStamped.transform.rotation.y = q.y();
-  transformStamped.transform.rotation.z = q.z();
-  transformStamped.transform.rotation.w = q.w();
-
+  q.setRPY(3.142, 0, 0);
+//   transformStamped.transform.rotation.x = q.x();
+//   transformStamped.transform.rotation.y = q.y();
+//   transformStamped.transform.rotation.z = q.z();
+//   transformStamped.transform.rotation.w = q.w();
+  transformStamped.transform.rotation.x = 0.5;
+  transformStamped.transform.rotation.y = 0.5;
+  transformStamped.transform.rotation.z = 0.5;
+  transformStamped.transform.rotation.w = 0.5;
   br.sendTransform(transformStamped);
-
 
 }
 
