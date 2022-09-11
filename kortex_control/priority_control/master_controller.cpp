@@ -36,31 +36,33 @@ bool sendJointSpeeds(ros::ServiceClient joint_speed_commander, Eigen::VectorXd q
     return joint_speed_commander.call(srv);
 }
 
-void jointPositionCallback(const sensor_msgs::JointState::ConstPtr &msg, KDL::JntArray& q_pos, std::shared_ptr<ArthurRobotModel> robot) {
+void jointPositionCallback(const sensor_msgs::JointState::ConstPtr &msg, KDL::JntArray* q_pos, std::shared_ptr<ArthurRobotModel> robot) {
     for (size_t i = 0 ; i < robot->nj(); ++i)
     {
-        q_pos(i) = msg->position[i];
+        q_pos->data(i) = msg->position[i];
     }
 }
 
-void errorCallback(const geometry_msgs::Transform::ConstPtr &msg, geometry_msgs::Transform& error) {
-    error = (*msg);
+void errorCallback(const geometry_msgs::Transform::ConstPtr &msg, geometry_msgs::Transform* error) {
+    (*error) = (*msg);
 }
 
 Eigen::VectorXd pid_controller(geometry_msgs::Transform& error)
 {
-    std::array<double, 6> Kp = {0.001, 0.001, 0.001, 0.001, 0.001, 0.001};
+    std::array<double, 6> Kp = {50, 50, 50, 50, 50, 50};
     std::array<double, 6> Ki = {0, 0, 0, 0, 0, 0};
     std::array<double, 6> Kd = {0, 0, 0, 0, 0, 0};
     Eigen::VectorXd twist = Eigen::VectorXd::Zero(6);
     twist(0) = error.translation.x;
     twist(1) = error.translation.y;
     twist(2) = error.translation.z;
-    tf::Matrix3x3(tf::Quaternion(error.rotation.x, error.rotation.y, error.rotation.z, error.rotation.w)).inverse().getRPY(twist(3), twist(4), twist(5));
+    tf::Matrix3x3(tf::Quaternion(error.rotation.x, error.rotation.y, error.rotation.z, error.rotation.w)).getRPY(twist(3), twist(4), twist(5));
     for (int i = 0; i < 6; ++i)
     {
         twist(i) = Kp[i] * twist(i);
     }
+    std::cout << "*****************" << std::endl;
+    std::cout << twist << std::endl;
     return twist;
 }
 
@@ -86,14 +88,22 @@ int main(int argc, char **argv)
 
     KDL::JntArray q_pos_ = KDL::JntArray(robot_->nj());
     Eigen::VectorXd q_vel_ = Eigen::VectorXd::Zero(robot_->nj());
-    Eigen::VectorXd sample_twist = Eigen::VectorXd::Zero(6);
-    sample_twist(2) = 0;
+    // Eigen::VectorXd sample_twist = Eigen::VectorXd::Zero(6);
+    // sample_twist(2) = 0.0;
 
     geometry_msgs::Transform error_;
+    error_.translation.x = 0;
+    error_.translation.y = 0;
+    error_.translation.z = 0;
+    error_.rotation.x = 0;
+    error_.rotation.y = 0;
+    error_.rotation.z = 0;
+    error_.rotation.w = 1;
+    
 
     // Subs/Pubs
-    ros::Subscriber joint_state_sub_ = node.subscribe<sensor_msgs::JointState>("/my_gen3/joint_states", 1, boost::bind(&jointPositionCallback, _1, q_pos_, robot_));
-    ros::Subscriber tracking_frame_sub_ = node.subscribe<geometry_msgs::Transform>("/tf/tool_frame_to_dummy_pelvis", 1, boost::bind(&errorCallback, _1, error_));
+    ros::Subscriber joint_state_sub_ = node.subscribe<sensor_msgs::JointState>("/my_gen3/joint_states", 1, boost::bind(&jointPositionCallback, _1, &q_pos_, robot_));
+    ros::Subscriber tracking_frame_sub_ = node.subscribe<geometry_msgs::Transform>("/tf/tool_frame_to_dummy_pelvis", 1, boost::bind(&errorCallback, _1, &error_));
     ros::ServiceClient joint_speed_commander_ = node.serviceClient<kortex_driver::SendJointSpeedsCommand>("/my_gen3/base/send_joint_speeds_command");
 
     // // sends wrench commands to kortex_driver service
@@ -120,12 +130,23 @@ int main(int argc, char **argv)
     ros::spinOnce();
     while (ros::ok())
     {
-        // task_->update_task(q_pos_, pid_controller(error_));
-        task_->update_task(q_pos_, sample_twist);
-        task_->compute_kinematic_matrices(robot_->identity_matrix());
-        q_vel_ = task_->pseudoinverse_jacobian() * task_->task_twist();
-        // TODO: Check if velocity and positions are valid
-        // sendJointSpeeds(joint_speed_commander_, q_vel_, robot_);
+        Eigen::VectorXd desired_twist = pid_controller(error_);
+        if (std::isnan(desired_twist(0)) || std::isnan(desired_twist(1)) || std::isnan(desired_twist(2)) || std::isnan(desired_twist(3)) || std::isnan(desired_twist(4)) || std::isnan(desired_twist(5)))
+        {
+            std::cout << "Desired twist is nan!" << std::endl;
+        }
+        else
+        {
+            task_->update_task(q_pos_, desired_twist);
+            // pid_controller(error_);
+            // task_->update_task(q_pos_, sample_twist);
+            task_->compute_kinematic_matrices(robot_->identity_matrix());
+            q_vel_ = task_->pseudoinverse_jacobian() * task_->task_twist();
+            std::cout << "-----------------------" << std::endl;
+            std::cout << q_vel_ << std::endl;
+            // TODO: Check if velocity and positions are valid
+            sendJointSpeeds(joint_speed_commander_, q_vel_, robot_);
+        }
         ros::spinOnce();
         rate.sleep();
     }

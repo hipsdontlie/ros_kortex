@@ -111,7 +111,7 @@ namespace priority_control
             // TODO: error!
             return false;
         }
-        if (!KDL::changeBase(basic_jacobian_, task_frame.M, rotated_jacobian_))
+        if (!KDL::changeBase(basic_jacobian_, task_frame.M.Inverse(), rotated_jacobian_))
         {
             // TODO: error!
             return false;
@@ -138,10 +138,10 @@ namespace priority_control
     {
         // TODO: Check singularities
         robot_->svd_full_solver_->compute(task_jacobian_);
-        std::cout << "-----------------------" << std::endl;
-        std::cout << robot_->svd_full_solver_->singularValues() << std::endl;
+        // std::cout << "-----------------------" << std::endl;
+        // std::cout << robot_->svd_full_solver_->singularValues() << std::endl;
         std::cout << "==========================" << std::endl;
-        std::cout << basic_jacobian_.data << std::endl;
+        std::cout << task_jacobian_ << std::endl;
         pseudoinverse_jacobian_ = Eigen::MatrixXd::Zero(robot_->nj(), num_task_dof_);
         for (size_t i = 0; i < ArthurRobotModel::CARTESIAN_DOF; ++i)
         {
