@@ -3,6 +3,8 @@
 namespace priority_control
 {
     constexpr size_t ArthurRobotModel::CARTESIAN_DOF;
+    constexpr double ArthurRobotModel::DEFAULT_LAMBDA;
+    constexpr double ArthurRobotModel::DEFAULT_EPSILON;
 
     ArthurRobotModel::ArthurRobotModel(const std::string& robot_description, const std::string& base_frame, const std::string& tip_frame)
     {
@@ -36,7 +38,9 @@ namespace priority_control
         jac_solver_ = std::make_shared<KDL::ChainJntToJacSolver>(kdl_chain_);
         fk_pos_solver_ = std::make_shared<KDL::ChainFkSolverPos_recursive>(kdl_chain_);
         svd_full_solver_ = std::make_shared<Eigen::JacobiSVD<Eigen::MatrixXd>>(CARTESIAN_DOF, number_joints_, Eigen::ComputeFullU | Eigen::ComputeFullV);
+        svd_full_solver_->setThreshold(DEFAULT_EPSILON);
         svd_fast_solver_ = std::make_shared<Eigen::JacobiSVD<Eigen::MatrixXd>>(CARTESIAN_DOF, number_joints_);
+        svd_fast_solver_->setThreshold(DEFAULT_EPSILON);
         I_ = Eigen::MatrixXd::Identity(number_joints_, number_joints_);
     }
 

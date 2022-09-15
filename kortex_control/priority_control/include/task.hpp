@@ -2,6 +2,7 @@
 
 #include "arthur_robot_model.hpp"
 #include <ros/console.h>
+#include <math.h>
 
 namespace priority_control 
 {
@@ -38,5 +39,6 @@ namespace priority_control
         bool rotate_jacobian();
         bool crop_jacobian();
         bool compute_pseudoinverse_jacobian();
+        double compute_lambda_scaled(double sigma);
     };
 }

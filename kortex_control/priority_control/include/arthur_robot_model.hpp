@@ -17,6 +17,8 @@ namespace priority_control
         public:
         static constexpr double DEFAULT_JOINT_LIMIT_AVOIDANCE_BANDWIDTH = 0.1;
         static constexpr size_t CARTESIAN_DOF = 6;
+        static constexpr double DEFAULT_LAMBDA = 0.2;
+        static constexpr double DEFAULT_EPSILON = 0.05;
 
         std::shared_ptr<KDL::ChainJntToJacSolver> jac_solver_;
         std::shared_ptr<KDL::ChainFkSolverPos> fk_pos_solver_;

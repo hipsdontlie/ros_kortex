@@ -140,17 +140,37 @@ namespace priority_control
         robot_->svd_full_solver_->compute(task_jacobian_);
         // std::cout << "-----------------------" << std::endl;
         // std::cout << robot_->svd_full_solver_->singularValues() << std::endl;
-        std::cout << "==========================" << std::endl;
-        std::cout << task_jacobian_ << std::endl;
+        // std::cout << "==========================" << std::endl;
+        // std::cout << task_jacobian_ << std::endl;
         pseudoinverse_jacobian_ = Eigen::MatrixXd::Zero(robot_->nj(), num_task_dof_);
+
         for (size_t i = 0; i < ArthurRobotModel::CARTESIAN_DOF; ++i)
         {
-            pseudoinverse_jacobian_ = pseudoinverse_jacobian_ +
-            ((1.0 / robot_->svd_full_solver_->singularValues()(i)) *
-            robot_->svd_full_solver_->matrixV().col(i) *
-            robot_->svd_full_solver_->matrixU().col(i).transpose());
+            if (robot_->svd_full_solver_->singularValues()(i) < ArthurRobotModel::DEFAULT_EPSILON)
+            {
+                double lambda_scaled = compute_lambda_scaled(robot_->svd_full_solver_->singularValues()(i));
+                pseudoinverse_jacobian_ = pseudoinverse_jacobian_ +
+                ((robot_->svd_full_solver_->singularValues()(i) / 
+                ((robot_->svd_full_solver_->singularValues()(i) * robot_->svd_full_solver_->singularValues()(i)) + 
+                (lambda_scaled * lambda_scaled))) *
+                robot_->svd_full_solver_->matrixV().col(i) *
+                robot_->svd_full_solver_->matrixU().col(i).transpose());
+            }
+            else
+            {
+                pseudoinverse_jacobian_ = pseudoinverse_jacobian_ +
+                ((1.0 / robot_->svd_full_solver_->singularValues()(i)) *
+                robot_->svd_full_solver_->matrixV().col(i) *
+                robot_->svd_full_solver_->matrixU().col(i).transpose());
+            }
+            
         }
         // TODO: check errors
         return true;
+    }
+
+    double Task::compute_lambda_scaled(double sigma)
+    {
+        return ArthurRobotModel::DEFAULT_LAMBDA * sqrt(1 - ((sigma * sigma) / (ArthurRobotModel::DEFAULT_EPSILON * ArthurRobotModel::DEFAULT_EPSILON)));
     }
 }
