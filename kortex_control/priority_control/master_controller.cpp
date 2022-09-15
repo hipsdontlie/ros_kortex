@@ -1,4 +1,6 @@
 #include <ros/ros.h>
+#include <signal.h>
+#include <ros/xmlrpc_manager.h>
 #include <tf/transform_listener.h>
 #include <geometry_msgs/Transform.h>
 // #include <geometry_msgs/PoseStamped.h>
@@ -18,6 +20,11 @@
 #include "task.hpp"
 
 using namespace priority_control;
+
+// Signal-safe flag for whether shutdown is requested
+sig_atomic_t volatile g_request_shutdown = 0;
+double maxLinearVelocity = 0.01;
+double maxAngularVelocity = 1.57;
 
 bool sendJointSpeeds(ros::ServiceClient joint_speed_commander, Eigen::VectorXd q_vel, std::shared_ptr<ArthurRobotModel> robot)
 {
@@ -61,6 +68,23 @@ Eigen::VectorXd pidController(geometry_msgs::Transform& error)
     {
         twist(i) = Kp[i] * twist(i);
     }
+    
+    double linearVel = sqrt(twist(0)*twist(0) + twist(1)*twist(1) + twist(2)*twist(2));
+    double angularVel = sqrt(twist(3)*twist(3) + twist(4)*twist(4) + twist(5)*twist(5));
+    // if (linearVel > maxLinearVelocity)
+    // {
+    //     for (size_t i = 0; i < 3; ++i)
+    //     {
+    //         twist(i) = maxLinearVelocity* twist(i) / linearVel;
+    //     }
+    // }
+    // if (angularVel > maxAngularVelocity)
+    // {
+    //     for (size_t i = 3; i < 6; ++i)
+    //     {
+    //         twist(i) = maxAngularVelocity* twist(i) / angularVel;
+    //     }
+    // }
     std::cout << "*****************" << std::endl;
     std::cout << twist << std::endl;
     return twist;
@@ -98,11 +122,85 @@ void computeJointLimitAvoidance(Eigen::MatrixXd& Wq, Eigen::VectorXd& F, const K
     }
 }
 
+bool validJointVel(Eigen::VectorXd q_vel, KDL::JntArray q_pos, std::shared_ptr<ArthurRobotModel> robot, double dt)
+{
+    KDL::JntArray q_pos_next = KDL::JntArray(robot->nj());
+    for (size_t i = 0; i < robot->nj(); ++i)
+    {
+        q_pos_next(i) = q_pos(i) + q_vel(i)*dt;
+    }
+    
+    for (size_t i = 0; i < robot->nj(); ++i)
+    {
+        if (abs(q_vel(i)) > robot->joint_vel_limit()[i])
+        {
+            std::cout << abs(q_vel(i)) << std::endl;
+            std::cout << robot->joint_vel_limit()[i] << std::endl;
+            ROS_WARN("At Hard Joint Velocity Limit for Joint: %ld", i+1);
+            return false;
+        }
+        if (q_pos_next(i) > robot->upper_joint_limit()[i] || q_pos_next(i) < robot->lower_joint_limit()[i])
+        {
+            ROS_WARN("At Hard Joint Position Limit for Joint: %ld", i+1);
+            return false;
+        }
+    }
+
+    KDL::Jacobian jac_next = KDL::Jacobian(robot->nj());
+    if (robot->jac_solver_->JntToJac(q_pos_next, jac_next) < 0)
+    {
+        ROS_ERROR("Could not compute jacobian!");
+        // TODO: Stop Controller or Send Message to Watchdog
+        return false;
+    }
+
+    robot->svd_fast_solver_->compute(jac_next.data);
+    int basic_rank = robot->svd_fast_solver_->rank();
+    Eigen::MatrixXd Wq_temp = Eigen::MatrixXd::Identity(robot->nj(), robot->nj());
+    Eigen::VectorXd F_temp = Eigen::VectorXd::Zero(robot->nj());
+    computeJointLimitAvoidance(Wq_temp, F_temp, q_pos_next, robot);
+    robot->svd_fast_solver_->compute(jac_next.data*Wq_temp);
+    int joint_lim_rank = robot->svd_fast_solver_->rank();
+    if (basic_rank >= 6 && joint_lim_rank < 6)
+    {
+        return false;
+    }
+    return true;
+}
+
+// Replacement SIGINT handler
+void mySigIntHandler(int sig)
+{
+  g_request_shutdown = 1;
+}
+
+// Replacement "shutdown" XMLRPC callback
+void shutdownCallback(XmlRpc::XmlRpcValue& params, XmlRpc::XmlRpcValue& result)
+{
+  int num_params = 0;
+  if (params.getType() == XmlRpc::XmlRpcValue::TypeArray)
+    num_params = params.size();
+  if (num_params > 1)
+  {
+    std::string reason = params[1];
+    ROS_WARN("Shutdown request received. Reason: [%s]", reason.c_str());
+    g_request_shutdown = 1; // Set flag
+  }
+
+  result = ros::xmlrpc::responseInt(1, "", 0);
+}
 
 int main(int argc, char **argv)
 {
-    ros::init(argc, argv, "master_controller");
+    ros::init(argc, argv, "master_controller", ros::init_options::NoSigintHandler);
     ros::NodeHandle node;
+    signal(SIGINT, mySigIntHandler);
+    tf::TransformListener listener;
+
+    // Override XMLRPC shutdown
+    ros::XMLRPCManager::instance()->unbind("shutdown");
+    ros::XMLRPCManager::instance()->bind("shutdown", shutdownCallback);
+
     double controller_rate_ = 40.0; // Rate of ros node (hz)
     double controller_time_step_ = 1.0 / controller_rate_;
     ros::Rate rate(controller_rate_);
@@ -113,6 +211,8 @@ int main(int argc, char **argv)
     node.getParam("/master_controller/base_frame", base_frame_);
     std::string tip_frame_;
     node.getParam("/master_controller/tip_frame", tip_frame_);
+    std::string target_frame_;
+    node.getParam("/master_controller/target_frame", target_frame_);
 
     std::array<bool, 6> task_dof_= {true, true, true, true, true, true};
     
@@ -160,8 +260,12 @@ int main(int argc, char **argv)
     // // pub to send actual pose to trajectory evaluator
     // ros::Publisher traj_eval_pub = node.advertise<geometry_msgs::Pose>("/actual_traj", 1);
 
+    ros::Time now = ros::Time::now();
+    listener.waitForTransform(tip_frame_, target_frame_,
+                              now, ros::Duration(100.0));
+
     ros::spinOnce();
-    while (ros::ok())
+    while (!g_request_shutdown)
     {
         Eigen::VectorXd desired_twist = pidController(error_);
         if (std::isnan(desired_twist(0)) || std::isnan(desired_twist(1)) || std::isnan(desired_twist(2)) || std::isnan(desired_twist(3)) || std::isnan(desired_twist(4)) || std::isnan(desired_twist(5)))
@@ -176,13 +280,22 @@ int main(int argc, char **argv)
             q_vel_ = task_->pseudoinverse_jacobian() * task_->task_twist() +
                 ((robot_->identity_matrix() - task_->pseudoinverse_jacobian()*task_->task_jacobian()) *
                 (robot_->identity_matrix() - Wq) * Joint_Limit_Force);
-            std::cout << "-----------------------" << std::endl;
-            std::cout << q_vel_ << std::endl;
+            if (!validJointVel(q_vel_, q_pos_, robot_, controller_time_step_))
+            {
+                // q_vel_ = Eigen::VectorXd::Zero(robot_->nj());
+            }
+            // std::cout << "-----------------------" << std::endl;
+            // std::cout << q_vel_ << std::endl;
             // TODO: Check if velocity and positions are valid
             sendJointSpeeds(joint_speed_commander_, q_vel_, robot_);
         }
         ros::spinOnce();
         rate.sleep();
     }
+
+    q_vel_ = Eigen::VectorXd::Zero(robot_->nj());
+    sendJointSpeeds(joint_speed_commander_, q_vel_, robot_);
+    std::cout << "Shutting controller down!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
+    ros::shutdown();
     return 0;
 };

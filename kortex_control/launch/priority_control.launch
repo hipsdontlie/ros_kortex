@@ -5,6 +5,7 @@
         <param name="robot_description" command="xacro $(find kortex_control)/arm_description/robot_model.xacro" />
         <param name="base_frame" value="base_link" />
         <param name="tip_frame" value="tool_frame" />
+        <param name="target_frame" value="dummy_pelvis" />
     </node>
 
     <node pkg="kortex_control" type="tf_listener" name="tf_listener" output="screen" >

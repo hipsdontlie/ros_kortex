@@ -7,7 +7,7 @@
 float t; 
 void dummyPoseBroadcaster(float t){
   
-  ROS_INFO("Sending dummy tf!");
+  // ROS_INFO("Sending dummy tf!");
   static tf2_ros::TransformBroadcaster br;
   geometry_msgs::TransformStamped transformStamped;
   transformStamped.header.stamp = ros::Time::now();

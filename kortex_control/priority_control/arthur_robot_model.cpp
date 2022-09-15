@@ -71,6 +71,10 @@ namespace priority_control
     {
         return joint_rom_;
     }
+    std::vector<double> const& ArthurRobotModel::joint_vel_limit()
+    {
+        return joint_vel_limit_;
+    }
     std::vector<double> const& ArthurRobotModel::joint_limit_force_max()
     {
         return joint_limit_force_max_;
