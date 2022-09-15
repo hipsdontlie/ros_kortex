@@ -5,6 +5,7 @@ namespace priority_control
     constexpr size_t ArthurRobotModel::CARTESIAN_DOF;
     constexpr double ArthurRobotModel::DEFAULT_LAMBDA;
     constexpr double ArthurRobotModel::DEFAULT_EPSILON;
+    constexpr double ArthurRobotModel::DEFAULT_JOINT_LIMIT_FORCE_COEFFICIENT;
 
     ArthurRobotModel::ArthurRobotModel(const std::string& robot_description, const std::string& base_frame, const std::string& tip_frame)
     {
@@ -33,6 +34,12 @@ namespace priority_control
         if(!compute_joint_limits(base_frame, tip_frame))
         {
             ROS_ERROR("Could not initialize joint limits");
+        }
+
+        joint_limit_force_max_.resize(number_joints_, 0.0);
+        for (size_t i = 0; i < number_joints_; ++i)
+        {
+            joint_limit_force_max_[i] = DEFAULT_JOINT_LIMIT_FORCE_COEFFICIENT * joint_rom_[i];
         }
         
         jac_solver_ = std::make_shared<KDL::ChainJntToJacSolver>(kdl_chain_);
@@ -63,6 +70,10 @@ namespace priority_control
     std::vector<double> const& ArthurRobotModel::joint_rom()
     {
         return joint_rom_;
+    }
+    std::vector<double> const& ArthurRobotModel::joint_limit_force_max()
+    {
+        return joint_limit_force_max_;
     }
     size_t ArthurRobotModel::nj()
     {

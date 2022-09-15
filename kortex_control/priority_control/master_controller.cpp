@@ -47,7 +47,7 @@ void errorCallback(const geometry_msgs::Transform::ConstPtr &msg, geometry_msgs:
     (*error) = (*msg);
 }
 
-Eigen::VectorXd pid_controller(geometry_msgs::Transform& error)
+Eigen::VectorXd pidController(geometry_msgs::Transform& error)
 {
     std::array<double, 6> Kp = {50, 50, 50, 50, 50, 50};
     std::array<double, 6> Ki = {0, 0, 0, 0, 0, 0};
@@ -65,6 +65,39 @@ Eigen::VectorXd pid_controller(geometry_msgs::Transform& error)
     std::cout << twist << std::endl;
     return twist;
 }
+
+double jointLimitDampingFunction(double x)
+{
+    return 0.5 - 0.5*tanh((1 / (1-x)) - (1/x));
+}
+
+void computeJointLimitAvoidance(Eigen::MatrixXd& Wq, Eigen::VectorXd& F, const KDL::JntArray& q_pos, std::shared_ptr<ArthurRobotModel> robot)
+{
+    for (size_t i = 0; i < robot->nj(); ++i)
+    {
+        if (q_pos(i) >= robot->lower_joint_limit()[i] && q_pos(i) < robot->lower_damping_threshold()[i])
+        {
+            Wq(i,i) = jointLimitDampingFunction((robot->lower_damping_threshold()[i] - q_pos(i)) / (robot->lower_damping_threshold()[i] - robot->lower_joint_limit()[i]));
+            F(i) = robot->joint_limit_force_max()[i] * (robot->lower_damping_threshold()[i] - q_pos(i)) / (robot->lower_damping_threshold()[i] - robot->lower_joint_limit()[i]);
+        }
+        else if (q_pos(i) > robot->upper_damping_threshold()[i] && q_pos(i) <= robot->upper_joint_limit()[i])
+        {
+            Wq(i,i) = jointLimitDampingFunction((q_pos(i) - robot->upper_damping_threshold()[i]) / (robot->upper_joint_limit()[i] - robot->upper_damping_threshold()[i]));
+            F(i) = robot->joint_limit_force_max()[i] * (robot->upper_damping_threshold()[i] - q_pos(i)) / (robot->upper_joint_limit()[i] - robot->upper_damping_threshold()[i]);
+        }
+        else if (q_pos(i) >= robot->lower_damping_threshold()[i] && q_pos(i) <= robot->upper_damping_threshold()[i])
+        {
+            Wq(i,i) = 1;
+            F(i) = 0;
+        }
+        else
+        {
+            Wq(i,i) = 0;
+            F(i) = 0;
+        }
+    }
+}
+
 
 int main(int argc, char **argv)
 {
@@ -88,8 +121,6 @@ int main(int argc, char **argv)
 
     KDL::JntArray q_pos_ = KDL::JntArray(robot_->nj());
     Eigen::VectorXd q_vel_ = Eigen::VectorXd::Zero(robot_->nj());
-    // Eigen::VectorXd sample_twist = Eigen::VectorXd::Zero(6);
-    // sample_twist(2) = 0.0;
 
     geometry_msgs::Transform error_;
     error_.translation.x = 0;
@@ -100,6 +131,8 @@ int main(int argc, char **argv)
     error_.rotation.z = 0;
     error_.rotation.w = 1;
     
+    Eigen::MatrixXd Wq = Eigen::MatrixXd::Identity(robot_->nj(), robot_->nj());
+    Eigen::VectorXd Joint_Limit_Force = Eigen::VectorXd::Zero(robot_->nj());
 
     // Subs/Pubs
     ros::Subscriber joint_state_sub_ = node.subscribe<sensor_msgs::JointState>("/my_gen3/joint_states", 1, boost::bind(&jointPositionCallback, _1, &q_pos_, robot_));
@@ -130,7 +163,7 @@ int main(int argc, char **argv)
     ros::spinOnce();
     while (ros::ok())
     {
-        Eigen::VectorXd desired_twist = pid_controller(error_);
+        Eigen::VectorXd desired_twist = pidController(error_);
         if (std::isnan(desired_twist(0)) || std::isnan(desired_twist(1)) || std::isnan(desired_twist(2)) || std::isnan(desired_twist(3)) || std::isnan(desired_twist(4)) || std::isnan(desired_twist(5)))
         {
             std::cout << "Desired twist is nan!" << std::endl;
@@ -138,10 +171,11 @@ int main(int argc, char **argv)
         else
         {
             task_->update_task(q_pos_, desired_twist);
-            // pid_controller(error_);
-            // task_->update_task(q_pos_, sample_twist);
-            task_->compute_kinematic_matrices(robot_->identity_matrix());
-            q_vel_ = task_->pseudoinverse_jacobian() * task_->task_twist();
+            computeJointLimitAvoidance(Wq, Joint_Limit_Force, q_pos_, robot_);
+            task_->compute_kinematic_matrices(Wq);
+            q_vel_ = task_->pseudoinverse_jacobian() * task_->task_twist() +
+                ((robot_->identity_matrix() - task_->pseudoinverse_jacobian()*task_->task_jacobian()) *
+                (robot_->identity_matrix() - Wq) * Joint_Limit_Force);
             std::cout << "-----------------------" << std::endl;
             std::cout << q_vel_ << std::endl;
             // TODO: Check if velocity and positions are valid

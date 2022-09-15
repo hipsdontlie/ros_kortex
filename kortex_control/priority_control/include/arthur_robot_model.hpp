@@ -19,6 +19,7 @@ namespace priority_control
         static constexpr size_t CARTESIAN_DOF = 6;
         static constexpr double DEFAULT_LAMBDA = 0.2;
         static constexpr double DEFAULT_EPSILON = 0.05;
+        static constexpr double DEFAULT_JOINT_LIMIT_FORCE_COEFFICIENT = 3;
 
         std::shared_ptr<KDL::ChainJntToJacSolver> jac_solver_;
         std::shared_ptr<KDL::ChainFkSolverPos> fk_pos_solver_;
@@ -32,6 +33,7 @@ namespace priority_control
         std::vector<double> const& lower_damping_threshold();
         std::vector<double> const& joint_rom();
         std::vector<double> const& joint_vel_limit();
+        std::vector<double> const& joint_limit_force_max();
         size_t nj();
         Eigen::MatrixXd& identity_matrix();
 
@@ -48,6 +50,7 @@ namespace priority_control
         std::vector<double> lower_damping_threshold_;
         std::vector<double> joint_rom_;
         std::vector<double> joint_vel_limit_;
+        std::vector<double> joint_limit_force_max_;
         Eigen::MatrixXd I_;
 
         bool compute_joint_limits(const std::string& base_frame, const std::string& tip_frame);
