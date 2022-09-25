@@ -32,7 +32,11 @@ if __name__=='__main__':
       t= (rospy.Time.now()-t0).to_sec()
       for joint_speed in speed_req.input.joint_speeds:
         #NOTE: JointSpeed/value is in DEGREES per second.
-        joint_speed.value= rad2deg(0.5*math.sin(math.pi*t))
+        if joint_speed.joint_identifier == 3:
+          joint_speed.value= -1.0
+        else:
+          # joint_speed.value= rad2deg(0.5*math.sin(math.pi*t))
+          joint_speed.value= 0
       srv_joint_speeds.call(speed_req)
       rate.sleep()
 

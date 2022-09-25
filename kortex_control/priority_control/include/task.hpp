@@ -11,8 +11,8 @@ namespace priority_control
         public:
         Task(std::shared_ptr<ArthurRobotModel> robot, std::array<bool, ArthurRobotModel::CARTESIAN_DOF> dof, const std::string& task_frame);
 
-        Eigen::MatrixXd const& basic_jacobian();
-        Eigen::MatrixXd const& rotated_jacobian();
+        KDL::Jacobian const& basic_jacobian();
+        KDL::Jacobian const& rotated_jacobian();
         Eigen::MatrixXd const& cropped_jacobian();
         Eigen::MatrixXd const& task_jacobian();
         Eigen::MatrixXd const& pseudoinverse_jacobian();

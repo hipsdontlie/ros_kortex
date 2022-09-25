@@ -101,7 +101,7 @@
             
             <link name="${prefix}tool_tip_frame"/>
             <joint name="${prefix}tool_tip_frame_joint" type="fixed">
-                <origin xyz="0 0 0.32290848" rpy="0 0 0" />
+                <origin xyz="0 0 0.32290848" rpy="3.14159265 0 0" />
                 <parent link="${prefix}${last_arm_link}" />
                 <child link="${prefix}tool_tip_frame" />
                 <axis xyz="0 0 0" />
@@ -109,7 +109,7 @@
 
             <link name="${prefix}tool_frame"/>
             <joint name="${prefix}tool_frame_joint" type="fixed">
-                <origin xyz="0 0 -0.023" rpy="0 0 0" />
+                <origin xyz="0 0 0.023" rpy="0 0 0" />
                 <parent link="${prefix}tool_tip_frame" />
                 <child link="${prefix}tool_frame"/>
                 <axis xyz="0 0 0" />

@@ -3,6 +3,7 @@
 #include <ros/xmlrpc_manager.h>
 #include <tf/transform_listener.h>
 #include <geometry_msgs/Transform.h>
+#include <geometry_msgs/Twist.h>
 // #include <geometry_msgs/PoseStamped.h>
 // #include <geometry_msgs/Pose.h>
 // #include <geometry_msgs/Vector3.h>
@@ -34,7 +35,7 @@ bool sendJointSpeeds(ros::ServiceClient joint_speed_commander, Eigen::VectorXd q
         kortex_driver::JointSpeed joint_speed;
         joint_speed.duration = 0;
         joint_speed.joint_identifier = i;
-        joint_speed.value = q_vel(i);
+        joint_speed.value = 180.0*q_vel(i)/M_PI;
         joint_speed_command.input.joint_speeds.push_back(joint_speed);
     }
 
@@ -43,10 +44,11 @@ bool sendJointSpeeds(ros::ServiceClient joint_speed_commander, Eigen::VectorXd q
     return joint_speed_commander.call(srv);
 }
 
-void jointPositionCallback(const sensor_msgs::JointState::ConstPtr &msg, KDL::JntArray* q_pos, std::shared_ptr<ArthurRobotModel> robot) {
+void jointStateCallback(const sensor_msgs::JointState::ConstPtr &msg, KDL::JntArray* q_pos, std::shared_ptr<ArthurRobotModel> robot) {
     for (size_t i = 0 ; i < robot->nj(); ++i)
     {
         q_pos->data(i) = msg->position[i];
+        // q_vel->data(i) = msg->velocity[i];
     }
 }
 
@@ -54,40 +56,50 @@ void errorCallback(const geometry_msgs::Transform::ConstPtr &msg, geometry_msgs:
     (*error) = (*msg);
 }
 
-Eigen::VectorXd pidController(geometry_msgs::Transform& error)
+void twistCallback(const geometry_msgs::Twist::ConstPtr &msg, Eigen::VectorXd* twist) {
+    (*twist)(0) = (*msg).linear.x;
+    (*twist)(1) = (*msg).linear.y;
+    (*twist)(2) = (*msg).linear.z;
+    (*twist)(3) = (*msg).angular.x;
+    (*twist)(4) = (*msg).angular.y;
+    (*twist)(5) = (*msg).angular.z;
+}
+
+Eigen::VectorXd pidController(geometry_msgs::Transform& error, const Eigen::VectorXd& twist)
 {
-    std::array<double, 6> Kp = {50, 50, 50, 50, 50, 50};
+    std::array<double, 6> Kp = {1, 1, 1, 1, 1, 1};
     std::array<double, 6> Ki = {0, 0, 0, 0, 0, 0};
     std::array<double, 6> Kd = {0, 0, 0, 0, 0, 0};
-    Eigen::VectorXd twist = Eigen::VectorXd::Zero(6);
-    twist(0) = error.translation.x;
-    twist(1) = error.translation.y;
-    twist(2) = error.translation.z;
-    tf::Matrix3x3(tf::Quaternion(error.rotation.x, error.rotation.y, error.rotation.z, error.rotation.w)).getRPY(twist(3), twist(4), twist(5));
+    Eigen::VectorXd twist_command = Eigen::VectorXd::Zero(6);
+    twist_command(0) = error.translation.x;
+    twist_command(1) = error.translation.y;
+    twist_command(2) = error.translation.z;
+    tf::Matrix3x3(tf::Quaternion(error.rotation.x, error.rotation.y, error.rotation.z, error.rotation.w)).getRPY(twist_command(3), twist_command(4), twist_command(5));
+
     for (int i = 0; i < 6; ++i)
     {
-        twist(i) = Kp[i] * twist(i);
+        twist_command(i) = Kp[i] * twist_command(i) - Kd[i]*twist(i);
     }
     
-    double linearVel = sqrt(twist(0)*twist(0) + twist(1)*twist(1) + twist(2)*twist(2));
-    double angularVel = sqrt(twist(3)*twist(3) + twist(4)*twist(4) + twist(5)*twist(5));
-    // if (linearVel > maxLinearVelocity)
-    // {
-    //     for (size_t i = 0; i < 3; ++i)
-    //     {
-    //         twist(i) = maxLinearVelocity* twist(i) / linearVel;
-    //     }
-    // }
-    // if (angularVel > maxAngularVelocity)
-    // {
-    //     for (size_t i = 3; i < 6; ++i)
-    //     {
-    //         twist(i) = maxAngularVelocity* twist(i) / angularVel;
-    //     }
-    // }
+    double linearVel = sqrt(twist_command(0)*twist_command(0) + twist_command(1)*twist_command(1) + twist_command(2)*twist_command(2));
+    double angularVel = sqrt(twist_command(3)*twist_command(3) + twist_command(4)*twist_command(4) + twist_command(5)*twist_command(5));
+    if (linearVel > maxLinearVelocity)
+    {
+        for (size_t i = 0; i < 3; ++i)
+        {
+            twist_command(i) = maxLinearVelocity* twist_command(i) / linearVel;
+        }
+    }
+    if (angularVel > maxAngularVelocity)
+    {
+        for (size_t i = 3; i < 6; ++i)
+        {
+            twist_command(i) = maxAngularVelocity* twist_command(i) / angularVel;
+        }
+    }
     std::cout << "*****************" << std::endl;
-    std::cout << twist << std::endl;
-    return twist;
+    std::cout << twist_command << std::endl;
+    return twist_command;
 }
 
 double jointLimitDampingFunction(double x)
@@ -220,7 +232,8 @@ int main(int argc, char **argv)
     std::shared_ptr<Task> task_ = std::make_shared<Task>(robot_, task_dof_, tip_frame_);
 
     KDL::JntArray q_pos_ = KDL::JntArray(robot_->nj());
-    Eigen::VectorXd q_vel_ = Eigen::VectorXd::Zero(robot_->nj());
+    Eigen::VectorXd q_vel_command_ = Eigen::VectorXd::Zero(robot_->nj());
+    Eigen::VectorXd twist_ = Eigen::VectorXd::Zero(ArthurRobotModel::CARTESIAN_DOF);
 
     geometry_msgs::Transform error_;
     error_.translation.x = 0;
@@ -235,8 +248,9 @@ int main(int argc, char **argv)
     Eigen::VectorXd Joint_Limit_Force = Eigen::VectorXd::Zero(robot_->nj());
 
     // Subs/Pubs
-    ros::Subscriber joint_state_sub_ = node.subscribe<sensor_msgs::JointState>("/my_gen3/joint_states", 1, boost::bind(&jointPositionCallback, _1, &q_pos_, robot_));
+    ros::Subscriber joint_state_sub_ = node.subscribe<sensor_msgs::JointState>("/my_gen3/joint_states", 1, boost::bind(&jointStateCallback, _1, &q_pos_, robot_));
     ros::Subscriber tracking_frame_sub_ = node.subscribe<geometry_msgs::Transform>("/tf/tool_frame_to_dummy_pelvis", 1, boost::bind(&errorCallback, _1, &error_));
+    ros::Subscriber tracking_twist_sub_ = node.subscribe<geometry_msgs::Twist>("/tf/twist/tool_frame_to_dummy_pelvis", 1, boost::bind(&twistCallback, _1, &twist_));
     ros::ServiceClient joint_speed_commander_ = node.serviceClient<kortex_driver::SendJointSpeedsCommand>("/my_gen3/base/send_joint_speeds_command");
 
     // // sends wrench commands to kortex_driver service
@@ -260,14 +274,13 @@ int main(int argc, char **argv)
     // // pub to send actual pose to trajectory evaluator
     // ros::Publisher traj_eval_pub = node.advertise<geometry_msgs::Pose>("/actual_traj", 1);
 
-    ros::Time now = ros::Time::now();
     listener.waitForTransform(tip_frame_, target_frame_,
-                              now, ros::Duration(100.0));
+                              ros::Time::now(), ros::Duration(100.0));
 
     ros::spinOnce();
     while (!g_request_shutdown)
     {
-        Eigen::VectorXd desired_twist = pidController(error_);
+        Eigen::VectorXd desired_twist = pidController(error_, twist_);
         if (std::isnan(desired_twist(0)) || std::isnan(desired_twist(1)) || std::isnan(desired_twist(2)) || std::isnan(desired_twist(3)) || std::isnan(desired_twist(4)) || std::isnan(desired_twist(5)))
         {
             std::cout << "Desired twist is nan!" << std::endl;
@@ -277,24 +290,24 @@ int main(int argc, char **argv)
             task_->update_task(q_pos_, desired_twist);
             computeJointLimitAvoidance(Wq, Joint_Limit_Force, q_pos_, robot_);
             task_->compute_kinematic_matrices(Wq);
-            q_vel_ = task_->pseudoinverse_jacobian() * task_->task_twist() +
+            q_vel_command_ = task_->pseudoinverse_jacobian() * task_->task_twist() +
                 ((robot_->identity_matrix() - task_->pseudoinverse_jacobian()*task_->task_jacobian()) *
                 (robot_->identity_matrix() - Wq) * Joint_Limit_Force);
-            if (!validJointVel(q_vel_, q_pos_, robot_, controller_time_step_))
+            if (!validJointVel(q_vel_command_, q_pos_, robot_, controller_time_step_))
             {
-                // q_vel_ = Eigen::VectorXd::Zero(robot_->nj());
+                q_vel_command_ = Eigen::VectorXd::Zero(robot_->nj());
             }
             // std::cout << "-----------------------" << std::endl;
-            // std::cout << q_vel_ << std::endl;
+            // std::cout << q_vel_command_ << std::endl;
             // TODO: Check if velocity and positions are valid
-            sendJointSpeeds(joint_speed_commander_, q_vel_, robot_);
+            sendJointSpeeds(joint_speed_commander_, q_vel_command_, robot_);
         }
         ros::spinOnce();
         rate.sleep();
     }
 
-    q_vel_ = Eigen::VectorXd::Zero(robot_->nj());
-    sendJointSpeeds(joint_speed_commander_, q_vel_, robot_);
+    q_vel_command_ = Eigen::VectorXd::Zero(robot_->nj());
+    sendJointSpeeds(joint_speed_commander_, q_vel_command_, robot_);
     std::cout << "Shutting controller down!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
     ros::shutdown();
     return 0;

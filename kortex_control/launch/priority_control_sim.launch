@@ -13,4 +13,6 @@
         <param name="target_frame" value="dummy_pelvis" />
     </node>
 
+    <node pkg="kortex_gazebo" type="dummy_pelvis_tf" name="dummy_pelvis_tf" output="screen" />
+
 </launch>

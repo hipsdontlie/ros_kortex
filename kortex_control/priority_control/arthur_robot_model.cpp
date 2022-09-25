@@ -117,8 +117,8 @@ namespace priority_control
                 } 
                 else 
                 {
-                    lower_joint_limit_[i] = -M_PI;
-                    upper_joint_limit_[i] = M_PI;
+                    lower_joint_limit_[i] = -3*M_PI;
+                    upper_joint_limit_[i] = 3*M_PI;
                 }
                 joint_rom_[i] = upper_joint_limit_[i] - lower_joint_limit_[i];
                 joint_vel_limit_[i] = joint->limits->velocity;

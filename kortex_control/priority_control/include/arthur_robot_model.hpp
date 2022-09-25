@@ -9,17 +9,18 @@
 #include <eigen3/Eigen/Dense>
 #include <eigen3/Eigen/SVD>
 #include <ros/console.h>
+#include <limits>
 
 namespace priority_control 
 {
     class ArthurRobotModel
     {
         public:
-        static constexpr double DEFAULT_JOINT_LIMIT_AVOIDANCE_BANDWIDTH = 0.1;
+        static constexpr double DEFAULT_JOINT_LIMIT_AVOIDANCE_BANDWIDTH = 0.05;
         static constexpr size_t CARTESIAN_DOF = 6;
         static constexpr double DEFAULT_LAMBDA = 0.2;
         static constexpr double DEFAULT_EPSILON = 0.05;
-        static constexpr double DEFAULT_JOINT_LIMIT_FORCE_COEFFICIENT = 3;
+        static constexpr double DEFAULT_JOINT_LIMIT_FORCE_COEFFICIENT = 1.5;
 
         std::shared_ptr<KDL::ChainJntToJacSolver> jac_solver_;
         std::shared_ptr<KDL::ChainFkSolverPos> fk_pos_solver_;

@@ -53,6 +53,10 @@ add_executable(ee_tf_listener wrench_control/ee_tf_listener.cpp)
 add_dependencies(ee_tf_listener ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(ee_tf_listener ${catkin_LIBRARIES})
 
+add_executable(real_dummy_pelvis_broadcaster priority_control/real_dummy_pelvis_broadcaster.cpp)
+add_dependencies(real_dummy_pelvis_broadcaster ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(real_dummy_pelvis_broadcaster ${catkin_LIBRARIES})
+
 add_executable(tf_listener priority_control/tf_listener.cpp)
 add_dependencies(tf_listener ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(tf_listener ${catkin_LIBRARIES})

@@ -26,13 +26,13 @@ namespace priority_control
     }
 
     
-    Eigen::MatrixXd const& Task::basic_jacobian()
+    KDL::Jacobian const& Task::basic_jacobian()
     {
-        return basic_jacobian_.data;
+        return basic_jacobian_;
     }
-    Eigen::MatrixXd const& Task::rotated_jacobian()
+    KDL::Jacobian const& Task::rotated_jacobian()
     {
-        return rotated_jacobian_.data;
+        return rotated_jacobian_;
     }
     Eigen::MatrixXd const& Task::cropped_jacobian()
     {

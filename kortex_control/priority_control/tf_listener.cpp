@@ -12,6 +12,7 @@
 #include <ros/ros.h>
 #include <tf/transform_listener.h>
 #include <geometry_msgs/Transform.h>
+#include <geometry_msgs/Twist.h>
 
 
 int main(int argc, char** argv){
@@ -24,6 +25,8 @@ int main(int argc, char** argv){
   node.getParam("/tf_listener/target_frame", target_frame_);
   std::string topic_name_ = "tf/" + source_frame_ + "_to_" + target_frame_;
   ros::Publisher transform_pub = node.advertise<geometry_msgs::Transform>(topic_name_, 1);
+  std::string topic_name_twist_ = "tf/twist/" + source_frame_ + "_to_" + target_frame_;
+  ros::Publisher twist_pub = node.advertise<geometry_msgs::Twist>(topic_name_twist_, 1);
 
   tf::TransformListener listener;
 
@@ -31,9 +34,18 @@ int main(int argc, char** argv){
   while (ros::ok()){
     // Gets the broadcasted frame called target_frame_
     tf::StampedTransform stamped_transform;
+    geometry_msgs::Twist twist;
     try{
       listener.lookupTransform(source_frame_, target_frame_,  
                                ros::Time(0), stamped_transform);
+    }
+    catch (tf::TransformException ex){
+      ROS_ERROR("%s",ex.what());
+      ros::Duration(1.0).sleep();
+    }
+    try{
+      listener.lookupTwist(source_frame_, target_frame_,  
+                               ros::Time(0), ros::Duration(1.0/50.0), twist);
     }
     catch (tf::TransformException ex){
       ROS_ERROR("%s",ex.what());
@@ -54,6 +66,7 @@ int main(int argc, char** argv){
     
     // publish transform to be used
     transform_pub.publish(transform);
+    twist_pub.publish(twist);
     ros::spinOnce();
     rate.sleep();
   }
