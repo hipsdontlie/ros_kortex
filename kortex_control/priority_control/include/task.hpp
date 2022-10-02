@@ -18,8 +18,11 @@ namespace priority_control
         Eigen::MatrixXd const& pseudoinverse_jacobian();
         Eigen::MatrixXd const& identity_matrix();
         Eigen::VectorXd const& task_twist();
-        bool update_task(const KDL::JntArray& q_pos, const Eigen::VectorXd& task_twist);
-        bool compute_kinematic_matrices(const Eigen::MatrixXd& joint_limit_avoidance_Wq);
+        bool update_task(Eigen::VectorXd& task_twist);
+        bool compute_kinematic_matrices(const KDL::JntArray& q_pos, const Eigen::MatrixXd& joint_limit_avoidance_Wq, const Eigen::MatrixXd& null_space_projector);
+        bool set_q_vel(Eigen::VectorXd q_vel);
+        Eigen::VectorXd const& get_q_vel();
+        std::array<bool, ArthurRobotModel::CARTESIAN_DOF> const& task_dof();
 
         protected:
         size_t num_task_dof_;
@@ -34,8 +37,9 @@ namespace priority_control
         Eigen::MatrixXd pseudoinverse_jacobian_;
         Eigen::VectorXd task_twist_;
         Eigen::MatrixXd I_;
+        Eigen::VectorXd q_vel_;
         
-        bool compute_jacobian(const Eigen::MatrixXd& joint_limit_avoidance_Wq);
+        bool compute_jacobian(const Eigen::MatrixXd& joint_limit_avoidance_Wq, const Eigen::MatrixXd& null_space_projector);
         bool rotate_jacobian();
         bool crop_jacobian();
         bool compute_pseudoinverse_jacobian();

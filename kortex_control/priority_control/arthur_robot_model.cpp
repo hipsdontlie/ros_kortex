@@ -6,6 +6,10 @@ namespace priority_control
     constexpr double ArthurRobotModel::DEFAULT_LAMBDA;
     constexpr double ArthurRobotModel::DEFAULT_EPSILON;
     constexpr double ArthurRobotModel::DEFAULT_JOINT_LIMIT_FORCE_COEFFICIENT;
+    constexpr double ArthurRobotModel::DEFAULT_SINGULARITY_FORCE_COEFFICIENT;
+    constexpr double ArthurRobotModel::MAX_LINEAR_VELOCITY;
+    constexpr double ArthurRobotModel::MAX_ANGULAR_VELOCITY;
+    constexpr double ArthurRobotModel::VEL_SCALEDOWN_RATE;
 
     ArthurRobotModel::ArthurRobotModel(const std::string& robot_description, const std::string& base_frame, const std::string& tip_frame)
     {

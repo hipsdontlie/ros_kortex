@@ -72,6 +72,10 @@ add_executable(master_controller priority_control/master_controller.cpp
                                   priority_control/arthur_robot_model.cpp
                                   priority_control/include/task.hpp
                                   priority_control/task.cpp
+                                  priority_control/include/priority_controller.hpp
+                                  priority_control/priority_controller.cpp
+                                  priority_control/include/pelvis_alignment_task.hpp
+                                  priority_control/pelvis_alignment_task.cpp
                                   )
 add_dependencies(master_controller ${${PROJECT_NAME}_EXPORTED_TARGETS})
 add_dependencies(master_controller ${catkin_EXPORTED_TARGETS})

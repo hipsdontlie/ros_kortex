@@ -55,17 +55,76 @@ namespace priority_control
         return task_twist_;
     }
 
-    bool Task::update_task(const KDL::JntArray& q_pos, const Eigen::VectorXd& task_twist)
+    bool Task::set_q_vel(Eigen::VectorXd q_vel)
     {
-        q_pos_ = q_pos;
+        if ((size_t) q_vel.rows() != robot_->nj())
+        {
+            // TODO: error
+            return false;
+        }
+        q_vel_ = q_vel;
+        return true;
+    }
+
+    Eigen::VectorXd const& Task::get_q_vel()
+    {
+        return q_vel_;
+    }
+
+    std::array<bool, ArthurRobotModel::CARTESIAN_DOF> const& Task::task_dof()
+    {
+        return task_dof_;
+    }
+
+    bool Task::update_task(Eigen::VectorXd& task_twist)
+    {
+        int num_linear_dof = 0;
+        for (int i = 0; i < 3; ++i)
+        {
+            if (task_dof()[i])
+                ++num_linear_dof;
+        }
+        int num_angular_dof = 0;
+        for (int i = 3; i < robot_->CARTESIAN_DOF; ++i)
+        {
+            if (task_dof()[i])
+                ++num_angular_dof;
+        }
+        double linearVel = 0;
+        for (int i = 0; i < num_linear_dof; ++i)
+        {
+            linearVel += task_twist(i)*task_twist(i);
+        }
+        linearVel = sqrt(linearVel);
+        double angularVel = 0;
+        for (int i = num_linear_dof; i < num_linear_dof+num_angular_dof; ++i)
+        {
+            angularVel += task_twist(i)*task_twist(i);
+        }
+        angularVel = sqrt(angularVel);
+        if (linearVel > robot_->MAX_LINEAR_VELOCITY)
+        {
+            for (int i = 0; i < num_linear_dof; ++i)
+            {
+                task_twist(i) = robot_->MAX_LINEAR_VELOCITY * task_twist(i) / linearVel;
+            }
+        }
+        if (angularVel > robot_->MAX_ANGULAR_VELOCITY)
+        {
+            for (int i = num_linear_dof; i < num_linear_dof+num_angular_dof; ++i)
+            {
+                task_twist(i) = robot_->MAX_ANGULAR_VELOCITY * task_twist(i) / angularVel;
+            }
+        }
         task_twist_ = task_twist;
         // TODO: error check
         return true;
     }
 
-    bool Task::compute_kinematic_matrices(const Eigen::MatrixXd& joint_limit_avoidance_Wq)
+    bool Task::compute_kinematic_matrices(const KDL::JntArray& q_pos, const Eigen::MatrixXd& joint_limit_avoidance_Wq, const Eigen::MatrixXd& null_space_projector)
     {
-        if (!compute_jacobian(joint_limit_avoidance_Wq))
+        q_pos_ = q_pos;
+        if (!compute_jacobian(joint_limit_avoidance_Wq, null_space_projector))
         {
             // TODO: error!
             return false;
@@ -78,7 +137,7 @@ namespace priority_control
         return true;
     }
 
-    bool Task::compute_jacobian(const Eigen::MatrixXd& joint_limit_avoidance_Wq)
+    bool Task::compute_jacobian(const Eigen::MatrixXd& joint_limit_avoidance_Wq, const Eigen::MatrixXd& null_space_projector)
     {
         // TODO: Implement segnr for jacobian calculation
         if (robot_->jac_solver_->JntToJac(q_pos_, basic_jacobian_) < 0)
@@ -98,7 +157,7 @@ namespace priority_control
             // TODO: error!
         }
         // TODO: Multiple Jacobian by weighting matrices?
-        task_jacobian_ = cropped_jacobian_ * joint_limit_avoidance_Wq;
+        task_jacobian_ = cropped_jacobian_ * joint_limit_avoidance_Wq * null_space_projector;
         return true;
     }
 
