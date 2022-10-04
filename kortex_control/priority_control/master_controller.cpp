@@ -4,6 +4,7 @@
 #include <tf/transform_listener.h>
 #include <geometry_msgs/Transform.h>
 #include <geometry_msgs/Twist.h>
+#include <std_msgs/Float64MultiArray.h>
 // #include <geometry_msgs/PoseStamped.h>
 // #include <geometry_msgs/Pose.h>
 // #include <geometry_msgs/Vector3.h>
@@ -24,7 +25,7 @@ using namespace priority_control;
 
 // Signal-safe flag for whether shutdown is requested
 sig_atomic_t volatile g_request_shutdown = 0;
-double maxLinearVelocity = 0.01;
+double maxLinearVelocity = 0.1;
 double maxAngularVelocity = 1.57;
 
 bool sendJointSpeeds(ros::ServiceClient joint_speed_commander, Eigen::VectorXd q_vel, std::shared_ptr<ArthurRobotModel> robot)
@@ -65,7 +66,7 @@ void twistCallback(const geometry_msgs::Twist::ConstPtr &msg, Eigen::VectorXd* t
     (*twist)(5) = (*msg).angular.z;
 }
 
-Eigen::VectorXd pidController(geometry_msgs::Transform& error, const Eigen::VectorXd& twist)
+Eigen::VectorXd pidController(geometry_msgs::Transform& error, const Eigen::VectorXd& twist, ros::Publisher& error_metrics_pub)
 {
     std::array<double, 6> Kp = {1, 1, 1, 1, 1, 1};
     std::array<double, 6> Ki = {0, 0, 0, 0, 0, 0};
@@ -75,6 +76,13 @@ Eigen::VectorXd pidController(geometry_msgs::Transform& error, const Eigen::Vect
     twist_command(1) = error.translation.y;
     twist_command(2) = error.translation.z;
     tf::Matrix3x3(tf::Quaternion(error.rotation.x, error.rotation.y, error.rotation.z, error.rotation.w)).getRPY(twist_command(3), twist_command(4), twist_command(5));
+
+    std::cout << "Translation Error: " << 1000*sqrt(twist_command(0)*twist_command(0) + twist_command(1)*twist_command(1) + twist_command(2)*twist_command(2)) << " mm" << std::endl;
+    std::cout << "Rotation Error: " << 180.0*sqrt(twist_command(3)*twist_command(3) + twist_command(4)*twist_command(4) + twist_command(5)*twist_command(5)) / M_PI << " degrees" <<  std::endl;
+    std_msgs::Float64MultiArray error_msg;
+    error_msg.data.push_back(1000*sqrt(twist_command(0)*twist_command(0) + twist_command(1)*twist_command(1) + twist_command(2)*twist_command(2)));
+    error_msg.data.push_back(180.0*sqrt(twist_command(3)*twist_command(3) + twist_command(4)*twist_command(4) + twist_command(5)*twist_command(5)) / M_PI);
+    error_metrics_pub.publish(error_msg);
 
     for (int i = 0; i < 6; ++i)
     {
@@ -97,8 +105,8 @@ Eigen::VectorXd pidController(geometry_msgs::Transform& error, const Eigen::Vect
             twist_command(i) = maxAngularVelocity* twist_command(i) / angularVel;
         }
     }
-    std::cout << "*****************" << std::endl;
-    std::cout << twist_command << std::endl;
+    // std::cout << "*****************" << std::endl;
+    // std::cout << twist_command << std::endl;
     return twist_command;
 }
 
@@ -146,8 +154,8 @@ bool validJointVel(Eigen::VectorXd q_vel, KDL::JntArray q_pos, std::shared_ptr<A
     {
         if (abs(q_vel(i)) > robot->joint_vel_limit()[i])
         {
-            std::cout << abs(q_vel(i)) << std::endl;
-            std::cout << robot->joint_vel_limit()[i] << std::endl;
+            // std::cout << abs(q_vel(i)) << std::endl;
+            // std::cout << robot->joint_vel_limit()[i] << std::endl;
             ROS_WARN("At Hard Joint Velocity Limit for Joint: %ld", i+1);
             return false;
         }
@@ -248,6 +256,7 @@ int main(int argc, char **argv)
     Eigen::VectorXd Joint_Limit_Force = Eigen::VectorXd::Zero(robot_->nj());
 
     // Subs/Pubs
+    ros::Publisher error_metrics_pub_ = node.advertise<std_msgs::Float64MultiArray>("/error_metrics", 1);
     ros::Subscriber joint_state_sub_ = node.subscribe<sensor_msgs::JointState>("/my_gen3/joint_states", 1, boost::bind(&jointStateCallback, _1, &q_pos_, robot_));
     ros::Subscriber tracking_frame_sub_ = node.subscribe<geometry_msgs::Transform>("/tf/tool_frame_to_dummy_pelvis", 1, boost::bind(&errorCallback, _1, &error_));
     ros::Subscriber tracking_twist_sub_ = node.subscribe<geometry_msgs::Twist>("/tf/twist/tool_frame_to_dummy_pelvis", 1, boost::bind(&twistCallback, _1, &twist_));
@@ -267,20 +276,20 @@ int main(int argc, char **argv)
     // ros::Subscriber trajectory_sub = node.subscribe<arthur_planning::arthur_traj>("/my_gen3/arthur_traj", 1, boost::bind(&trajCallback, _1, &traj, &current_waypoint, &trajNum, &desiredRots, wrench_commander, reamer_commander, &planned, &reamerVel));
     // // sub to see dynamic comp
     // ros::Subscriber dynamic_compensation_listener = node.subscribe<std_msgs::Bool>("/pelvis_error", 1, boost::bind(&dynamicCompTrigger, _1, &dynamicComp, &startPlanner, &finished, &planned, wrench_commander, reamer_commander, &reamerVel));
-    // // sub to get forces at end-effector
-    // ros::Subscriber force_listener = node.subscribe<geometry_msgs::Vector3>("/sensor_force", 1, boost::bind(&forceSensorCallback, _1, forces));
+    // // sub to get forces at end-effectorstd_msgs::Float64MultiArrayforceSensorCallback, _1, forces));
     // // pub to notify planner to start planning
     // ros::Publisher notify_planner = node.advertise<std_msgs::Bool>("/start_planning", 1);
     // // pub to send actual pose to trajectory evaluator
     // ros::Publisher traj_eval_pub = node.advertise<geometry_msgs::Pose>("/actual_traj", 1);
 
+
     listener.waitForTransform(tip_frame_, target_frame_,
-                              ros::Time::now(), ros::Duration(100.0));
+                              ros::Time::now(), ros::Duration(1.0));
 
     ros::spinOnce();
     while (!g_request_shutdown)
     {
-        Eigen::VectorXd desired_twist = pidController(error_, twist_);
+        Eigen::VectorXd desired_twist = pidController(error_, twist_, error_metrics_pub_);
         if (std::isnan(desired_twist(0)) || std::isnan(desired_twist(1)) || std::isnan(desired_twist(2)) || std::isnan(desired_twist(3)) || std::isnan(desired_twist(4)) || std::isnan(desired_twist(5)))
         {
             std::cout << "Desired twist is nan!" << std::endl;
