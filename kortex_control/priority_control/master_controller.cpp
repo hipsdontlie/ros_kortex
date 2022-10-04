@@ -23,10 +23,11 @@
 
 using namespace priority_control;
 
+double maxLinearVelocity = 0.01;
+double maxAngularVelocity = 1.57;
+
 // Signal-safe flag for whether shutdown is requested
 sig_atomic_t volatile g_request_shutdown = 0;
-double maxLinearVelocity = 0.1;
-double maxAngularVelocity = 1.57;
 
 bool sendJointSpeeds(ros::ServiceClient joint_speed_commander, Eigen::VectorXd q_vel, std::shared_ptr<ArthurRobotModel> robot)
 {
@@ -296,9 +297,9 @@ int main(int argc, char **argv)
         }
         else
         {
-            task_->update_task(q_pos_, desired_twist);
+            task_->update_task(desired_twist);
             computeJointLimitAvoidance(Wq, Joint_Limit_Force, q_pos_, robot_);
-            task_->compute_kinematic_matrices(Wq);
+            task_->compute_kinematic_matrices(q_pos_, Wq, robot_->identity_matrix());
             q_vel_command_ = task_->pseudoinverse_jacobian() * task_->task_twist() +
                 ((robot_->identity_matrix() - task_->pseudoinverse_jacobian()*task_->task_jacobian()) *
                 (robot_->identity_matrix() - Wq) * Joint_Limit_Force);
