@@ -38,11 +38,16 @@ namespace priority_control
     bool PriorityController::computeJointVelocityCommand(const KDL::JntArray& q_pos)
     {
         q_pos_ = q_pos;
+        // std::cout << "Check 2.1" << std::endl;
         computeJointLimitAvoidance(joint_lim_avoidance_Wq_, joint_lim_avoidance_F_, q_pos_);
+        // std::cout << "Check 2.2" << std::endl;
         computeSingularityAvoidance(singularity_avoidance_F_);
+        // std::cout << "Check 2.3" << std::endl;
         computeTaskJointVelocities();
+        // std::cout << "Check 2.4" << std::endl;
         q_vel_cmd_ = q_vel_sum_ + null_space_projector_ * (robot_->identity_matrix() - joint_lim_avoidance_Wq_) * joint_lim_avoidance_F_; 
         q_vel_cmd_ = q_vel_cmd_ + null_space_projector_ * singularity_avoidance_F_;
+        // std::cout << "Check 2.5" << std::endl;
         auto task = tasks_.rbegin();
         size_t jointAtLimit = atJointVelLimit(q_vel_cmd_);
         while (jointAtLimit < robot_->nj())
@@ -50,17 +55,20 @@ namespace priority_control
             q_vel_cmd_ =  robot_->joint_vel_limit()[jointAtLimit] * q_vel_cmd_ / q_vel_cmd_(jointAtLimit);
             jointAtLimit = atJointVelLimit(q_vel_cmd_);
         }
+        // std::cout << "Check 2.6" << std::endl;
         while (!validJointVel(q_vel_cmd_) && task != tasks_.rend())
         {
             q_vel_cmd_ = q_vel_cmd_ - task->second->get_q_vel();
             ++task;
         }
+        // std::cout << "Check 2.7" << std::endl;
         if (!validJointVel(q_vel_cmd_))
         {
             q_vel_cmd_ = Eigen::VectorXd::Zero(robot_->nj());
             // TODO: error
             return false;
         }
+        // std::cout << "Check 2.8" << std::endl;
         return true;
     }
 
@@ -123,13 +131,20 @@ namespace priority_control
     {
         for (size_t i = 0; i < robot_->nj(); ++i)
         {
-            if (q_pos(i) >= robot_->lower_joint_limit()[i] && q_pos(i) < robot_->lower_damping_threshold()[i])
+            if (std::isinf(robot_->lower_joint_limit()[i]) || std::isinf(robot_->upper_joint_limit()[i]))
             {
+                Wq(i,i) = 1;
+                F(i) = 0;
+            }
+            else if (q_pos(i) >= robot_->lower_joint_limit()[i] && q_pos(i) < robot_->lower_damping_threshold()[i])
+            {
+                ROS_WARN("Avoiding Joint Limit for Joint: %ld", i+1);
                 Wq(i,i) = jointLimitDampingFunction((robot_->lower_damping_threshold()[i] - q_pos(i)) / (robot_->lower_damping_threshold()[i] - robot_->lower_joint_limit()[i]));
                 F(i) = robot_->joint_limit_force_max()[i] * (robot_->lower_damping_threshold()[i] - q_pos(i)) / (robot_->lower_damping_threshold()[i] - robot_->lower_joint_limit()[i]);
             }
             else if (q_pos(i) > robot_->upper_damping_threshold()[i] && q_pos(i) <= robot_->upper_joint_limit()[i])
             {
+                ROS_WARN("Avoiding Joint Limit for Joint: %ld", i+1);
                 Wq(i,i) = jointLimitDampingFunction((q_pos(i) - robot_->upper_damping_threshold()[i]) / (robot_->upper_joint_limit()[i] - robot_->upper_damping_threshold()[i]));
                 F(i) = robot_->joint_limit_force_max()[i] * (robot_->upper_damping_threshold()[i] - q_pos(i)) / (robot_->upper_joint_limit()[i] - robot_->upper_damping_threshold()[i]);
             }
@@ -154,7 +169,7 @@ namespace priority_control
     void PriorityController::computeSingularityAvoidance(Eigen::VectorXd& F)
     {
         manipulabilityGradient(q_pos_, F);
-        F = robot_->DEFAULT_SINGULARITY_FORCE_COEFFICIENT * F;
+        F = -1.0 * robot_->DEFAULT_SINGULARITY_FORCE_COEFFICIENT * F;
     }
 
     bool PriorityController::manipulabilityGradient(const KDL::JntArray& q_pos, Eigen::VectorXd& g)
@@ -196,14 +211,18 @@ namespace priority_control
     {
         null_space_projector_ = Eigen::MatrixXd::Identity(robot_->nj(), robot_->nj());
         q_vel_sum_ = Eigen::VectorXd::Zero(robot_->nj());
+        // std::cout << "Check 2.31" << std::endl;
         for (auto& task : tasks_)
         {
             task.second->compute_kinematic_matrices(q_pos_, joint_lim_avoidance_Wq_, null_space_projector_);
+            // std::cout << "Check 2.32" << std::endl;
             task.second->set_q_vel(
                 task.second->pseudoinverse_jacobian() * 
                 (task.second->task_twist() - task.second->task_jacobian()*q_vel_sum_));
+                // std::cout << "Check 2.33" << std::endl;
             null_space_projector_ = null_space_projector_ * 
                 (robot_->identity_matrix() - task.second->pseudoinverse_jacobian() * task.second->task_jacobian());
+                // std::cout << "Check 2.34" << std::endl;
             q_vel_sum_ = q_vel_sum_ + task.second->get_q_vel();
         }
     }

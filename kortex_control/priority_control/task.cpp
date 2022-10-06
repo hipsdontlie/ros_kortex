@@ -124,16 +124,19 @@ namespace priority_control
     bool Task::compute_kinematic_matrices(const KDL::JntArray& q_pos, const Eigen::MatrixXd& joint_limit_avoidance_Wq, const Eigen::MatrixXd& null_space_projector)
     {
         q_pos_ = q_pos;
+        // std::cout << "Check 2.311" << std::endl;
         if (!compute_jacobian(joint_limit_avoidance_Wq, null_space_projector))
         {
             // TODO: error!
             return false;
         }
+        // std::cout << "Check 2.312" << std::endl;
         if (!compute_pseudoinverse_jacobian())
         {
             // TODO: error!
             return false;
         }
+        // std::cout << "Check 2.313" << std::endl;
         return true;
     }
 
@@ -202,8 +205,8 @@ namespace priority_control
         // std::cout << "==========================" << std::endl;
         // std::cout << task_jacobian_ << std::endl;
         pseudoinverse_jacobian_ = Eigen::MatrixXd::Zero(robot_->nj(), num_task_dof_);
-
-        for (size_t i = 0; i < ArthurRobotModel::CARTESIAN_DOF; ++i)
+        int max_rank = std::min(task_jacobian_.rows(), task_jacobian_.cols());
+        for (int i = 0; i < max_rank; ++i)
         {
             if (robot_->svd_full_solver_->singularValues()(i) < ArthurRobotModel::DEFAULT_EPSILON)
             {

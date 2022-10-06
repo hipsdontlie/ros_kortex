@@ -1,7 +1,11 @@
 <?xml version="1.0"?>
 <launch>
-    
-    <node pkg="kortex_control" type="master_controller" name="master_controller" output="screen" >
+    <arg name="debug" default="false" /> 
+    <arg unless="$(arg debug)" name="launch_prefix" value="" /> 
+    <arg if="$(arg debug)" name="launch_prefix" value="gdb --ex run --args" />
+    <!-- GDB Debug Option -->
+
+    <node pkg="kortex_control" type="master_controller" name="master_controller" output="screen"  launch-prefix="$(arg launch_prefix)">
         <param name="robot_description" command="xacro $(find kortex_control)/arm_description/robot_model.xacro" />
         <param name="base_frame" value="base_link" />
         <param name="tip_frame" value="tool_frame" />

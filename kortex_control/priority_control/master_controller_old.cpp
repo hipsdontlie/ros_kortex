@@ -20,8 +20,6 @@
 
 #include "arthur_robot_model.hpp"
 #include "task.hpp"
-#include "priority_controller.hpp"
-#include "pelvis_alignment_task.hpp"
 
 using namespace priority_control;
 
@@ -68,6 +66,129 @@ void twistCallback(const geometry_msgs::Twist::ConstPtr &msg, Eigen::VectorXd* t
     (*twist)(4) = (*msg).angular.y;
     (*twist)(5) = (*msg).angular.z;
 }
+
+Eigen::VectorXd pidController(geometry_msgs::Transform& error, const Eigen::VectorXd& twist, ros::Publisher& error_metrics_pub)
+{
+    std::array<double, 6> Kp = {1, 1, 1, 1, 1, 1};
+    std::array<double, 6> Ki = {0, 0, 0, 0, 0, 0};
+    std::array<double, 6> Kd = {0, 0, 0, 0, 0, 0};
+    Eigen::VectorXd twist_command = Eigen::VectorXd::Zero(6);
+    twist_command(0) = error.translation.x;
+    twist_command(1) = error.translation.y;
+    twist_command(2) = error.translation.z;
+    tf::Matrix3x3(tf::Quaternion(error.rotation.x, error.rotation.y, error.rotation.z, error.rotation.w)).getRPY(twist_command(3), twist_command(4), twist_command(5));
+
+    std::cout << "Translation Error: " << 1000*sqrt(twist_command(0)*twist_command(0) + twist_command(1)*twist_command(1) + twist_command(2)*twist_command(2)) << " mm" << std::endl;
+    std::cout << "Rotation Error: " << 180.0*sqrt(twist_command(3)*twist_command(3) + twist_command(4)*twist_command(4) + twist_command(5)*twist_command(5)) / M_PI << " degrees" <<  std::endl;
+    std_msgs::Float64MultiArray error_msg;
+    error_msg.data.push_back(1000*sqrt(twist_command(0)*twist_command(0) + twist_command(1)*twist_command(1) + twist_command(2)*twist_command(2)));
+    error_msg.data.push_back(180.0*sqrt(twist_command(3)*twist_command(3) + twist_command(4)*twist_command(4) + twist_command(5)*twist_command(5)) / M_PI);
+    error_metrics_pub.publish(error_msg);
+
+    for (int i = 0; i < 6; ++i)
+    {
+        twist_command(i) = Kp[i] * twist_command(i) - Kd[i]*twist(i);
+    }
+    
+    double linearVel = sqrt(twist_command(0)*twist_command(0) + twist_command(1)*twist_command(1) + twist_command(2)*twist_command(2));
+    double angularVel = sqrt(twist_command(3)*twist_command(3) + twist_command(4)*twist_command(4) + twist_command(5)*twist_command(5));
+    if (linearVel > maxLinearVelocity)
+    {
+        for (size_t i = 0; i < 3; ++i)
+        {
+            twist_command(i) = maxLinearVelocity* twist_command(i) / linearVel;
+        }
+    }
+    if (angularVel > maxAngularVelocity)
+    {
+        for (size_t i = 3; i < 6; ++i)
+        {
+            twist_command(i) = maxAngularVelocity* twist_command(i) / angularVel;
+        }
+    }
+    // std::cout << "*****************" << std::endl;
+    // std::cout << twist_command << std::endl;
+    return twist_command;
+}
+
+double jointLimitDampingFunction(double x)
+{
+    return 0.5 - 0.5*tanh((1 / (1-x)) - (1/x));
+}
+
+void computeJointLimitAvoidance(Eigen::MatrixXd& Wq, Eigen::VectorXd& F, const KDL::JntArray& q_pos, std::shared_ptr<ArthurRobotModel> robot)
+{
+    for (size_t i = 0; i < robot->nj(); ++i)
+    {
+        if (q_pos(i) >= robot->lower_joint_limit()[i] && q_pos(i) < robot->lower_damping_threshold()[i])
+        {
+            Wq(i,i) = jointLimitDampingFunction((robot->lower_damping_threshold()[i] - q_pos(i)) / (robot->lower_damping_threshold()[i] - robot->lower_joint_limit()[i]));
+            F(i) = robot->joint_limit_force_max()[i] * (robot->lower_damping_threshold()[i] - q_pos(i)) / (robot->lower_damping_threshold()[i] - robot->lower_joint_limit()[i]);
+        }
+        else if (q_pos(i) > robot->upper_damping_threshold()[i] && q_pos(i) <= robot->upper_joint_limit()[i])
+        {
+            Wq(i,i) = jointLimitDampingFunction((q_pos(i) - robot->upper_damping_threshold()[i]) / (robot->upper_joint_limit()[i] - robot->upper_damping_threshold()[i]));
+            F(i) = robot->joint_limit_force_max()[i] * (robot->upper_damping_threshold()[i] - q_pos(i)) / (robot->upper_joint_limit()[i] - robot->upper_damping_threshold()[i]);
+        }
+        else if (q_pos(i) >= robot->lower_damping_threshold()[i] && q_pos(i) <= robot->upper_damping_threshold()[i])
+        {
+            Wq(i,i) = 1;
+            F(i) = 0;
+        }
+        else
+        {
+            Wq(i,i) = 0;
+            F(i) = 0;
+        }
+    }
+}
+
+bool validJointVel(Eigen::VectorXd q_vel, KDL::JntArray q_pos, std::shared_ptr<ArthurRobotModel> robot, double dt)
+{
+    KDL::JntArray q_pos_next = KDL::JntArray(robot->nj());
+    for (size_t i = 0; i < robot->nj(); ++i)
+    {
+        q_pos_next(i) = q_pos(i) + q_vel(i)*dt;
+    }
+    
+    for (size_t i = 0; i < robot->nj(); ++i)
+    {
+        if (abs(q_vel(i)) > robot->joint_vel_limit()[i])
+        {
+            // std::cout << abs(q_vel(i)) << std::endl;
+            // std::cout << robot->joint_vel_limit()[i] << std::endl;
+            ROS_WARN("At Hard Joint Velocity Limit for Joint: %ld", i+1);
+            return false;
+        }
+        if (q_pos_next(i) > robot->upper_joint_limit()[i] || q_pos_next(i) < robot->lower_joint_limit()[i])
+        {
+            ROS_WARN("At Hard Joint Position Limit for Joint: %ld", i+1);
+            return false;
+        }
+    }
+
+    KDL::Jacobian jac_next = KDL::Jacobian(robot->nj());
+    if (robot->jac_solver_->JntToJac(q_pos_next, jac_next) < 0)
+    {
+        ROS_ERROR("Could not compute jacobian!");
+        // TODO: Stop Controller or Send Message to Watchdog
+        return false;
+    }
+
+    robot->svd_fast_solver_->compute(jac_next.data);
+    int basic_rank = robot->svd_fast_solver_->rank();
+    Eigen::MatrixXd Wq_temp = Eigen::MatrixXd::Identity(robot->nj(), robot->nj());
+    Eigen::VectorXd F_temp = Eigen::VectorXd::Zero(robot->nj());
+    computeJointLimitAvoidance(Wq_temp, F_temp, q_pos_next, robot);
+    robot->svd_fast_solver_->compute(jac_next.data*Wq_temp);
+    int joint_lim_rank = robot->svd_fast_solver_->rank();
+    if (basic_rank >= 6 && joint_lim_rank < 6)
+    {
+        return false;
+    }
+    return true;
+}
+
 // Replacement SIGINT handler
 void mySigIntHandler(int sig)
 {
@@ -117,11 +238,7 @@ int main(int argc, char **argv)
     std::array<bool, 6> task_dof_= {true, true, true, true, true, true};
     
     std::shared_ptr<ArthurRobotModel> robot_ = std::make_shared<ArthurRobotModel>(robot_description_, base_frame_, tip_frame_);
-    // std::shared_ptr<Task> task_ = std::make_shared<Task>(robot_, task_dof_, tip_frame_);
-    std::shared_ptr<PelvisAlignmentTask> pelvis_task_ = std::make_shared<PelvisAlignmentTask>(robot_, tip_frame_);
-    std::shared_ptr<PriorityController> priority_controller_ = std::make_shared<PriorityController>(robot_, controller_time_step_);
-    priority_controller_->addTask(pelvis_task_, 1);
-    
+    std::shared_ptr<Task> task_ = std::make_shared<Task>(robot_, task_dof_, tip_frame_);
 
     KDL::JntArray q_pos_ = KDL::JntArray(robot_->nj());
     Eigen::VectorXd q_vel_command_ = Eigen::VectorXd::Zero(robot_->nj());
@@ -173,42 +290,28 @@ int main(int argc, char **argv)
     ros::spinOnce();
     while (!g_request_shutdown)
     {
-        // Eigen::VectorXd desired_twist = pidController(error_, twist_, error_metrics_pub_);
-        // if (std::isnan(desired_twist(0)) || std::isnan(desired_twist(1)) || std::isnan(desired_twist(2)) || std::isnan(desired_twist(3)) || std::isnan(desired_twist(4)) || std::isnan(desired_twist(5)))
-        // {
-        //     std::cout << "Desired twist is nan!" << std::endl;
-        // }
-        // else
-        // {
-        //     task_->update_task(desired_twist);
-        //     computeJointLimitAvoidance(Wq, Joint_Limit_Force, q_pos_, robot_);
-        //     task_->compute_kinematic_matrices(q_pos_, Wq, robot_->identity_matrix());
-        //     q_vel_command_ = task_->pseudoinverse_jacobian() * task_->task_twist() +
-        //         ((robot_->identity_matrix() - task_->pseudoinverse_jacobian()*task_->task_jacobian()) *
-        //         (robot_->identity_matrix() - Wq) * Joint_Limit_Force);
-        //     if (!validJointVel(q_vel_command_, q_pos_, robot_, controller_time_step_))
-        //     {
-        //         q_vel_command_ = Eigen::VectorXd::Zero(robot_->nj());
-        //     }
-        //     // std::cout << "-----------------------" << std::endl;
-        //     // std::cout << q_vel_command_ << std::endl;
-        //     // TODO: Check if velocity and positions are valid
-        //     sendJointSpeeds(joint_speed_commander_, q_vel_command_, robot_);
-        // }
-        // std::cout << "Check 1" << std::endl;
-        if(!pelvis_task_->updateError(q_pos_, error_, twist_, error_metrics_pub_))
+        Eigen::VectorXd desired_twist = pidController(error_, twist_, error_metrics_pub_);
+        if (std::isnan(desired_twist(0)) || std::isnan(desired_twist(1)) || std::isnan(desired_twist(2)) || std::isnan(desired_twist(3)) || std::isnan(desired_twist(4)) || std::isnan(desired_twist(5)))
         {
-            ROS_WARN("Error could not be updated!!!\n");
+            std::cout << "Desired twist is nan!" << std::endl;
         }
-        // std::cout << "Check 2" << std::endl;
-        if (!priority_controller_->computeJointVelocityCommand(q_pos_))
+        else
         {
-            ROS_WARN("Could not compute next velocity command!!!\n");
+            task_->update_task(desired_twist);
+            computeJointLimitAvoidance(Wq, Joint_Limit_Force, q_pos_, robot_);
+            task_->compute_kinematic_matrices(q_pos_, Wq, robot_->identity_matrix());
+            q_vel_command_ = task_->pseudoinverse_jacobian() * task_->task_twist() +
+                ((robot_->identity_matrix() - task_->pseudoinverse_jacobian()*task_->task_jacobian()) *
+                (robot_->identity_matrix() - Wq) * Joint_Limit_Force);
+            if (!validJointVel(q_vel_command_, q_pos_, robot_, controller_time_step_))
+            {
+                q_vel_command_ = Eigen::VectorXd::Zero(robot_->nj());
+            }
+            // std::cout << "-----------------------" << std::endl;
+            // std::cout << q_vel_command_ << std::endl;
+            // TODO: Check if velocity and positions are valid
+            sendJointSpeeds(joint_speed_commander_, q_vel_command_, robot_);
         }
-        // std::cout << "Check 3" << std::endl;
-        q_vel_command_ = priority_controller_->getJointVelocityCommand();
-        // std::cout << "Check 4" << std::endl;
-        sendJointSpeeds(joint_speed_commander_, q_vel_command_, robot_);
         ros::spinOnce();
         rate.sleep();
     }

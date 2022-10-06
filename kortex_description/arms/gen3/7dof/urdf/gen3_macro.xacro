@@ -96,7 +96,7 @@
         link="${prefix}half_arm_1_link" />
       <axis
         xyz="0 0 1" />
-      <limit lower="-2.41" upper="2.41" effort="39" velocity="1.3963" />
+      <limit lower="-2.15" upper="2.15" effort="39" velocity="1.3963" />
     </joint>
     <link name="${prefix}half_arm_2_link">
       <inertial>

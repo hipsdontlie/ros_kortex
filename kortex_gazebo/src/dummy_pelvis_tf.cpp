@@ -19,7 +19,7 @@ void dummyPoseBroadcaster(float t){
   //-0.001, -0.434, -0.756
   //[0.500, 0.500, 0.500, -0.500]
   tf2::Quaternion q;
-  q.setRPY(1.5707963 + 0.5*sin(t*3.142/180), 0 + 0.2*sin(t*3.142/180), 1.5707963 + 0.3*sin(t*3.142/180));
+  q.setRPY(-1.5708 + 0.5*sin(t*3.142/180), 0 + 0.2*sin(t*3.142/180), 1.5708 + 0.3*sin(t*3.142/180));
   transformStamped.transform.rotation.x = q.x();
   transformStamped.transform.rotation.y = q.y();
   transformStamped.transform.rotation.z = q.z();

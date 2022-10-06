@@ -118,13 +118,15 @@ namespace priority_control
                 {
                     lower_joint_limit_[i] = joint->limits->lower;
                     upper_joint_limit_[i] = joint->limits->upper;
+                    joint_rom_[i] = upper_joint_limit_[i] - lower_joint_limit_[i];
                 } 
                 else 
                 {
-                    lower_joint_limit_[i] = -3*M_PI;
-                    upper_joint_limit_[i] = 3*M_PI;
+                    lower_joint_limit_[i] = -std::numeric_limits<double>::infinity();
+                    upper_joint_limit_[i] = std::numeric_limits<double>::infinity();
+                    joint_rom_[i] = 2.0*M_PI;
                 }
-                joint_rom_[i] = upper_joint_limit_[i] - lower_joint_limit_[i];
+                
                 joint_vel_limit_[i] = joint->limits->velocity;
                 --i;
             }
