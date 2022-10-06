@@ -26,6 +26,9 @@ class Inputs
         //registration probe monitor
         void rpCallback(const geometry_msgs::PoseStamped::ConstPtr& rp_msg);   
 
-    protected:
+    
+        ros::Time curr_time;
+        ros::Time prev_time;
+        ros::Time freq;
     
 };

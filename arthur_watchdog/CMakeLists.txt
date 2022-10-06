@@ -14,23 +14,27 @@ trajectory_msgs
 urdf
 )
 
+include_directories(include  ${Boost_INCLUDE_DIR} ${EIGEN_INCLUDE_DIRS} ${catkin_INCLUDE_DIRS}) 
+include_directories(SYSTEM ${EIGEN3_INCLUDE_DIRS})
+
+
+add_message_files(
+  FILES
+  arthur_watch.msg
+)
+
 # find_package(orocos_kdl REQUIRED
 # urdf_model REQUIRED
 # Eigen 3 3.3 REQUIRED
 # )
 
-# generate_messages(
-#   DEPENDENCIES
-#   std_msgs
-#   geometry_msgs
-# )
+generate_messages(
+  DEPENDENCIES
+  std_msgs
+  geometry_msgs
+)
 
-# catkin_package(
-#   INCLUDE_DIRS arthur_watchdog/include ${Eigen3_INCLUDE_DIRS}
-#   # LIBRARIES ${PROJECT_NAME}   # Added this line
-# #   CATKIN_DEPENDS arthur_planning message_runtime roscpp std_msgs geometry_msgs tf kdl_parser urdf eigen
-# #   DEPENDS orocos_kdl urdf_model
-# )
+
 
 catkin_package(
   INCLUDE_DIRS include
