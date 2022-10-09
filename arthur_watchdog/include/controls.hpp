@@ -14,7 +14,10 @@ class Perception
 {
     public:
         //pelvis marker monitor
-        void perception_eval(const std_msgs::Float64::ConstPtr& percep_msg);
+        void joint_limits(const std_msgs::Float64::ConstPtr& percep_msg);
 
-    
+        void singularity_check(const std_msgs::Float64::ConstPtr& percep_msg);
+        
+        void error_check(const std_msgs::Float64::ConstPtr& percep_msg);
+
 };

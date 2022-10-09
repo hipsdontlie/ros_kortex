@@ -1,9 +1,12 @@
 #include "include/inputs.hpp"
 #include "include/perception.hpp"
+
 // #include <arthur_watchdog/arthur_watch.h>
 
 ros::Time prevTime;
 ros::Time currTime;
+// std_msgs::Float64 rmse_thresh;
+std::shared_ptr<std_msgs::Float64> rmse_thresh;
 void Inputs::pelvisCallback(const geometry_msgs::PoseStamped::ConstPtr& pelvis_msg)
     {
       ros::Duration pelvis_freq(0.025);
@@ -51,15 +54,15 @@ void Inputs::eeCallback(const geometry_msgs::PoseStamped::ConstPtr& ee_msg)
 }
 
 //perception rmse error
-void Perception::perception_eval(const std_msgs:& rmse_msg)
+void Perception::perception_eval(const std_msgs::Float64::ConstPtr& rmse_msg)
 {
-  if (rmse_msg)
+  if (rmse_msg->data > rmse_thresh->data)
   {
-    ROS_INFO("End effector not visible\n");
+    ROS_INFO("RMSE error too high. Try again!\n");
   }
   else
   {
-    ROS_INFO("End effector visible\n");
+    ROS_INFO("RMSE error is slow! Continue...\n");
   }
 }
 
@@ -71,6 +74,9 @@ int main(int argc, char **argv)
 
   Inputs inputs;
   Perception perception;
+
+  rmse_thresh->data = 1.0;
+
 
   ros::Subscriber sub = n.subscribe("pelvis_pose", 1000, &Inputs::pelvisCallback, &inputs);
 

@@ -18,10 +18,10 @@ include_directories(include  ${Boost_INCLUDE_DIR} ${EIGEN_INCLUDE_DIRS} ${catkin
 include_directories(SYSTEM ${EIGEN3_INCLUDE_DIRS})
 
 
-add_message_files(
-  FILES
-  arthur_watch.msg
-)
+# add_message_files(
+#   FILES
+#   arthur_watch.msg
+# )
 
 # find_package(orocos_kdl REQUIRED
 # urdf_model REQUIRED
