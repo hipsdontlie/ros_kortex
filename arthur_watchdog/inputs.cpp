@@ -1,12 +1,15 @@
 #include "include/inputs.hpp"
 #include "include/perception.hpp"
+#include "include/controls.hpp"
 
 // #include <arthur_watchdog/arthur_watch.h>
 
 ros::Time prevTime;
 ros::Time currTime;
 // std_msgs::Float64 rmse_thresh;
-std::shared_ptr<std_msgs::Float64> rmse_thresh;
+std::shared_ptr<std_msgs::Float64> rmse_thresh = std::make_shared<std_msgs::Float64> ();
+bool flg = false;
+
 void Inputs::pelvisCallback(const geometry_msgs::PoseStamped::ConstPtr& pelvis_msg)
     {
       ros::Duration pelvis_freq(0.025);
@@ -59,10 +62,29 @@ void Perception::perception_eval(const std_msgs::Float64::ConstPtr& rmse_msg)
   if (rmse_msg->data > rmse_thresh->data)
   {
     ROS_INFO("RMSE error too high. Try again!\n");
+    flg = true;
   }
   else
+  { 
+    std::cout<<rmse_msg->data<<std::endl;
+    ROS_INFO("RMSE error is low! Continue...\n");
+    // flg = true;
+  }
+}
+
+//perception rmse error
+void Perception::perception_eval(const std_msgs::Float64::ConstPtr& rmse_msg)
+{
+  if (rmse_msg->data > rmse_thresh->data)
   {
-    ROS_INFO("RMSE error is slow! Continue...\n");
+    ROS_INFO("RMSE error too high. Try again!\n");
+    flg = true;
+  }
+  else
+  { 
+    std::cout<<rmse_msg->data<<std::endl;
+    ROS_INFO("RMSE error is low! Continue...\n");
+    // flg = true;
   }
 }
 
@@ -74,6 +96,7 @@ int main(int argc, char **argv)
 
   Inputs inputs;
   Perception perception;
+  Controls controls;
 
   rmse_thresh->data = 1.0;
 
@@ -86,6 +109,8 @@ int main(int argc, char **argv)
 
   ros::Subscriber rmse_sub = n.subscribe("percep_rmse", 1000, &Perception::perception_eval, &perception);
 
+  ros::Subscriber ee_control_sub = n.subscribe("control_error", 1000, &Controls::error_check, &controls);
+
 
   while(ros::ok())
   {
@@ -93,6 +118,9 @@ int main(int argc, char **argv)
 
     if(currTime - prevTime > ros::Duration(0.025))
       std::cout<<"Pelvis marker not visible"<<std::endl;
+
+    if (flg)
+      break;
 
     ros::spinOnce();
   }

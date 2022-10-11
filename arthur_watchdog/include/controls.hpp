@@ -10,14 +10,14 @@ using std::experimental::filesystem::exists;
 #include "std_msgs/String.h"
 #include "geometry_msgs/PoseStamped.h"
 
-class Perception
+class Controls
 {
     public:
         //pelvis marker monitor
         void joint_limits(const std_msgs::Float64::ConstPtr& percep_msg);
 
         void singularity_check(const std_msgs::Float64::ConstPtr& percep_msg);
-        
+
         void error_check(const std_msgs::Float64::ConstPtr& percep_msg);
 
 };
