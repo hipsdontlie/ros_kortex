@@ -22,9 +22,8 @@ namespace priority_control
         static constexpr double DEFAULT_EPSILON = 0.05;
         static constexpr double DEFAULT_JOINT_LIMIT_FORCE_COEFFICIENT = 1.5;
         static constexpr double DEFAULT_SINGULARITY_FORCE_COEFFICIENT = 1;
-        static constexpr double MAX_LINEAR_VELOCITY = 0.01;
+        static constexpr double MAX_LINEAR_VELOCITY = 0.1;
         static constexpr double MAX_ANGULAR_VELOCITY = 1.57;
-        static constexpr double VEL_SCALEDOWN_RATE = 0.95;
 
         std::shared_ptr<KDL::ChainJntToJacSolver> jac_solver_;
         std::shared_ptr<KDL::ChainFkSolverPos> fk_pos_solver_;
@@ -41,6 +40,9 @@ namespace priority_control
         std::vector<double> const& joint_limit_force_max();
         size_t nj();
         Eigen::MatrixXd& identity_matrix();
+
+        std::string const& segnr2name(unsigned int i);
+        unsigned int name2segnr(const std::string& seg_name);
 
         private:
         urdf::Model urdf_model_;

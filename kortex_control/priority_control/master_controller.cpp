@@ -22,11 +22,9 @@
 #include "task.hpp"
 #include "priority_controller.hpp"
 #include "pelvis_alignment_task.hpp"
+#include "camera_alignment_task.hpp"
 
 using namespace priority_control;
-
-double maxLinearVelocity = 0.01;
-double maxAngularVelocity = 1.57;
 
 // Signal-safe flag for whether shutdown is requested
 sig_atomic_t volatile g_request_shutdown = 0;
@@ -56,11 +54,11 @@ void jointStateCallback(const sensor_msgs::JointState::ConstPtr &msg, KDL::JntAr
     }
 }
 
-void errorCallback(const geometry_msgs::Transform::ConstPtr &msg, geometry_msgs::Transform* error) {
+void pelvisErrorCallback(const geometry_msgs::Transform::ConstPtr &msg, geometry_msgs::Transform* error) {
     (*error) = (*msg);
 }
 
-void twistCallback(const geometry_msgs::Twist::ConstPtr &msg, Eigen::VectorXd* twist) {
+void pelvisTwistCallback(const geometry_msgs::Twist::ConstPtr &msg, Eigen::VectorXd* twist) {
     (*twist)(0) = (*msg).linear.x;
     (*twist)(1) = (*msg).linear.y;
     (*twist)(2) = (*msg).linear.z;
@@ -68,6 +66,20 @@ void twistCallback(const geometry_msgs::Twist::ConstPtr &msg, Eigen::VectorXd* t
     (*twist)(4) = (*msg).angular.y;
     (*twist)(5) = (*msg).angular.z;
 }
+
+void cameraErrorCallback(const geometry_msgs::Transform::ConstPtr &msg, geometry_msgs::Transform* error) {
+    (*error) = (*msg);
+}
+
+void cameraTwistCallback(const geometry_msgs::Twist::ConstPtr &msg, Eigen::VectorXd* twist) {
+    (*twist)(0) = (*msg).linear.x;
+    (*twist)(1) = (*msg).linear.y;
+    (*twist)(2) = (*msg).linear.z;
+    (*twist)(3) = (*msg).angular.x;
+    (*twist)(4) = (*msg).angular.y;
+    (*twist)(5) = (*msg).angular.z;
+}
+
 // Replacement SIGINT handler
 void mySigIntHandler(int sig)
 {
@@ -113,37 +125,54 @@ int main(int argc, char **argv)
     node.getParam("/master_controller/tip_frame", tip_frame_);
     std::string target_frame_;
     node.getParam("/master_controller/target_frame", target_frame_);
+    std::string ee_marker_frame_;
+    node.getParam("/master_controller/ee_marker_frame", ee_marker_frame_);
 
-    std::array<bool, 6> task_dof_= {true, true, true, true, true, true};
+    // std::array<bool, 6> task_dof_= {true, true, true, true, true, true};
     
     std::shared_ptr<ArthurRobotModel> robot_ = std::make_shared<ArthurRobotModel>(robot_description_, base_frame_, tip_frame_);
     // std::shared_ptr<Task> task_ = std::make_shared<Task>(robot_, task_dof_, tip_frame_);
     std::shared_ptr<PelvisAlignmentTask> pelvis_task_ = std::make_shared<PelvisAlignmentTask>(robot_, tip_frame_);
+    std::shared_ptr<CameraAlignmentTask> camera_task_ = std::make_shared<CameraAlignmentTask>(robot_, ee_marker_frame_);
     std::shared_ptr<PriorityController> priority_controller_ = std::make_shared<PriorityController>(robot_, controller_time_step_);
     priority_controller_->addTask(pelvis_task_, 1);
+    priority_controller_->addTask(camera_task_, 2);
     
 
     KDL::JntArray q_pos_ = KDL::JntArray(robot_->nj());
     Eigen::VectorXd q_vel_command_ = Eigen::VectorXd::Zero(robot_->nj());
-    Eigen::VectorXd twist_ = Eigen::VectorXd::Zero(ArthurRobotModel::CARTESIAN_DOF);
+    Eigen::VectorXd pelvis_twist_ = Eigen::VectorXd::Zero(ArthurRobotModel::CARTESIAN_DOF);
+    Eigen::VectorXd camera_twist_ = Eigen::VectorXd::Zero(ArthurRobotModel::CARTESIAN_DOF);
 
-    geometry_msgs::Transform error_;
-    error_.translation.x = 0;
-    error_.translation.y = 0;
-    error_.translation.z = 0;
-    error_.rotation.x = 0;
-    error_.rotation.y = 0;
-    error_.rotation.z = 0;
-    error_.rotation.w = 1;
+    geometry_msgs::Transform pelvis_error_;
+    pelvis_error_.translation.x = 0;
+    pelvis_error_.translation.y = 0;
+    pelvis_error_.translation.z = 0;
+    pelvis_error_.rotation.x = 0;
+    pelvis_error_.rotation.y = 0;
+    pelvis_error_.rotation.z = 0;
+    pelvis_error_.rotation.w = 1;
+
+    geometry_msgs::Transform camera_error_;
+    camera_error_.translation.x = 0;
+    camera_error_.translation.y = 0;
+    camera_error_.translation.z = 0;
+    camera_error_.rotation.x = 0;
+    camera_error_.rotation.y = 0;
+    camera_error_.rotation.z = 0;
+    camera_error_.rotation.w = 1;
     
-    Eigen::MatrixXd Wq = Eigen::MatrixXd::Identity(robot_->nj(), robot_->nj());
-    Eigen::VectorXd Joint_Limit_Force = Eigen::VectorXd::Zero(robot_->nj());
+    // Eigen::MatrixXd Wq = Eigen::MatrixXd::Identity(robot_->nj(), robot_->nj());
+    // Eigen::VectorXd Joint_Limit_Force = Eigen::VectorXd::Zero(robot_->nj());
 
     // Subs/Pubs
-    ros::Publisher error_metrics_pub_ = node.advertise<std_msgs::Float64MultiArray>("/error_metrics", 1);
+    ros::Publisher pelvis_error_metrics_pub_ = node.advertise<std_msgs::Float64MultiArray>("/error_metrics/pelvis", 1);
+    ros::Publisher camera_error_metrics_pub_ = node.advertise<std_msgs::Float64MultiArray>("/error_metrics/camera", 1);
     ros::Subscriber joint_state_sub_ = node.subscribe<sensor_msgs::JointState>("/my_gen3/joint_states", 1, boost::bind(&jointStateCallback, _1, &q_pos_, robot_));
-    ros::Subscriber tracking_frame_sub_ = node.subscribe<geometry_msgs::Transform>("/tf/tool_frame_to_dummy_pelvis", 1, boost::bind(&errorCallback, _1, &error_));
-    ros::Subscriber tracking_twist_sub_ = node.subscribe<geometry_msgs::Twist>("/tf/twist/tool_frame_to_dummy_pelvis", 1, boost::bind(&twistCallback, _1, &twist_));
+    ros::Subscriber pelvis_tracking_frame_sub_ = node.subscribe<geometry_msgs::Transform>("/tf/tool_frame_to_dummy_pelvis", 1, boost::bind(&pelvisErrorCallback, _1, &pelvis_error_));
+    ros::Subscriber pelvis_tracking_twist_sub_ = node.subscribe<geometry_msgs::Twist>("/tf/twist/tool_frame_to_dummy_pelvis", 1, boost::bind(&pelvisTwistCallback, _1, &pelvis_twist_));
+    ros::Subscriber camera_tracking_frame_sub_ = node.subscribe<geometry_msgs::Transform>("/tf/ee_marker_frame_to_dummy_camera", 1, boost::bind(&cameraErrorCallback, _1, &camera_error_));
+    ros::Subscriber camera_tracking_twist_sub_ = node.subscribe<geometry_msgs::Twist>("/tf/twist/ee_marker_frame_to_dummy_camera", 1, boost::bind(&cameraTwistCallback, _1, &camera_twist_));
     ros::ServiceClient joint_speed_commander_ = node.serviceClient<kortex_driver::SendJointSpeedsCommand>("/my_gen3/base/send_joint_speeds_command");
 
     // // sends wrench commands to kortex_driver service
@@ -173,7 +202,7 @@ int main(int argc, char **argv)
     ros::spinOnce();
     while (!g_request_shutdown)
     {
-        // Eigen::VectorXd desired_twist = pidController(error_, twist_, error_metrics_pub_);
+        // Eigen::VectorXd desired_twist = pidController(pelvis_error_, pelvis_twist_, pelvis_error_metrics_pub_);
         // if (std::isnan(desired_twist(0)) || std::isnan(desired_twist(1)) || std::isnan(desired_twist(2)) || std::isnan(desired_twist(3)) || std::isnan(desired_twist(4)) || std::isnan(desired_twist(5)))
         // {
         //     std::cout << "Desired twist is nan!" << std::endl;
@@ -196,14 +225,21 @@ int main(int argc, char **argv)
         //     sendJointSpeeds(joint_speed_commander_, q_vel_command_, robot_);
         // }
         // std::cout << "Check 1" << std::endl;
-        if(!pelvis_task_->updateError(q_pos_, error_, twist_, error_metrics_pub_))
+        // std::cout << "+++++++++++++++++" << std::endl;
+        // std::cout << robot_->segnr2name(robot_->name2segnr(ee_marker_frame_)) << std::endl;
+        // std::cout << robot_->segnr2name(robot_->name2segnr(tip_frame_)) << std::endl;
+        if(!pelvis_task_->updateError(q_pos_, pelvis_error_, pelvis_twist_, pelvis_error_metrics_pub_))
         {
-            ROS_WARN("Error could not be updated!!!\n");
+            ROS_WARN("Pelvis error could not be updated!!!");
+        }
+        if(!camera_task_->updateError(q_pos_, camera_error_, camera_twist_, camera_error_metrics_pub_))
+        {
+            ROS_WARN("Camera error could not be updated!!!");
         }
         // std::cout << "Check 2" << std::endl;
         if (!priority_controller_->computeJointVelocityCommand(q_pos_))
         {
-            ROS_WARN("Could not compute next velocity command!!!\n");
+            ROS_WARN("Could not compute next velocity command!!!");
         }
         // std::cout << "Check 3" << std::endl;
         q_vel_command_ = priority_controller_->getJointVelocityCommand();

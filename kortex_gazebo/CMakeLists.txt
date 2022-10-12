@@ -35,3 +35,5 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${GAZEBO_CXX_FLAGS}")
 
 add_executable(dummy_pelvis_tf src/dummy_pelvis_tf.cpp)
 target_link_libraries(dummy_pelvis_tf ${catkin_LIBRARIES})
+add_executable(dummy_camera_tf src/dummy_camera_tf.cpp)
+target_link_libraries(dummy_camera_tf ${catkin_LIBRARIES})

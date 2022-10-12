@@ -25,6 +25,7 @@ namespace priority_control
         double dt_;
         KDL::JntArray q_pos_;
         Eigen::MatrixXd null_space_projector_;
+        bool joint_lim_avoidance_active_;
         Eigen::MatrixXd joint_lim_avoidance_Wq_;
         Eigen::VectorXd joint_lim_avoidance_F_;
         Eigen::VectorXd singularity_avoidance_F_;

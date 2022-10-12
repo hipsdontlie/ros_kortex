@@ -9,7 +9,6 @@ namespace priority_control
     constexpr double ArthurRobotModel::DEFAULT_SINGULARITY_FORCE_COEFFICIENT;
     constexpr double ArthurRobotModel::MAX_LINEAR_VELOCITY;
     constexpr double ArthurRobotModel::MAX_ANGULAR_VELOCITY;
-    constexpr double ArthurRobotModel::VEL_SCALEDOWN_RATE;
 
     ArthurRobotModel::ArthurRobotModel(const std::string& robot_description, const std::string& base_frame, const std::string& tip_frame)
     {
@@ -90,6 +89,21 @@ namespace priority_control
     Eigen::MatrixXd& ArthurRobotModel::identity_matrix()
     {
         return I_;
+    }
+
+    std::string const& ArthurRobotModel::segnr2name(unsigned int i)
+    {
+        return kdl_chain_.getSegment(i).getName();
+    }
+
+    unsigned int ArthurRobotModel::name2segnr(const std::string& seg_name)
+    {
+        for (unsigned int i = 0; i < kdl_chain_.getNrOfSegments(); ++i)
+        {
+            if (kdl_chain_.getSegment(i).getName() == seg_name)
+                return i;
+        }
+        return kdl_chain_.getNrOfSegments();
     }
 
     bool ArthurRobotModel::compute_joint_limits(const std::string& base_frame, const std::string& tip_frame)

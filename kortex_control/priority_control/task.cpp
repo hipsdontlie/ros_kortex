@@ -143,7 +143,7 @@ namespace priority_control
     bool Task::compute_jacobian(const Eigen::MatrixXd& joint_limit_avoidance_Wq, const Eigen::MatrixXd& null_space_projector)
     {
         // TODO: Implement segnr for jacobian calculation
-        if (robot_->jac_solver_->JntToJac(q_pos_, basic_jacobian_) < 0)
+        if (robot_->jac_solver_->JntToJac(q_pos_, basic_jacobian_, robot_->name2segnr(task_frame_)+1) < 0)
         {
             ROS_ERROR("Could not compute jacobian!");
             // TODO: Stop Controller or Send Message to Watchdog
@@ -168,7 +168,7 @@ namespace priority_control
     {
         // TODO: Implement SegNr for fk calculation
         KDL::Frame task_frame = KDL::Frame();
-        if (robot_->fk_pos_solver_->JntToCart(q_pos_, task_frame) < 0)
+        if (robot_->fk_pos_solver_->JntToCart(q_pos_, task_frame, robot_->name2segnr(task_frame_)+1) < 0)
         {
             // TODO: error!
             return false;

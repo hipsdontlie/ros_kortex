@@ -20,9 +20,9 @@ int main(int argc, char** argv){
 
   ros::NodeHandle node;
   std::string source_frame_;
-  node.getParam("/tf_listener/source_frame", source_frame_);
+  node.getParam("/" + ros::this_node::getName() + "/source_frame", source_frame_);
   std::string target_frame_;
-  node.getParam("/tf_listener/target_frame", target_frame_);
+  node.getParam("/" + ros::this_node::getName() + "/target_frame", target_frame_);
   std::string topic_name_ = "tf/" + source_frame_ + "_to_" + target_frame_;
   ros::Publisher transform_pub = node.advertise<geometry_msgs::Transform>(topic_name_, 1);
   std::string topic_name_twist_ = "tf/twist/" + source_frame_ + "_to_" + target_frame_;

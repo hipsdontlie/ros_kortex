@@ -13,6 +13,7 @@ namespace priority_control
         joint_lim_avoidance_Wq_ = Eigen::MatrixXd::Identity(robot_->nj(), robot_->nj());
         joint_lim_avoidance_F_ = Eigen::VectorXd::Zero(robot_->nj());
         singularity_avoidance_F_ = Eigen::VectorXd::Zero(robot_->nj());
+        joint_lim_avoidance_active_ = false;
     }
 
     bool PriorityController::addTask(std::shared_ptr<Task> task, size_t priority_num)
@@ -38,6 +39,7 @@ namespace priority_control
     bool PriorityController::computeJointVelocityCommand(const KDL::JntArray& q_pos)
     {
         q_pos_ = q_pos;
+        // ROS_INFO("Manipulability Metric: %f", 1.0/manipulability(q_pos));
         // std::cout << "Check 2.1" << std::endl;
         computeJointLimitAvoidance(joint_lim_avoidance_Wq_, joint_lim_avoidance_F_, q_pos_);
         // std::cout << "Check 2.2" << std::endl;
@@ -45,25 +47,39 @@ namespace priority_control
         // std::cout << "Check 2.3" << std::endl;
         computeTaskJointVelocities();
         // std::cout << "Check 2.4" << std::endl;
-        q_vel_cmd_ = q_vel_sum_ + null_space_projector_ * (robot_->identity_matrix() - joint_lim_avoidance_Wq_) * joint_lim_avoidance_F_; 
-        q_vel_cmd_ = q_vel_cmd_ + null_space_projector_ * singularity_avoidance_F_;
+        if (joint_lim_avoidance_active_)
+        {
+            q_vel_cmd_ = q_vel_sum_ + null_space_projector_ * (robot_->identity_matrix() - joint_lim_avoidance_Wq_) * joint_lim_avoidance_F_; 
+        }
+        else
+        {
+            q_vel_cmd_ = q_vel_sum_ + null_space_projector_ * singularity_avoidance_F_;
+        }
         // std::cout << "Check 2.5" << std::endl;
+        // auto task_check = tasks_.begin();
+        // task_check++;
+        // std::cout << task_check->second->get_q_vel() << std::endl;
+
         auto task = tasks_.rbegin();
         size_t jointAtLimit = atJointVelLimit(q_vel_cmd_);
         while (jointAtLimit < robot_->nj())
         {
-            q_vel_cmd_ =  robot_->joint_vel_limit()[jointAtLimit] * q_vel_cmd_ / q_vel_cmd_(jointAtLimit);
+            q_vel_cmd_ =  abs(robot_->joint_vel_limit()[jointAtLimit]) * q_vel_cmd_ / abs(q_vel_cmd_(jointAtLimit));
             jointAtLimit = atJointVelLimit(q_vel_cmd_);
         }
         // std::cout << "Check 2.6" << std::endl;
+
         while (!validJointVel(q_vel_cmd_) && task != tasks_.rend())
         {
+            ROS_INFO("Removing Next Lowest Priority Task Due to Invalid Task Velocity");
             q_vel_cmd_ = q_vel_cmd_ - task->second->get_q_vel();
             ++task;
         }
         // std::cout << "Check 2.7" << std::endl;
         if (!validJointVel(q_vel_cmd_))
         {
+            // ROS_WARN("Only Joint Lim Avoidance Left");
+            // std::cout << null_space_projector_ * (robot_->identity_matrix() - joint_lim_avoidance_Wq_) * joint_lim_avoidance_F_ << std::endl;
             q_vel_cmd_ = Eigen::VectorXd::Zero(robot_->nj());
             // TODO: error
             return false;
@@ -83,9 +99,9 @@ namespace priority_control
         for (size_t i = 0; i < robot_->nj(); ++i)
         {
             q_pos_next(i) = q_pos_(i) + q_vel(i)*dt_;
-            if (q_pos_next(i) > robot_->upper_joint_limit()[i] || q_pos_next(i) < robot_->lower_joint_limit()[i])
+            if ((q_pos_next(i) > robot_->upper_joint_limit()[i] && q_vel(i) > 0.0) || (q_pos_next(i) < robot_->lower_joint_limit()[i] && q_vel(i) < 0.0))
             {
-                ROS_WARN("At Hard Joint Position Limit for Joint: %ld", i+1);
+                ROS_WARN("At Hard Joint Position Limit for Joint: %ld; Joint Vel: %f; Next Joint Position: %f", i+1, q_vel(i), q_pos_next(i));
                 return false;
             }
         }
@@ -107,6 +123,7 @@ namespace priority_control
         int joint_lim_rank = robot_->svd_fast_solver_->rank();
         if ((basic_rank >= 6 && joint_lim_rank < 6) || joint_lim_rank < basic_rank)
         {
+            ROS_WARN("At Soft Joint Position Limit For Two Joints");
             return false;
         }
         return true;
@@ -129,6 +146,7 @@ namespace priority_control
 
     void PriorityController::computeJointLimitAvoidance(Eigen::MatrixXd& Wq, Eigen::VectorXd& F, const KDL::JntArray& q_pos)
     {
+        joint_lim_avoidance_active_ = false;
         for (size_t i = 0; i < robot_->nj(); ++i)
         {
             if (std::isinf(robot_->lower_joint_limit()[i]) || std::isinf(robot_->upper_joint_limit()[i]))
@@ -138,15 +156,17 @@ namespace priority_control
             }
             else if (q_pos(i) >= robot_->lower_joint_limit()[i] && q_pos(i) < robot_->lower_damping_threshold()[i])
             {
-                ROS_WARN("Avoiding Joint Limit for Joint: %ld", i+1);
+                joint_lim_avoidance_active_ = true;
                 Wq(i,i) = jointLimitDampingFunction((robot_->lower_damping_threshold()[i] - q_pos(i)) / (robot_->lower_damping_threshold()[i] - robot_->lower_joint_limit()[i]));
                 F(i) = robot_->joint_limit_force_max()[i] * (robot_->lower_damping_threshold()[i] - q_pos(i)) / (robot_->lower_damping_threshold()[i] - robot_->lower_joint_limit()[i]);
+                // ROS_WARN("Avoiding Joint Limit for Joint: %ld; Wq(i,i): %f; F(i): %f", i+1, Wq(i,i), F(i));
             }
             else if (q_pos(i) > robot_->upper_damping_threshold()[i] && q_pos(i) <= robot_->upper_joint_limit()[i])
             {
-                ROS_WARN("Avoiding Joint Limit for Joint: %ld", i+1);
+                joint_lim_avoidance_active_ = true;
                 Wq(i,i) = jointLimitDampingFunction((q_pos(i) - robot_->upper_damping_threshold()[i]) / (robot_->upper_joint_limit()[i] - robot_->upper_damping_threshold()[i]));
                 F(i) = robot_->joint_limit_force_max()[i] * (robot_->upper_damping_threshold()[i] - q_pos(i)) / (robot_->upper_joint_limit()[i] - robot_->upper_damping_threshold()[i]);
+                // ROS_WARN("Avoiding Joint Limit for Joint: %ld; Wq(i,i): %f; F(i): %f", i+1, Wq(i,i), F(i));
             }
             else if (q_pos(i) >= robot_->lower_damping_threshold()[i] && q_pos(i) <= robot_->upper_damping_threshold()[i])
             {
@@ -222,6 +242,15 @@ namespace priority_control
                 // std::cout << "Check 2.33" << std::endl;
             null_space_projector_ = null_space_projector_ * 
                 (robot_->identity_matrix() - task.second->pseudoinverse_jacobian() * task.second->task_jacobian());
+            // std::cout << "___________________" << std::endl;
+            // std::cout << task.first << std::endl;
+            // std::cout << null_space_projector_ << std::endl;
+            // std::cout << "===================" << std::endl;
+            // std::cout << task.second->rotated_jacobian().data << std::endl;
+            // std::cout << "===================" << std::endl;
+            // std::cout << task.second->cropped_jacobian() << std::endl;
+            // std::cout << "===================" << std::endl;
+            // std::cout << task.second->task_jacobian() << std::endl;
                 // std::cout << "Check 2.34" << std::endl;
             q_vel_sum_ = q_vel_sum_ + task.second->get_q_vel();
         }

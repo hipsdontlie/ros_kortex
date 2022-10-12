@@ -12,14 +12,14 @@ void dummyPoseBroadcaster(float t){
   geometry_msgs::TransformStamped transformStamped;
   transformStamped.header.stamp = ros::Time::now();
   transformStamped.header.frame_id = "world";
-  transformStamped.child_frame_id = "dummy_pelvis";
-  transformStamped.transform.translation.x = 0.757 + 0.1*sin(t*3.142/180);
-  transformStamped.transform.translation.y = 0.001 + 0.1*sin(t*3.142/180);
-  transformStamped.transform.translation.z = 0.433 + 0.05*sin(t*3.142/180);
+  transformStamped.child_frame_id = "dummy_camera";
+  transformStamped.transform.translation.x = 0.757;
+  transformStamped.transform.translation.y = -0.757;
+  transformStamped.transform.translation.z = 1.0;
   //-0.001, -0.434, -0.756
   //[0.500, 0.500, 0.500, -0.500]
   tf2::Quaternion q;
-  q.setRPY(-1.5708 + 0.5*sin(t*3.142/180), 0 + 0.2*sin(t*3.142/180), 1.5708 + 0.3*sin(t*3.142/180));
+  q.setRPY(-2.25, 0, 0);
   transformStamped.transform.rotation.x = q.x();
   transformStamped.transform.rotation.y = q.y();
   transformStamped.transform.rotation.z = q.z();
@@ -34,8 +34,8 @@ void dummyPoseBroadcaster(float t){
 
 int main(int argc, char** argv){
   
-  ros::init(argc, argv, "dummy_pelvis_pose");
-  ROS_INFO("Started dummy pelvis tf node!");
+  ros::init(argc, argv, "dummy_camera_pose");
+  ROS_INFO("Started dummy camera tf node!");
   ros::NodeHandle node;
   
   
