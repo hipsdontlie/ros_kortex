@@ -149,7 +149,7 @@ void setup()
 
   // attachPCINT(digitalPinToPCINT(ENCA_Pin),encoder,RISING);
   attachInterrupt(digitalPinToInterrupt(ENCA_Pin_M1), encoder_M1, FALLING);
-  attachInterrupt(digitalPinToInterrupt(ENCA_Pin_M2), encoder_M2, FALLING);
+  attachInterrupt(digitalPinToInterrupt(ENCA_Pin_M2), encoder_M2, FALLING); 
 
   //Limit switches 
   pinMode(LIM_1, INPUT_PULLUP);

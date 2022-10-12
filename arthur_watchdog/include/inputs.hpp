@@ -27,8 +27,8 @@ class Inputs
         void rpCallback(const geometry_msgs::PoseStamped::ConstPtr& rp_msg);   
 
     
-        ros::Time curr_time;
-        ros::Time prev_time;
+        ros::Time currTime;
+        ros::Time prevTime;
         ros::Time freq;
     
 };
