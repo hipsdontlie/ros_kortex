@@ -30,5 +30,9 @@ class Inputs
         ros::Time currTime;
         ros::Time prevTime;
         ros::Time freq;
+        bool ee_visible = false;
+        bool probe_visible = false;
+        bool pelvis_visible = false;
+        bool robot_connected = false;
     
 };

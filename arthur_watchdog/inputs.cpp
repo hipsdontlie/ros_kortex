@@ -1,4 +1,5 @@
 #include "include/inputs.hpp"
+#include<arthur_watchdog/arthur_watch.h>
 
 
 
@@ -10,14 +11,17 @@ void Inputs::pelvisCallback(const geometry_msgs::PoseStamped::ConstPtr& pelvis_m
       if (pelvis_msg->pose.position.x==0 || pelvis_msg->pose.position.y==0 || pelvis_msg->pose.position.z==0)
       {
         ROS_INFO("Pelvis marker not visible\n");
+        pelvis_visible = true;
       }
       else if ((currTime - prevTime) > pelvis_freq)
       {
         ROS_INFO("Pelvis marker stream dropped below 40Hz\n");
+        pelvis_visible = false;
       }
       else
       {
         ROS_INFO("Pelvis marker is visible\n");
+        pelvis_visible = false;
       }
     }
 
@@ -41,9 +45,11 @@ void Inputs::eeCallback(const geometry_msgs::PoseStamped::ConstPtr& ee_msg)
   if (ee_msg->pose.position.x==0 || ee_msg->pose.position.y==0 || ee_msg->pose.position.z==0)
   {
     ROS_INFO("End effector not visible\n");
+    ee_visible = false;
   }
   else
   {
     ROS_INFO("End effector visible\n");
+    ee_visible = true;
   }
 }

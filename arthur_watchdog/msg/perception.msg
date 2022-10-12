@@ -1,0 +1,1 @@
+bool rmse_error
