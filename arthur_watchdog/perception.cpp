@@ -8,7 +8,7 @@ void Perception::perception_eval(const std_msgs::Float64::ConstPtr& rmse_msg)
   if (rmse_msg->data > rmse_thresh->data)
   {
     ROS_INFO("RMSE error too high. Try again!\n");
-    rmse_error = true;
+    rmse_error = false;
   }
   else
   { 

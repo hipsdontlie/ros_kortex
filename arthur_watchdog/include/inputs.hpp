@@ -27,12 +27,21 @@ class Inputs
         void rpCallback(const geometry_msgs::PoseStamped::ConstPtr& rp_msg);   
 
     
-        ros::Time currTime;
-        ros::Time prevTime;
+        // ros::Time currTime_pelvis;
+        // ros::Time prevTime_pelvis;
+        // ros::Time currTime_ee;
+        // ros::Time prevTime_ee;
+        double currTime_pelvis;
+        double prevTime_pelvis;
+        double currTime_ee;
+        double prevTime_ee;
+        double currTime_rp;
+        double prevTime_rp;
         ros::Time freq;
         bool ee_visible = false;
         bool probe_visible = false;
         bool pelvis_visible = false;
         bool robot_connected = false;
+        
     
 };
