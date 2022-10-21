@@ -15,16 +15,14 @@ using std::experimental::filesystem::exists;
 #include "std_msgs/String.h"
 #include "geometry_msgs/PoseStamped.h"
 
-class Controls
+class Hardware
 {
     public:
         //pelvis marker monitor
-        void joint_limits(const std_msgs::Bool::ConstPtr& jlimits_msg);
+        void reamer_speed(const std_msgs::Float64::ConstPtr& reamerSpeed_msg);
 
-        void singularity_check(const std_msgs::Float64::ConstPtr& singularity_msg);
+        void load_applied(const std_msgs::Float64::ConstPtr& loadApplied_msg);
 
-        void error_check(const std_msgs::Float64MultiArray::ConstPtr& error_msg);
-
-
+        // void error_check(const std_msgs::Float64MultiArray::ConstPtr& error_msg);
 
 };

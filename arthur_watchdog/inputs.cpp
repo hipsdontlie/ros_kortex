@@ -30,7 +30,7 @@ void Inputs::rpCallback(const geometry_msgs::PoseStamped::ConstPtr& rp_msg)
 {   
     ros::Duration rp_freq(0.025);
     prevTime_rp = ros::Time::now().toSec();
-    if ((currTime_ee - prevTime_ee) > rp_freq.toSec())
+    if ((currTime_rp - prevTime_rp) > rp_freq.toSec())
     {
         ROS_INFO("Registration probe not visible.\n");
         probe_visible = false;
