@@ -51,11 +51,11 @@ include_directories(
 
 add_executable(watchdog_main include/inputs.hpp
                             include/perception.hpp
-                            # include/controls.hpp
+                            include/controls.hpp
                             main.cpp
                             inputs.cpp
                             perception.cpp
-                            # controls.cpp
+                            controls.cpp
                             )
 # add_dependencies(inputs ${${PROJECT_NAME}_EXPORTED_TARGETS})
 add_dependencies(watchdog_main ${catkin_EXPORTED_TARGETS})

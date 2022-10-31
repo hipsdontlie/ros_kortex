@@ -5,6 +5,7 @@
 #include<arthur_watchdog/inputs.h>
 #include<arthur_watchdog/perception.h>
 #include<std_msgs/Bool.h>
+#include <fstream>
 
 
 
@@ -12,6 +13,8 @@ int main(int argc, char **argv)
 {
   ros::init(argc, argv, "pelvis_pose_listener");
   ros::NodeHandle n;
+
+  std::ofstream fw("/home/mrsd-team-c/arthur_ws/CPlusPlusSampleFile.txt", std::ofstream::out);
 
   bool controller_flag = false;
 
@@ -69,7 +72,13 @@ int main(int argc, char **argv)
       // std::cout<<"Pelvis marker not visible"<<std::endl;
       ROS_INFO("Pelvis not visible!\n");
       inputs.pelvis_visible = false;
+      if (fw.is_open())
+      {
+          fw << inputs.pelvis_visible << "\n";
+      }
+        fw.close();
     }
+    
 
     if(inputs.currTime_ee - inputs.prevTime_ee > ros::Duration(0.025).toSec())
     {
@@ -105,8 +114,6 @@ int main(int argc, char **argv)
     }
 
     controllerFlag_pub.publish(control_msg);
-
-    
 
 
     ros::spinOnce();

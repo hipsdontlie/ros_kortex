@@ -115,7 +115,6 @@ void changevelocity_M2( const std_msgs::Int16& velocity_M2){
     pid_timer_M2 = millis();
   }
   
-  
 }
 
 void triggerLimSwitch(){
