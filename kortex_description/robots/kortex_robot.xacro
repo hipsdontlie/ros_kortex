@@ -42,6 +42,7 @@
             <xacro:load_gripper parent="${prefix}${last_arm_link}"  prefix="${prefix}"/> 
         </xacro:unless>
         <!-- If no gripper, define tool frame here -->
+        <!-- TODO: If the following is changed, need to change also in kortex_table and in robot_model (Kortex Control) -->
         <xacro:if value="${not gripper}">
             <link name="${prefix}tool_frame"/>
             

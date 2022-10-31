@@ -31,7 +31,7 @@ Date of first revision: 28th Aoril 2022 -->
     <node pkg="kortex_control" type="ee_tf_listener" name="ee_tf_listener" />
 
     <!-- Start wrench controller -->
-    <node pkg="kortex_control" type="wrench_controller" name="wrench_controller" output="screen" />
+    <!-- <node pkg="kortex_control" type="wrench_controller" name="wrench_controller" output="screen" /> -->
 
     <!-- Start Planning node -->
     <node pkg="arthur_planning" type="arthur_planning_node.py" name="arthur_planning" output="screen" ns="my_gen3"/>

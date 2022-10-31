@@ -96,23 +96,45 @@
             <xacro:load_gripper parent="${prefix}${last_arm_link}"  prefix="${prefix}"/> 
         </xacro:unless>
         <!-- If no gripper, define tool frame here -->
+        <!-- TODO: If the following is changed, need to change also in kortex_robot and in robot_model (Kortex Control) -->
         <xacro:if value="${not gripper}">
-            
+            <link name="${prefix}ee_marker_frame"/>
+            <joint name="${prefix}ee_marker_frame_joint" type="fixed">
+                <origin xyz="0 0 0" rpy="-1.5708 0 0" />
+                <parent link="${prefix}${last_arm_link}" />
+                <child link="${prefix}ee_marker_frame" />
+                <axis xyz="0 0 0" />
+            </joint>
+            <link name="${prefix}tool_frame"/>
+            <joint name="${prefix}tool_frame_joint" type="fixed">
+                <origin xyz="-0.008480 -0.191619 0 " rpy="-1.5708 0 -0.7854" />
+                <parent link="${prefix}ee_marker_frame" />
+                <child link="${prefix}tool_frame" />
+                <axis xyz="0 0 0" />
+            </joint>
+
             <link name="${prefix}tool_tip_frame"/>
             <joint name="${prefix}tool_tip_frame_joint" type="fixed">
-                <origin xyz="0 0 0.32290848" rpy="0 0 0" />
-                <parent link="${prefix}${last_arm_link}" />
+                <origin xyz="0 0 -0.023" rpy="0 0 0" />
+                <parent link="${prefix}tool_frame" />
+                <child link="${prefix}tool_tip_frame"/>
+                <axis xyz="0 0 0" />
+            </joint>
+            <!-- <link name="${prefix}tool_tip_frame"/>
+            <joint name="${prefix}tool_tip_frame_joint" type="fixed">
+                <origin xyz="0 -0.16290848 0" rpy="-1.5708 0 0" />
+                <parent link="${prefix}ee_marker_frame" />
                 <child link="${prefix}tool_tip_frame" />
                 <axis xyz="0 0 0" />
             </joint>
 
             <link name="${prefix}tool_frame"/>
             <joint name="${prefix}tool_frame_joint" type="fixed">
-                <origin xyz="0 0 -0.023" rpy="0 0 0" />
+                <origin xyz="0 0 0.023" rpy="0 0 0" />
                 <parent link="${prefix}tool_tip_frame" />
                 <child link="${prefix}tool_frame"/>
                 <axis xyz="0 0 0" />
-            </joint>
+            </joint> -->
         </xacro:if>
 
         <!-- Load the Gazebo transmissions and gazebo_ros_control plugin -->
