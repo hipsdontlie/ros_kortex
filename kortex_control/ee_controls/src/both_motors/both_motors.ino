@@ -7,17 +7,23 @@
 ros::NodeHandle nh;
 std_msgs::Float64 rpm_M1;
 std_msgs::Float64 rpm_M2;
+std_msgs::Float64 curr_1;
 ros::Publisher pub_M1("reamer_velocity",&rpm_M1);
 ros::Publisher pub_M2("linear_actuator_velocity",&rpm_M2);
+ros::Publisher pub_C1("current",&curr_1);
 
 
 // Pin Definitions
+byte CURR_1 = A0;
 
 
 //Limit switch pins 
 int LIM_1 = 2; 
 int LIM_2 = 3;
 bool stop = false;
+
+// Current sensor pin
+int CURR = 1;
 
 // Reamer Motor 
 int PWM_Pin_M1 = 6;
@@ -132,6 +138,8 @@ ros::Subscriber<std_msgs::Int16> sub_M2("linear_actuator_speed", &changevelocity
 void setup()
 {
   Serial.begin(57600);
+
+  pinMode(CURR_1,INPUT);
   pinMode(PWM_Pin_M1, OUTPUT);
   pinMode(PWM_Pin_M2, OUTPUT);
   pinMode(DIR_Pin_M1, OUTPUT);
@@ -164,6 +172,7 @@ void setup()
   nh.advertise(pub_M1);
   nh.subscribe(sub_M2);
   nh.advertise(pub_M2);
+  nh.advertise(pub_C1);
   pid_timer_M1 = millis();
   pid_timer_M1 = millis();
   rpm_timer_M1 = millis();
@@ -183,6 +192,7 @@ void loop()
   else{
     nh.loginfo("Not Stopping!");
   }
+
   
   if (((millis()-rpm_timer_M1)) > 100 && (!stop)){
     getRPM_M1();
@@ -197,6 +207,12 @@ void loop()
   }
 
   
+}
+
+void getCurrent(){
+  double current = (analogRead(CURR_1)-510)/14;
+  curr_1.data = current;
+  pub_C1.publish(&curr_1);
 }
 
 void getRPM_M1(){

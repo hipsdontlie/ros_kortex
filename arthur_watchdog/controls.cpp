@@ -4,6 +4,7 @@
 //controls alignment error
 void Controls::error_check(const std_msgs::Float64MultiArray::ConstPtr& error_msg)
 {
+  // value = error_msg->data.front();
   if (error_msg->data.front() > 1.0)
   {
     ROS_INFO("Alignment error too high!\n");
