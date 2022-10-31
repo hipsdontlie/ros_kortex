@@ -217,6 +217,7 @@ namespace priority_control
                 (lambda_scaled * lambda_scaled))) *
                 robot_->svd_full_solver_->matrixV().col(i) *
                 robot_->svd_full_solver_->matrixU().col(i).transpose());
+                // ROS_WARN("Damping For Singularity! %s, %d", task_frame_.c_str(), i);
             }
             else
             {
