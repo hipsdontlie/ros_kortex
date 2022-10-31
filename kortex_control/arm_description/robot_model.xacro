@@ -1,0 +1,50 @@
+<?xml version="1.0"?>
+
+<robot name="gen3" xmlns:xacro="http://ros.org/wiki/xacro">
+
+    <!-- Arguments -->
+    <xacro:arg name="arm" default="gen3" />
+    <xacro:arg name="dof" default="7" />
+    <xacro:arg name="vision" default="true" />
+
+    <xacro:arg name="gripper" default="" />
+
+    <xacro:arg name="sim" default="false" />
+    <xacro:arg name="prefix" default="" />
+
+    <xacro:include filename="$(find kortex_description)/arms/$(arg arm)/$(arg dof)dof/urdf/$(arg arm)_macro.xacro" />
+
+    <link name="world" />
+    <joint name="world_to_root" type="fixed">
+        <child link="$(arg prefix)base_link" />
+        <parent link="world" />
+        <origin xyz="0 0 0" rpy="0 0 0" />    
+    </joint> 
+    <xacro:load_arm parent="" dof="$(arg dof)" vision="$(arg vision)" prefix="$(arg prefix)">
+        <origin xyz="0 0 0" rpy="0 0 0"/> 
+    </xacro:load_arm>
+    <!-- TODO: If the following is changed, need to change also in kortex_table and in kortex_robot xacros -->
+    <link name="$(arg prefix)ee_marker_frame"/>
+    <joint name="$(arg prefix)ee_marker_frame_joint" type="fixed">
+        <origin xyz="0 0 0" rpy="-1.5708 0 0" />
+        <parent link="$(arg prefix)${last_arm_link}" />
+        <child link="$(arg prefix)ee_marker_frame" />
+        <axis xyz="0 0 0" />
+    </joint>
+    <link name="$(arg prefix)tool_frame"/>
+    <joint name="$(arg prefix)tool_frame_joint" type="fixed">
+        <origin xyz="-0.008480 -0.191619 0 " rpy="-1.5708 0 -0.7854" />
+        <parent link="$(arg prefix)ee_marker_frame" />
+        <child link="$(arg prefix)tool_frame" />
+        <axis xyz="0 0 0" />
+    </joint>
+
+    <link name="$(arg prefix)tool_tip_frame"/>
+    <joint name="$(arg prefix)tool_tip_frame_joint" type="fixed">
+        <origin xyz="0 0 -0.023" rpy="0 0 0" />
+        <parent link="$(arg prefix)tool_frame" />
+        <child link="$(arg prefix)tool_tip_frame"/>
+        <axis xyz="0 0 0" />
+    </joint>
+
+</robot>

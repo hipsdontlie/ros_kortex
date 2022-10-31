@@ -207,11 +207,11 @@ void trajCallback(const arthur_planning::arthur_traj::ConstPtr &msg, std::vector
         // stop wrench commands, and pause robot at current spot
         while (!pauseControls(wrench_commander, reamer_commander, reamerVel))
         {
-            ROS_INFO("Trying to pause Reaming Operation!");
+            // ROS_INFO("Trying to pause Reaming Operation!");
             // ROS_INFO("Reamer Vel trajCallback: %f", (*reamerVel));
             ros::spinOnce();
         }
-        ROS_INFO("Pausing Reaming Operation for 3 seconds");
+        // ROS_INFO("Pausing Reaming Operation for 3 seconds");
 
         // clear trajectory vector
         (*traj).clear();
@@ -246,7 +246,7 @@ void dynamicCompTrigger(const std_msgs::Bool::ConstPtr &msg, bool *dynamicComp, 
         // TODO: Stop reamer
         while (!pauseControls(wrench_commander, reamer_commander, reamerVel))
         {
-            ROS_INFO("Trying to pause Reaming Operation!");
+            // ROS_INFO("Trying to pause Reaming Operation!");
             // ROS_INFO("Reamer Vel dynCompTrig: %f", (*reamerVel));
             ros::spinOnce();
         }
@@ -475,6 +475,7 @@ int main(int argc, char **argv)
 
     ros::NodeHandle node;
     
+
     double controller_rate = 60.0; // Rate of ros node pubsub
 
     std_msgs::Bool planner_msg;
@@ -517,15 +518,15 @@ int main(int argc, char **argv)
 
     // Kp and Kd constants for PD control
 
-    const float defaultKp[6] = {500, 500, 500, 200, 200, 200};
+    const float defaultKp[6] = {2000, 2000, 2000, 250, 250, 250};
     float Kp[6] = {0.0};
     const float defaultKi[6] = {75, 75, 75, 15, 15, 15};
     float Ki[6] = {0.0};
     // const float Ki[6] = {0, 0, 0, 0, 0, 0};
     const float Kd[6] = {650, 650, 650, 0, 0, 0};
     // Max F/T in N or Nm to apply
-    const float maxForce = 15.0;
-    const float maxTorque = 8.0;
+    const float maxForce = 30.0;
+    const float maxTorque = 10.0;
     
 
     // sends wrench commands to kortex_driver service
@@ -580,7 +581,7 @@ int main(int argc, char **argv)
             // Controller Code
             // We align orientation to pelvis reaming axis, then we follow trajectory
             // If dynamic compensation kicks in, we stop reaming, and back up; then we reorient and restart
-            if (!finished && !planned && !startPlanner && !dynamicComp)
+            if (!finished)
             {
                 
                 // To align our ee, we use frame 1 (trans about base, rot about ee)
@@ -592,7 +593,7 @@ int main(int argc, char **argv)
                 // Calculate the error in pose wrt base_link
                 double dx[6] = {0.0};
                 calculateDX(dx, pelvis_xyzrpy, xyzrpy, pelvisRot, currentRot);
-                ROS_INFO("dx: %f, %f, %f, %f, %f, %f", dx[0], dx[1], dx[2], dx[3], dx[4], dx[5]);
+                // ROS_INFO("dx: %f, %f, %f, %f, %f, %f", dx[0], dx[1], dx[2], dx[3], dx[4], dx[5]);
 
                 // Calculate norm of translation error and norm of orientation error separately
                 double norms[2] = {0.0};
@@ -611,11 +612,11 @@ int main(int argc, char **argv)
                 }
                 if (norms[0] < 7e-3 && norms[1] < 5e-2)
                 {
-                    startPlanner = true;
-                    ROS_INFO("Starting Reaming");
+                    // startPlanner = true;
+                    // ROS_INFO("Starting Reaming");
                     
                 } else {
-                    ROS_INFO("Moving to start point!");
+                    // ROS_INFO("Moving to start point!");
                 }
 
                 // Calculate the wrench vector (forces to translate in base_link frame, torques to orient in ee frame)
@@ -625,135 +626,139 @@ int main(int argc, char **argv)
                     calculatePositionWrench(wrench, Kp, Ki, Kd, currentRot, dx, velocities, accumError, &time2, maxForce, maxTorque);
                 }
                 
-            } else if (!finished && planned && current_waypoint >= 0 && traj.size() > 0 && !dynamicComp) {
-                ROS_INFO("Current Waypoint: %d out of %li", current_waypoint, traj.size()-1);
-                Kp[0] = 2000;
-                Kp[1] = 2000;
-                Kp[2] = 2000;
-                Kp[3] = 150;
-                Kp[4] = 150;
-                Kp[5] = 150;
-                Ki[0] = 200;
-                Ki[1] = 200;
-                Ki[2] = 200;
-                Ki[3] = 5;
-                Ki[4] = 5;
-                Ki[5] = 5;
+            } 
+            // else if (!finished && planned && current_waypoint >= 0 && traj.size() > 0 && !dynamicComp) // trajectory planned, move along waypoints
+            // {
+            //     ROS_INFO("Current Waypoint: %d out of %li", current_waypoint, traj.size()-1);
+            //     Kp[0] = 2000;
+            //     Kp[1] = 2000;
+            //     Kp[2] = 2000;
+            //     Kp[3] = 150;
+            //     Kp[4] = 150;
+            //     Kp[5] = 150;
+            //     Ki[0] = 200;
+            //     Ki[1] = 200;
+            //     Ki[2] = 200;
+            //     Ki[3] = 5;
+            //     Ki[4] = 5;
+            //     Ki[5] = 5;
 
                 
 
-                // To align our ee, we use frame 1 (trans about base, rot about ee)
-                frame = 1;
+            //     // To align our ee, we use frame 1 (trans about base, rot about ee)
+            //     frame = 1;
 
-                // ROS_INFO("xyzrpy: %f, %f, %f, %f, %f, %f", xyzrpy[0], xyzrpy[1], xyzrpy[2], xyzrpy[3], xyzrpy[4], xyzrpy[5]);
-                // ROS_INFO("traj_waypoint: %f, %f, %f, %f, %f, %f", traj[current_waypoint][0], traj[current_waypoint][1], traj[current_waypoint][2], traj[current_waypoint][3], traj[current_waypoint][4], traj[current_waypoint][5]);
+            //     // ROS_INFO("xyzrpy: %f, %f, %f, %f, %f, %f", xyzrpy[0], xyzrpy[1], xyzrpy[2], xyzrpy[3], xyzrpy[4], xyzrpy[5]);
+            //     // ROS_INFO("traj_waypoint: %f, %f, %f, %f, %f, %f", traj[current_waypoint][0], traj[current_waypoint][1], traj[current_waypoint][2], traj[current_waypoint][3], traj[current_waypoint][4], traj[current_waypoint][5]);
 
-                // Calculate the error in pose wrt base_link
-                double dx[6] = {0.0};
-                calculateDX(dx, traj[current_waypoint], xyzrpy, desiredRots[current_waypoint], currentRot);
-                ROS_INFO("dx: %f, %f, %f, %f, %f, %f", dx[0], dx[1], dx[2], dx[3], dx[4], dx[5]);
+            //     // Calculate the error in pose wrt base_link
+            //     double dx[6] = {0.0};
+            //     calculateDX(dx, traj[current_waypoint], xyzrpy, desiredRots[current_waypoint], currentRot);
+            //     ROS_INFO("dx: %f, %f, %f, %f, %f, %f", dx[0], dx[1], dx[2], dx[3], dx[4], dx[5]);
 
-                // Calculate norm of translation error and norm of orientation error separately
-                double norms[2] = {0.0};
-                calculateNorms(norms, dx);
+            //     // Calculate norm of translation error and norm of orientation error separately
+            //     double norms[2] = {0.0};
+            //     calculateNorms(norms, dx);
 
-                double accum = 0.0;
-                for (int i = 0; i < 3; i++)
-                {
-                    accum += forces[i] * forces[i];
-                }
-                double normForces = sqrt(accum);
-                ROS_INFO("Norm of Forces: %e", normForces);
-                if (!finished && abs(reamerVel) <= 0.01 && normForces >= 3 && norms[0] < 3e-2) {
-                    // TODO: Modify start reamer
-                    reamer_msg.data = defaultSpeed;
-                    reamer_commander.publish(reamer_msg);
-                    ROS_INFO("Reamer On!");
-                } else if (finished) {
-                    reamer_msg.data = 0;
-                    reamer_commander.publish(reamer_msg);
-                }
+            //     double accum = 0.0;
+            //     for (int i = 0; i < 3; i++)
+            //     {
+            //         accum += forces[i] * forces[i];
+            //     }
+            //     double normForces = sqrt(accum);
+            //     ROS_INFO("Norm of Forces: %e", normForces);
+            //     if (!finished && abs(reamerVel) <= 0.01 && normForces >= 3 && norms[0] < 3e-2) {
+            //         // TODO: Modify start reamer
+            //         reamer_msg.data = defaultSpeed;
+            //         reamer_commander.publish(reamer_msg);
+            //         ROS_INFO("Reamer On!");
+            //     } else if (finished) {
+            //         reamer_msg.data = 0;
+            //         reamer_commander.publish(reamer_msg);
+            //     }
 
-                // if the error in translation and orientation are both small, set next waypoint
-                if (norms[0] < 3.5e-3) {
-                    if (!stopRecordingTraj) {
-                        geometry_msgs::Pose eval_pose;
-                        eval_pose.position.x = xyzrpy[0];
-                        eval_pose.position.y = xyzrpy[1];
-                        eval_pose.position.z = xyzrpy[2];
-                        eval_pose.orientation.x = qForTrajEval.getX();
-                        eval_pose.orientation.y = qForTrajEval.getY();
-                        eval_pose.orientation.z = qForTrajEval.getZ();
-                        eval_pose.orientation.w = qForTrajEval.getW();
-                        traj_eval_pub.publish(eval_pose);
-                    }
-                    for (int i = 0; i < 6; i++) {
-                        accumError[i] = 0;
-                    }
-                    if (current_waypoint >= traj.size()-1) {
-                        finished = true;
-                        // TODO: Add stop reamer code using pauseControls
-                        while (!pauseControls(wrench_commander, reamer_commander, &reamerVel))
-                        {
-                            ROS_INFO("Trying to pause Reaming Operation!");
-                            ros::spinOnce();
-                        }
-                    }
-                    if (current_waypoint == traj.size()-1) {
-                        stopRecordingTraj = true;
-                    }
-                    current_waypoint = std::max(0, std::min(current_waypoint + 1, (int)traj.size() - 1));
-                }
+            //     // if the error in translation and orientation are both small, set next waypoint
+            //     if (norms[0] < 3.5e-3) {
+            //         if (!stopRecordingTraj) {
+            //             geometry_msgs::Pose eval_pose;
+            //             eval_pose.position.x = xyzrpy[0];
+            //             eval_pose.position.y = xyzrpy[1];
+            //             eval_pose.position.z = xyzrpy[2];
+            //             eval_pose.orientation.x = qForTrajEval.getX();
+            //             eval_pose.orientation.y = qForTrajEval.getY();
+            //             eval_pose.orientation.z = qForTrajEval.getZ();
+            //             eval_pose.orientation.w = qForTrajEval.getW();
+            //             traj_eval_pub.publish(eval_pose);
+            //         }
+            //         for (int i = 0; i < 6; i++) {
+            //             accumError[i] = 0;
+            //         }
+            //         if (current_waypoint >= traj.size()-1) {
+            //             finished = true;
+            //             // TODO: Add stop reamer code using pauseControls
+            //             while (!pauseControls(wrench_commander, reamer_commander, &reamerVel))
+            //             {
+            //                 ROS_INFO("Trying to pause Reaming Operation!");
+            //                 ros::spinOnce();
+            //             }
+            //         }
+            //         if (current_waypoint == traj.size()-1) {
+            //             stopRecordingTraj = true;
+            //         }
+            //         current_waypoint = std::max(0, std::min(current_waypoint + 1, (int)traj.size() - 1));
+            //     }
 
-                // Calculate the wrench vector (forces to translate in base_link frame, torques to orient in ee frame)
-                calculatePositionWrench(wrench, Kp, Ki, Kd, currentRot, dx, velocities, accumError, &time2, maxForce, maxTorque);
-            } else if (dynamicComp || finished) {
-                if (dynamicComp) {
-                    ROS_INFO("Dynamic Compensation; Retracting Arm");
-                    reamer_msg.data = 0;
-                    reamer_commander.publish(reamer_msg);
-                } else {
-                    ROS_INFO("FINISHED REAMING!!! YAY!!!");
-                    reamer_msg.data = 0;
-                    reamer_commander.publish(reamer_msg);
-                }
-                // To align our ee, we use frame 1 (trans about base, rot about ee)
-                frame = 1;
+            //     // Calculate the wrench vector (forces to translate in base_link frame, torques to orient in ee frame)
+            //     calculatePositionWrench(wrench, Kp, Ki, Kd, currentRot, dx, velocities, accumError, &time2, maxForce, maxTorque);
+            // }
+            // else if (dynamicComp || finished) // dynamic compensation 
+            // {
+            //     if (dynamicComp) {
+            //         ROS_INFO("Dynamic Compensation; Retracting Arm");
+            //         reamer_msg.data = 0;
+            //         reamer_commander.publish(reamer_msg);
+            //     } else {
+            //         ROS_INFO("FINISHED REAMING!!! YAY!!!");
+            //         reamer_msg.data = 0;
+            //         reamer_commander.publish(reamer_msg);
+            //     }
+            //     // To align our ee, we use frame 1 (trans about base, rot about ee)
+            //     frame = 1;
 
-                // ROS_INFO("xyzrpy: %f, %f, %f, %f, %f, %f", xyzrpy[0], xyzrpy[1], xyzrpy[2], xyzrpy[3], xyzrpy[4], xyzrpy[5]);
-                // ROS_INFO("traj_waypoint: %f, %f, %f, %f, %f, %f", traj[current_waypoint][0], traj[current_waypoint][1], traj[current_waypoint][2], traj[current_waypoint][3], traj[current_waypoint][4], traj[current_waypoint][5]);
+            //     // ROS_INFO("xyzrpy: %f, %f, %f, %f, %f, %f", xyzrpy[0], xyzrpy[1], xyzrpy[2], xyzrpy[3], xyzrpy[4], xyzrpy[5]);
+            //     // ROS_INFO("traj_waypoint: %f, %f, %f, %f, %f, %f", traj[current_waypoint][0], traj[current_waypoint][1], traj[current_waypoint][2], traj[current_waypoint][3], traj[current_waypoint][4], traj[current_waypoint][5]);
 
-                // Calculate the error in pose wrt base_link
-                double dx[6] = {0.0};
-                calculateDX(dx, retract_xyzrpy, xyzrpy, pelvisRot, currentRot);
-                ROS_INFO("dx: %f, %f, %f, %f, %f, %f", dx[0], dx[1], dx[2], dx[3], dx[4], dx[5]);
+            //     // Calculate the error in pose wrt base_link
+            //     double dx[6] = {0.0};
+            //     calculateDX(dx, retract_xyzrpy, xyzrpy, pelvisRot, currentRot);
+            //     ROS_INFO("dx: %f, %f, %f, %f, %f, %f", dx[0], dx[1], dx[2], dx[3], dx[4], dx[5]);
 
-                // Calculate norm of translation error and norm of orientation error separately
-                double norms[2] = {0.0};
-                calculateNorms(norms, dx);
-                // ROS_INFO("Normal: %f", norms[0]);
-                if (norms[0] < 3e-2) {
-                    if (dynamicComp) {
-                        dynamicComp = false;
-                    }
-                    for (int i = 0; i < 6; i++) {
-                        accumError[i] = 0;
-                    }
-                }
+            //     // Calculate norm of translation error and norm of orientation error separately
+            //     double norms[2] = {0.0};
+            //     calculateNorms(norms, dx);
+            //     // ROS_INFO("Normal: %f", norms[0]);
+            //     if (norms[0] < 3e-2) {
+            //         if (dynamicComp) {
+            //             dynamicComp = false;
+            //         }
+            //         for (int i = 0; i < 6; i++) {
+            //             accumError[i] = 0;
+            //         }
+            //     }
 
-                calculatePositionWrench(wrench, Kp, Ki, Kd, currentRot, dx, velocities, accumError, &time2, maxForce, maxTorque);
-            }
+            //     calculatePositionWrench(wrench, Kp, Ki, Kd, currentRot, dx, velocities, accumError, &time2, maxForce, maxTorque);
+            // }
         }
         
         // sends wrench to robot
         if (!isnan(wrench[0]) && !isnan(wrench[1]) && !isnan(wrench[2]) && !isnan(wrench[3]) && !isnan(wrench[4]) && !isnan(wrench[5])) {
             if (sendWrench(wrench_commander, frame, mode, duration, wrench))
             {
-                ROS_INFO("Sent wrench command successfully: %.6f %.6f %.6f %.6f %.6f %.6f", wrench[0], wrench[1], wrench[2], wrench[3], wrench[4], wrench[5]);
+                // ROS_INFO("Sent wrench command successfully: %.6f %.6f %.6f %.6f %.6f %.6f", wrench[0], wrench[1], wrench[2], wrench[3], wrench[4], wrench[5]);
             }
             else
             {
-                ROS_INFO("Failed to send wrench command");
+                // ROS_INFO("Failed to send wrench command");
             }
         } else {
             pauseControls(wrench_commander, reamer_commander, &reamerVel);
