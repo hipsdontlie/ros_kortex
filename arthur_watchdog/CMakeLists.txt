@@ -12,6 +12,7 @@ roslaunch
 moveit_msgs
 trajectory_msgs
 urdf
+message_generation
 )
 
 include_directories(include  ${Boost_INCLUDE_DIR} ${EIGEN_INCLUDE_DIRS} ${catkin_INCLUDE_DIRS}) 
