@@ -5,6 +5,7 @@
 #include<arthur_watchdog/inputs.h>
 #include<arthur_watchdog/perception.h>
 #include<std_msgs/Bool.h>
+#include<std_msgs/Empty.h>
 
 
 
@@ -50,6 +51,7 @@ int main(int argc, char **argv)
   ros::Publisher inputs_pub = n.advertise<arthur_watchdog::inputs>("input_health", 1000);
   ros::Publisher percep_pub = n.advertise<arthur_watchdog::perception>("perception_health", 1000);
   ros::Publisher controllerFlag_pub = n.advertise<std_msgs::Bool>("controller_flag", 1000);
+  ros::Publisher eStop_pub = n.advertise<std_msgs::Empty>("my_gen3/in/emergency_stop", 1000);
 
   ros::Rate loop_rate(1000);
 
@@ -59,6 +61,7 @@ int main(int argc, char **argv)
     arthur_watchdog::inputs input_msg;
     arthur_watchdog::perception percep_msg;
     std_msgs::Bool control_msg;
+    std_msgs::Empty eStop_msg = {};
 
     inputs.currTime_pelvis = ros::Time::now().toSec();
     inputs.currTime_ee = ros::Time::now().toSec();
@@ -69,6 +72,7 @@ int main(int argc, char **argv)
       // std::cout<<"Pelvis marker not visible"<<std::endl;
       ROS_INFO("Pelvis not visible!\n");
       inputs.pelvis_visible = false;
+      eStop_pub.publish(eStop_msg);
     }
 
     if(inputs.currTime_ee - inputs.prevTime_ee > ros::Duration(0.025).toSec())
@@ -76,6 +80,7 @@ int main(int argc, char **argv)
       // std::cout<<"End-effector not visible"<<std::endl;
       ROS_INFO("End-effector not visible!\n");
       inputs.ee_visible = false;
+      eStop_pub.publish(eStop_msg);
     }
     // if (flg)
     //   break;
@@ -95,11 +100,14 @@ int main(int argc, char **argv)
     percep_msg.rmse_error = perception.rmse_error;
     percep_pub.publish(percep_msg);
 
-    if (inputs.pelvis_visible==true && perception.rmse_error==true){
+    if (inputs.pelvis_visible==true && perception.rmse_error==true)
+    {
       controller_flag = true;
       control_msg.data = controller_flag;
+      ROS_INFO("Setting controller flag to true");
     }
-    else{
+    else
+    {
       controller_flag = false;
       control_msg.data = controller_flag;
     }
