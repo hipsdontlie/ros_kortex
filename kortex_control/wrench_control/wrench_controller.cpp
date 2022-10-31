@@ -475,7 +475,8 @@ int main(int argc, char **argv)
 
     ros::NodeHandle node;
     
-    double controller_rate = 200.0; // Rate of ros node pubsub
+
+    double controller_rate = 60.0; // Rate of ros node pubsub
 
     std_msgs::Bool planner_msg;
     bool startPlanner = false;

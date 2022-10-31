@@ -23,7 +23,7 @@ int main(int argc, char** argv){
 
   tf::TransformListener listener;
 
-  ros::Rate rate(200.0);
+  ros::Rate rate(60.0);
   while (ros::ok()){
     // Gets the broadcasted frame called tool_frame
     tf::StampedTransform stamped_transform;
