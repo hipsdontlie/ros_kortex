@@ -1,7 +1,8 @@
 #include <ros.h>
 #include <std_msgs/Int16.h>
 #include <std_msgs/Float64.h>
-#include <PinChangeInterrupt.h> // From Library "PinChangeInterrupt" by NicoHood
+#include <std_msgs/Bool.h>
+
 
 // ROS Definitions
 ros::NodeHandle nh;
@@ -11,6 +12,7 @@ std_msgs::Float64 curr_1;
 ros::Publisher pub_M1("reamer_velocity",&rpm_M1);
 ros::Publisher pub_M2("linear_actuator_velocity",&rpm_M2);
 ros::Publisher pub_C1("current",&curr_1);
+
 
 
 // Pin Definitions
@@ -82,10 +84,13 @@ unsigned long rpm_timer_M1 = 0;
 unsigned long pid_timer_M2 = 0;
 unsigned long rpm_timer_M2 = 0;
 
-//Limit switches
-// pinMode(BUTTON_PIN, INPUT);
+// End-effector controls variables 
+int state = 0;
+bool startReaming = false; 
+bool startDynamicComp = false;
+int linear
 
-
+// ROS Callback functions 
 void changevelocity_M1( const std_msgs::Int16& velocity_M1){
   stop = false;
   if ((millis() - pid_timer_M1) > 400) {
@@ -103,7 +108,7 @@ void changevelocity_M1( const std_msgs::Int16& velocity_M1){
   }
 }
 
-void changevelocity_M2( const std_msgs::Int16& velocity_M2){
+void changevelocity_M2(const std_msgs::Int16& velocity_M2){
   stop = false;
   if ((millis() - pid_timer_M2) > 400) {
     if(velocity_M2.data > 0){
@@ -121,17 +126,42 @@ void changevelocity_M2( const std_msgs::Int16& velocity_M2){
   
 }
 
-void triggerLimSwitch(){
-  stop = true;
+// Function to get the trigger to start reaming from arm controls
+void getReamingCmd(const std_msgs::Bool& reamingCmd){
+  startReaming = reamingCmd.data;
+  state = 1;
+}
+
+// Function to get trigger to begin dynamic compensation from arm controls
+void getDynamicCompCmd(const std_msgs::Bool& dynamicCompCmd){
+  startDynamicComp = dynamicCompCmd.data;
+  if(startDynamicComp){
+    startReaming = false;
+     
+  }
+}
+
+
+// ROS Subscribers 
+ros::Subscriber<std_msgs::Int16> sub_M1("reamer_speed", &changevelocity_M1);
+ros::Subscriber<std_msgs::Int16> sub_M2("linear_actuator_speed", &changevelocity_M2);
+ros::Subscriber<std_msgs::Bool> sub_reaming_cmd("start_reaming", &getReamingCmd);
+ros::Subscriber<std_msgs::Bool> sub_dynamic_comp_cmd("start_dynamic_compensation", &getDynamicCompCmd);
+
+// Helper functions 
+
+void stopMotors(){
   set_val_M1 = 0;
   set_val_M2 = 0;
+}
+
+void triggerLimSwitch(){
+  stop = true;
+  stopMotors();
   analogWrite(PWM_Pin_M1,0);
   analogWrite(PWM_Pin_M2,0);
 }
 
-
-ros::Subscriber<std_msgs::Int16> sub_M1("reamer_speed", &changevelocity_M1);
-ros::Subscriber<std_msgs::Int16> sub_M2("linear_actuator_speed", &changevelocity_M2);
 
 void setup()
 {
@@ -183,15 +213,59 @@ void loop()
   // Serial.println("here");
   nh.spinOnce();
 
+  // High level task-controller functions 
+
+  switch (state) {
+    
+    // Calibrate linear actuator position 
+    case -1:
+      calibrateM1();    
+      state = 0;
+
+    //Wait until you get the actuation signal from arm controller
+    case 0: 
+      stopMotors();
+      nh.loginfo("Waiting for command to start reaming...");
+      break;
+
+    //Actuate motor until contact is made with the pelvis
+    case 1:
+      actuateUntilContact();
+      state = 2;
+      break;
+
+    //Ream as long as pelvis error is within thresholds and goal has not been reached 
+    case 2:
+      
+      break;
+
+    // Dynamic compensation - change state back to 1 after performing compensation routine 
+    case 3:
+      
+      break;
+
+    // Goal has been reached, stop reaming! 
+    case 4: 
+      
+      stopMotors();
+      nh.loginfo("Done reaming!");
+      break;
+
+    
+
+
+    default:
+      
+      nh.loginfo("Invalid state, stopping reaming!")
+      stopMotors();
+      break;
+}
+
+  // Low level motor velocity controllers
   if(stop){
-    nh.loginfo("Stopping!");
+    nh.loginfo("Limit Switch triggered, stopping!");
   }
-
-  else{
-    nh.loginfo("Not Stopping!");
-  }
-
-  
+ 
   if (((millis()-rpm_timer_M1)) > 100 && (!stop)){
     getRPM_M1();
     pidControl_M1();
