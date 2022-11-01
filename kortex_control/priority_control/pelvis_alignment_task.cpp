@@ -54,7 +54,7 @@ namespace priority_control
         // error_msg.data.push_back(twist_command(3));
         // error_msg.data.push_back(twist_command(4));
         // error_msg.data.push_back(twist_command(5));
-        error_msg.data.push_back(180.0*sqrt(twist_command(3)*twist_command(3) + twist_command(4)*twist_command(4) + twist_command(5)*twist_command(5)) / M_PI);
+        error_msg.data.push_back(180.0*sqrt(twist_command(3)*twist_command(3) + twist_command(4)*twist_command(4)) / M_PI);
         error_metrics_pub.publish(error_msg);
 
         for (int i = 0; i < robot_->CARTESIAN_DOF; ++i)

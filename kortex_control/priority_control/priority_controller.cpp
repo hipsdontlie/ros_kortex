@@ -14,6 +14,7 @@ namespace priority_control
         joint_lim_avoidance_F_ = Eigen::VectorXd::Zero(robot_->nj());
         singularity_avoidance_F_ = Eigen::VectorXd::Zero(robot_->nj());
         joint_lim_avoidance_active_ = false;
+        hit_joint_lim_ = false;
     }
 
     bool PriorityController::addTask(std::shared_ptr<Task> task, size_t priority_num)
@@ -36,9 +37,15 @@ namespace priority_control
         return true;
     }
 
+    bool PriorityController::hit_joint_limit()
+    {
+        return hit_joint_lim_;
+    }
+
     bool PriorityController::computeJointVelocityCommand(const KDL::JntArray& q_pos)
     {
         q_pos_ = q_pos;
+        hit_joint_lim_ = false;
         // ROS_INFO("Manipulability Metric: %f", 1.0/manipulability(q_pos));
         // std::cout << "Check 2.1" << std::endl;
         computeJointLimitAvoidance(joint_lim_avoidance_Wq_, joint_lim_avoidance_F_, q_pos_);
@@ -81,6 +88,7 @@ namespace priority_control
             // ROS_WARN("Only Joint Lim Avoidance Left");
             // std::cout << null_space_projector_ * (robot_->identity_matrix() - joint_lim_avoidance_Wq_) * joint_lim_avoidance_F_ << std::endl;
             q_vel_cmd_ = Eigen::VectorXd::Zero(robot_->nj());
+            hit_joint_lim_ = true;
             // TODO: error
             return false;
         }

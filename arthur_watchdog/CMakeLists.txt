@@ -5,14 +5,14 @@ project(arthur_watchdog)
 find_package(catkin REQUIRED COMPONENTS
 roscpp
 rospy
+std_msgs
+message_generation
 geometry_msgs
 tf
-std_msgs
 roslaunch
 moveit_msgs
 trajectory_msgs
 urdf
-message_generation
 )
 
 include_directories(include  ${Boost_INCLUDE_DIR} ${EIGEN_INCLUDE_DIRS} ${catkin_INCLUDE_DIRS}) 
@@ -58,6 +58,7 @@ add_executable(watchdog_main include/inputs.hpp
                             perception.cpp
                             controls.cpp
                             )
+add_dependencies(watchdog_main arthur_watchdog_generate_messages_cpp)
 # add_dependencies(inputs ${${PROJECT_NAME}_EXPORTED_TARGETS})
 add_dependencies(watchdog_main ${catkin_EXPORTED_TARGETS})
 target_link_libraries(watchdog_main ${catkin_LIBRARIES})

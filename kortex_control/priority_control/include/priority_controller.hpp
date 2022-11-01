@@ -16,6 +16,8 @@ namespace priority_control
         bool removeTask(size_t priority_num);
         bool computeJointVelocityCommand(const KDL::JntArray& q_pos);
         Eigen::VectorXd const& getJointVelocityCommand();
+        double manipulability(const KDL::JntArray& q_pos);
+        bool hit_joint_limit();
 
         protected:
         std::shared_ptr<ArthurRobotModel> robot_;
@@ -26,6 +28,7 @@ namespace priority_control
         KDL::JntArray q_pos_;
         Eigen::MatrixXd null_space_projector_;
         bool joint_lim_avoidance_active_;
+        bool hit_joint_lim_;
         Eigen::MatrixXd joint_lim_avoidance_Wq_;
         Eigen::VectorXd joint_lim_avoidance_F_;
         Eigen::VectorXd singularity_avoidance_F_;
@@ -36,7 +39,6 @@ namespace priority_control
         double jointLimitDampingFunction(double x);
         void computeSingularityAvoidance(Eigen::VectorXd& F);
         void computeTaskJointVelocities();
-        double manipulability(const KDL::JntArray& q_pos);
         bool manipulabilityGradient(const KDL::JntArray& q_pos, Eigen::VectorXd& g);
     };
 }

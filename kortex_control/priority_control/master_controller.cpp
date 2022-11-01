@@ -9,9 +9,9 @@
 // #include <geometry_msgs/Pose.h>
 // #include <geometry_msgs/Vector3.h>
 // #include <arthur_planning/arthur_traj.h>
-// #include <std_msgs/Bool.h>
+#include <std_msgs/Bool.h>
 // #include <std_msgs/Int16.h>
-// #include <std_msgs/Float64.h>
+#include <std_msgs/Float64.h>
 #include <kortex_driver/SendJointSpeedsCommand.h>
 #include <sensor_msgs/JointState.h>
 #include <boost/bind.hpp>
@@ -78,6 +78,11 @@ void cameraTwistCallback(const geometry_msgs::Twist::ConstPtr &msg, Eigen::Vecto
     (*twist)(3) = (*msg).angular.x;
     (*twist)(4) = (*msg).angular.y;
     (*twist)(5) = (*msg).angular.z;
+}
+
+void controllerFlagCallback(const std_msgs::Bool::ConstPtr &msg, bool* controller_flag)
+{
+    (*controller_flag) = msg->data;
 }
 
 // Replacement SIGINT handler
@@ -161,13 +166,22 @@ int main(int argc, char **argv)
     camera_error_.rotation.y = 0;
     camera_error_.rotation.z = 0;
     camera_error_.rotation.w = 1;
+
+    std_msgs::Float64 singularity_measure_;
+    singularity_measure_.data = 1.0;
+    bool controller_enabled_ = false;
+    std_msgs::Bool hit_joint_lim_;
+    hit_joint_lim_.data = false;
     
     // Eigen::MatrixXd Wq = Eigen::MatrixXd::Identity(robot_->nj(), robot_->nj());
     // Eigen::VectorXd Joint_Limit_Force = Eigen::VectorXd::Zero(robot_->nj());
 
     // Subs/Pubs
-    ros::Publisher pelvis_error_metrics_pub_ = node.advertise<std_msgs::Float64MultiArray>("/error_metrics/pelvis", 1);
+    ros::Publisher pelvis_error_metrics_pub_ = node.advertise<std_msgs::Float64MultiArray>("/controls_error", 1);
     ros::Publisher camera_error_metrics_pub_ = node.advertise<std_msgs::Float64MultiArray>("/error_metrics/camera", 1);
+    ros::Publisher singularity_measure_pub_ = node.advertise<std_msgs::Float64>("/controls_singularity", 1);
+    ros::Publisher joint_limit_pub_ = node.advertise<std_msgs::Bool>("/controls_jlimits", 1);
+    ros::Subscriber controller_flag_sub_ = node.subscribe<std_msgs::Bool>("/controller_flag", 1, boost::bind(&controllerFlagCallback, _1, &controller_enabled_));
     ros::Subscriber joint_state_sub_ = node.subscribe<sensor_msgs::JointState>("/my_gen3/joint_states", 1, boost::bind(&jointStateCallback, _1, &q_pos_, robot_));
     ros::Subscriber pelvis_tracking_frame_sub_ = node.subscribe<geometry_msgs::Transform>("/tf/tool_frame_to_dummy_pelvis", 1, boost::bind(&pelvisErrorCallback, _1, &pelvis_error_));
     ros::Subscriber pelvis_tracking_twist_sub_ = node.subscribe<geometry_msgs::Twist>("/tf/twist/tool_frame_to_dummy_pelvis", 1, boost::bind(&pelvisTwistCallback, _1, &pelvis_twist_));
@@ -228,6 +242,7 @@ int main(int argc, char **argv)
         // std::cout << "+++++++++++++++++" << std::endl;
         // std::cout << robot_->segnr2name(robot_->name2segnr(ee_marker_frame_)) << std::endl;
         // std::cout << robot_->segnr2name(robot_->name2segnr(tip_frame_)) << std::endl;
+        
         if(!pelvis_task_->updateError(q_pos_, pelvis_error_, pelvis_twist_, pelvis_error_metrics_pub_))
         {
             ROS_WARN("Pelvis error could not be updated!!!");
@@ -242,8 +257,21 @@ int main(int argc, char **argv)
             ROS_WARN("Could not compute next velocity command!!!");
         }
         // std::cout << "Check 3" << std::endl;
-        q_vel_command_ = priority_controller_->getJointVelocityCommand();
-        // std::cout << "Check 4" << std::endl;
+
+        singularity_measure_.data = priority_controller_->manipulability(q_pos_);
+        singularity_measure_pub_.publish(singularity_measure_);
+        hit_joint_lim_.data = priority_controller_->hit_joint_limit();
+        joint_limit_pub_.publish(hit_joint_lim_);
+        
+        if (controller_enabled_)
+        {
+            q_vel_command_ = priority_controller_->getJointVelocityCommand();
+        }
+        else
+        {
+            q_vel_command_ = Eigen::VectorXd::Zero(robot_->nj());
+        }
+        
         sendJointSpeeds(joint_speed_commander_, q_vel_command_, robot_);
         ros::spinOnce();
         rate.sleep();
