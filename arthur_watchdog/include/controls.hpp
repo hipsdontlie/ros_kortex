@@ -25,6 +25,13 @@ class Controls
 
         void error_check(const std_msgs::Float64MultiArray::ConstPtr& error_msg);
 
+        double currTime_error;
+        double prevTime_error;
+        double currTime_singularity;
+        double prevTime_singularity;
+        double currTime_jlimits;
+        double prevTime_jlimits;
+
 
 
 };

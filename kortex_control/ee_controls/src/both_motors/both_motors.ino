@@ -101,8 +101,6 @@ void changevelocity_M1( const std_msgs::Int16& velocity_M1){
     //  delay(400);
     pid_timer_M1 = millis();
   }
-  
-  
 }
 
 void changevelocity_M2( const std_msgs::Int16& velocity_M2){
@@ -240,6 +238,7 @@ void getRPM_M2(){
   rpm_timer_M2 = millis();
   //  delay(100);
 }
+
 void encoder_M1(){
   // Serial.println("Inside encoder");
   if (digitalRead(ENCB_Pin_M1) == HIGH)

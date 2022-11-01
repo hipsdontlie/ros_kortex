@@ -18,7 +18,8 @@ class Perception
 
         std::shared_ptr<std_msgs::Float64> rmse_thresh = std::make_shared<std_msgs::Float64> ();
 
-        bool rmse_error = false;
+        bool rmse_error = true;
+        // bool rmse_error = false;
 
 
     
