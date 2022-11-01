@@ -27,23 +27,23 @@ int main(int argc, char **argv)
   perception.rmse_thresh->data = 1.0;
 
   //subscribers
-  ros::Subscriber sub = n.subscribe("pelvis_pose", 1000, &Inputs::pelvisCallback, &inputs);
+  ros::Subscriber sub = n.subscribe("pelvis_pose", 1, &Inputs::pelvisCallback, &inputs);
 
-  ros::Subscriber rp_sub = n.subscribe("probe_pose", 1000, &Inputs::rpCallback, &inputs);
+  ros::Subscriber rp_sub = n.subscribe("probe_pose", 1, &Inputs::rpCallback, &inputs);
 
-  ros::Subscriber ee_sub = n.subscribe("end_effector_pose", 1000, &Inputs::eeCallback, &inputs);
+  ros::Subscriber ee_sub = n.subscribe("end_effector_pose", 1, &Inputs::eeCallback, &inputs);
 
-  ros::Subscriber rmse_sub = n.subscribe("percep_rmse", 1000, &Perception::perception_eval, &perception);
+  ros::Subscriber rmse_sub = n.subscribe("percep_rmse", 1, &Perception::perception_eval, &perception);
 
-  ros::Subscriber errors_sub = n.subscribe("controls_error", 1000, &Controls::error_check, &controls);
+  ros::Subscriber errors_sub = n.subscribe("controls_error", 1, &Controls::error_check, &controls);
   
-  ros::Subscriber singularity_sub = n.subscribe("controls_singularity", 1000, &Controls::singularity_check, &controls);
+  ros::Subscriber singularity_sub = n.subscribe("controls_singularity", 1, &Controls::singularity_check, &controls);
 
-  ros::Subscriber jlimits_sub = n.subscribe("controls_jlimits", 1000, &Controls::joint_limits, &controls);
+  ros::Subscriber jlimits_sub = n.subscribe("controls_jlimits", 1, &Controls::joint_limits, &controls);
 
-  ros::Subscriber reamerSpeed_sub = n.subscribe("controls_jlimits", 1000, &Controls::joint_limits, &controls);
+  ros::Subscriber reamerSpeed_sub = n.subscribe("controls_jlimits", 1, &Controls::joint_limits, &controls);
 
-  ros::Subscriber loadApplied_sub = n.subscribe("controls_jlimits", 1000, &Controls::joint_limits, &controls);
+  ros::Subscriber loadApplied_sub = n.subscribe("controls_jlimits", 1, &Controls::joint_limits, &controls);
 
 
 
@@ -51,10 +51,10 @@ int main(int argc, char **argv)
   // ros::Subscriber ee_control_sub = n.subscribe("control_error", 1000, &Controls::error_check, &controls);
 
   //publishers
-  ros::Publisher inputs_pub = n.advertise<arthur_watchdog::inputs>("input_health", 1000);
-  ros::Publisher percep_pub = n.advertise<arthur_watchdog::perception>("perception_health", 1000);
-  ros::Publisher controllerFlag_pub = n.advertise<std_msgs::Bool>("controller_flag", 1000);
-  ros::Publisher eStop_pub = n.advertise<std_msgs::Empty>("my_gen3/in/emergency_stop", 1000);
+  ros::Publisher inputs_pub = n.advertise<arthur_watchdog::inputs>("input_health", 1);
+  ros::Publisher percep_pub = n.advertise<arthur_watchdog::perception>("perception_health", 1);
+  ros::Publisher controllerFlag_pub = n.advertise<std_msgs::Bool>("controller_flag", 1);
+  ros::Publisher eStop_pub = n.advertise<std_msgs::Empty>("my_gen3/in/emergency_stop", 1);
 
   ros::Rate loop_rate(1000);
 
@@ -64,7 +64,8 @@ int main(int argc, char **argv)
     arthur_watchdog::inputs input_msg;
     arthur_watchdog::perception percep_msg;
     std_msgs::Bool control_msg;
-    std_msgs::Empty eStop_msg = {};
+    std_msgs::Empty eStop_msg;
+    eStop_msg = {};
 
     inputs.currTime_pelvis = ros::Time::now().toSec();
     inputs.currTime_ee = ros::Time::now().toSec();
@@ -83,7 +84,7 @@ int main(int argc, char **argv)
       eStop_pub.publish(eStop_msg);
     }
     
-
+    //if you stop receiving 
     if(inputs.currTime_ee - inputs.prevTime_ee > ros::Duration(0.025).toSec())
     {
       // std::cout<<"End-effector not visible"<<std::endl;
@@ -91,8 +92,6 @@ int main(int argc, char **argv)
       inputs.ee_visible = false;
       eStop_pub.publish(eStop_msg);
     }
-    // if (flg)
-    //   break;
 
     if(inputs.currTime_rp - inputs.prevTime_rp > ros::Duration(0.025).toSec())
     {
@@ -109,7 +108,7 @@ int main(int argc, char **argv)
     percep_msg.rmse_error = perception.rmse_error;
     percep_pub.publish(percep_msg);
 
-    if (inputs.pelvis_visible==true && perception.rmse_error==true)
+    if (inputs.pelvis_visible==true && inputs.ee_visible==true && perception.rmse_error==true)
     {
       controller_flag = true;
       control_msg.data = controller_flag;
@@ -121,9 +120,29 @@ int main(int argc, char **argv)
       control_msg.data = controller_flag;
     }
 
+
+    if(controls.currTime_error - controls.prevTime_error > ros::Duration(0.033).toSec())
+    {
+      // std::cout<<"End-effector not visible"<<std::endl;
+      ROS_INFO("Controller error publisher dropped below 30Hz!\n");
+      controller_flag = false;
+    }
+
+    if(controls.currTime_singularity - controls.prevTime_singularity > ros::Duration(0.033).toSec())
+    {
+      // std::cout<<"End-effector not visible"<<std::endl;
+      ROS_INFO("Controller singularity publisher dropped below 30Hz!\n");
+      controller_flag = false;
+    }
+
+    if(controls.currTime_jlimits - controls.prevTime_jlimits > ros::Duration(0.033).toSec())
+    {
+      // std::cout<<"End-effector not visible"<<std::endl;
+      ROS_INFO("Controller joint limits publisher dropped below 30Hz!\n");
+      controller_flag = false;
+    }
+
     controllerFlag_pub.publish(control_msg);
-
-
     ros::spinOnce();
     loop_rate.sleep();
   }

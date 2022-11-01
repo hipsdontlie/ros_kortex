@@ -4,20 +4,23 @@
 //controls alignment error
 void Controls::error_check(const std_msgs::Float64MultiArray::ConstPtr& error_msg)
 {
-  // value = error_msg->data.front();
-  if (error_msg->data.front() > 1.0)
+  prevTime_error = ros::Time::now().toSec();
+  double trans_error = error_msg->data[0];
+  double orientation_error = error_msg->data[1];
+  if (trans_error > 30.0)
   {
-    ROS_INFO("Alignment error too high!\n");
+    ROS_INFO("Translation error is too high!\n");
   }
   else
   { 
     // std::cout<<error_msg->data<<std::endl;
-    ROS_INFO("Alignment error within threshold! Continue...\n");
+    ROS_INFO("Translation error within threshold! Continue...\n");
   }
 }
 
 void Controls::singularity_check(const std_msgs::Float64::ConstPtr& singularity_msg)
 {
+  prevTime_singularity = ros::Time::now().toSec();
   if (singularity_msg->data > 0.9)
   {
     ROS_INFO("Very close to singularity! Please realign!\n");
@@ -31,6 +34,7 @@ void Controls::singularity_check(const std_msgs::Float64::ConstPtr& singularity_
 
 void Controls::joint_limits(const std_msgs::Bool::ConstPtr& jlimits_msg)
 {
+  prevTime_jlimits = ros::Time::now().toSec();
   if (jlimits_msg->data == true)
   {
     ROS_INFO("Very close to joint limits! Please realign!\n");
