@@ -137,13 +137,19 @@ namespace priority_control
             return false;
         }
         // std::cout << "Check 2.313" << std::endl;
+        // std::cout << "--------------------------" << std::endl;
+        // std::cout << pseudoinverse_jacobian_ << std::endl;
+        // std::cout << "+" << std::endl;
+        // std::cout << null_space_projector << std::endl;
+        // std::cout << "+" << std::endl;
+        // std::cout << task_jacobian_ << std::endl;
         return true;
     }
 
     bool Task::compute_jacobian(const Eigen::MatrixXd& joint_limit_avoidance_Wq, const Eigen::MatrixXd& null_space_projector)
     {
         // TODO: Implement segnr for jacobian calculation
-        if (robot_->jac_solver_->JntToJac(q_pos_, basic_jacobian_, robot_->name2segnr(task_frame_)+1) < 0)
+        if (robot_->jac_solver_->JntToJac(q_pos_, basic_jacobian_, robot_->name2segnr(task_frame_)+1) != 0)
         {
             ROS_ERROR("Could not compute jacobian!");
             // TODO: Stop Controller or Send Message to Watchdog
@@ -168,7 +174,7 @@ namespace priority_control
     {
         // TODO: Implement SegNr for fk calculation
         KDL::Frame task_frame = KDL::Frame();
-        if (robot_->fk_pos_solver_->JntToCart(q_pos_, task_frame, robot_->name2segnr(task_frame_)+1) < 0)
+        if (robot_->fk_pos_solver_->JntToCart(q_pos_, task_frame, robot_->name2segnr(task_frame_)+1) != 0)
         {
             // TODO: error!
             return false;
@@ -200,24 +206,41 @@ namespace priority_control
     {
         // TODO: Check singularities
         robot_->svd_full_solver_->compute(task_jacobian_);
+        
         // std::cout << "-----------------------" << std::endl;
         // std::cout << robot_->svd_full_solver_->singularValues() << std::endl;
         // std::cout << "==========================" << std::endl;
         // std::cout << task_jacobian_ << std::endl;
         pseudoinverse_jacobian_ = Eigen::MatrixXd::Zero(robot_->nj(), num_task_dof_);
         int max_rank = std::min(task_jacobian_.rows(), task_jacobian_.cols());
+        task_jacobian_rank_ = max_rank;
         for (int i = 0; i < max_rank; ++i)
         {
-            if (robot_->svd_full_solver_->singularValues()(i) < ArthurRobotModel::DEFAULT_EPSILON)
+            // std::cout << robot_->svd_full_solver_->singularValues()(i) << std::endl;
+            if (robot_->svd_full_solver_->singularValues()(i)/robot_->svd_full_solver_->singularValues()(0) < ArthurRobotModel::DEFAULT_EPSILON
+                || robot_->svd_full_solver_->singularValues()(i) < ArthurRobotModel::DEFAULT_EPSILON
+                )
             {
-                double lambda_scaled = compute_lambda_scaled(robot_->svd_full_solver_->singularValues()(i));
+                double lambda_scaled;
+                if (robot_->svd_full_solver_->singularValues()(i)/robot_->svd_full_solver_->singularValues()(0) < ArthurRobotModel::DEFAULT_EPSILON)
+                {
+                    lambda_scaled = compute_lambda_scaled(robot_->svd_full_solver_->singularValues()(i)/robot_->svd_full_solver_->singularValues()(0));
+                }
+                else
+                {
+                    lambda_scaled = compute_lambda_scaled(robot_->svd_full_solver_->singularValues()(i));
+                }
                 pseudoinverse_jacobian_ = pseudoinverse_jacobian_ +
                 ((robot_->svd_full_solver_->singularValues()(i) / 
                 ((robot_->svd_full_solver_->singularValues()(i) * robot_->svd_full_solver_->singularValues()(i)) + 
                 (lambda_scaled * lambda_scaled))) *
                 robot_->svd_full_solver_->matrixV().col(i) *
                 robot_->svd_full_solver_->matrixU().col(i).transpose());
-                // ROS_WARN("Damping For Singularity! %s, %d", task_frame_.c_str(), i);
+                task_jacobian_rank_ = std::min(i, task_jacobian_rank_);
+                ROS_WARN("Singularity Damping Activated for %s", task_frame_.c_str());
+                // ROS_WARN("Damping For Singularity! %s, %d, %f, %f", task_frame_.c_str(), i, (robot_->svd_full_solver_->singularValues()(i) / 
+                // ((robot_->svd_full_solver_->singularValues()(i) * robot_->svd_full_solver_->singularValues()(i)) + 
+                // (lambda_scaled * lambda_scaled))), lambda_scaled);
             }
             else
             {
@@ -235,5 +258,15 @@ namespace priority_control
     double Task::compute_lambda_scaled(double sigma)
     {
         return ArthurRobotModel::DEFAULT_LAMBDA * sqrt(1 - ((sigma * sigma) / (ArthurRobotModel::DEFAULT_EPSILON * ArthurRobotModel::DEFAULT_EPSILON)));
+    }
+
+    int Task::rank()
+    {
+        return task_jacobian_rank_;
+    }
+
+    size_t Task::num_task_dof()
+    {
+        return num_task_dof_;
     }
 }

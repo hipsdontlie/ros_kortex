@@ -14,6 +14,9 @@ trajectory_msgs
 arthur_planning
 kdl_parser
 urdf
+moveit_core
+moveit_ros_planning
+moveit_ros_planning_interface
 )
 
 find_package(orocos_kdl REQUIRED
@@ -24,6 +27,7 @@ Eigen 3 3.3 REQUIRED
 generate_messages(
   DEPENDENCIES
   std_msgs
+  moveit_msgs
   geometry_msgs
 )
 
@@ -31,6 +35,8 @@ catkin_package(
   INCLUDE_DIRS priority_control/include ${Eigen3_INCLUDE_DIRS}
   # LIBRARIES ${PROJECT_NAME}   # Added this line
   CATKIN_DEPENDS arthur_planning message_runtime roscpp std_msgs geometry_msgs tf kdl_parser urdf eigen
+  moveit_core
+  moveit_ros_planning_interface
   DEPENDS orocos_kdl urdf_model
 )
 
@@ -79,6 +85,7 @@ add_executable(master_controller priority_control/master_controller.cpp
                                   priority_control/include/camera_alignment_task.hpp
                                   priority_control/camera_alignment_task.cpp
                                   )
+add_dependencies(master_controller kortex_control_generate_messages_cpp)
 add_dependencies(master_controller ${${PROJECT_NAME}_EXPORTED_TARGETS})
 add_dependencies(master_controller ${catkin_EXPORTED_TARGETS})
 target_link_libraries(master_controller ${catkin_LIBRARIES})

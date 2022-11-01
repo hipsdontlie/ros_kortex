@@ -10,12 +10,13 @@ namespace priority_control
     constexpr double ArthurRobotModel::MAX_LINEAR_VELOCITY;
     constexpr double ArthurRobotModel::MAX_ANGULAR_VELOCITY;
 
-    ArthurRobotModel::ArthurRobotModel(const std::string& robot_description, const std::string& base_frame, const std::string& tip_frame)
+    ArthurRobotModel::ArthurRobotModel(const std::string& robot_description, const std::string& base_frame, const std::string& tip_frame, std::shared_ptr<planning_scene::PlanningScene>& planning_scene)
     {
         // TODO: Add error checking for inputs
         joint_limit_avoidance_bandwidth_ = DEFAULT_JOINT_LIMIT_AVOIDANCE_BANDWIDTH;
 
         robot_description_ = robot_description;
+        planning_scene_ = planning_scene;
         
         if (!urdf_model_.initString(robot_description_)){
             ROS_ERROR("Could not initialize tree object");
@@ -159,5 +160,46 @@ namespace priority_control
         }
     }
 
-    
+    bool ArthurRobotModel::is_colliding(KDL::JntArray q_pos)
+    {
+        moveit::core::RobotState current_state = planning_scene_->getCurrentState();
+        collision_detection::AllowedCollisionMatrix acm = planning_scene_->getAllowedCollisionMatrix();
+        std::vector<double> joint_positions;
+        for (size_t i = 0; i < number_joints_; ++i)
+        {
+            joint_positions.push_back(q_pos(i));
+        }
+        current_state.setVariablePositions(joint_positions);
+
+        // collision_detection::CollisionResult::ContactMap::const_iterator it2;
+        // // for (it2 = collision_result_.contacts.begin(); it2 != collision_result_.contacts.end(); ++it2)
+        // // {
+        // //     // acm.setEntry(it2->first.first, it2->first.second, true);
+        // //     std::cout << it2->first.first << std::endl;
+        // //     std::cout << it2->first.second << std::endl;
+        // //     std::cout << "-----------" << std::endl;
+        // // }
+        acm.setEntry("table", "base_link", true);
+        acm.setEntry("base_link", "table", true);
+        acm.setEntry("base_link", "shoulder_link", true);
+        acm.setEntry("shoulder_link", "base_link", true);
+        collision_request_.contacts = true;
+        collision_request_.max_contacts = 1000;
+
+        //
+
+        collision_result_.clear();
+        planning_scene_->checkSelfCollision(collision_request_, collision_result_, current_state, acm);
+        // ROS_INFO_STREAM("Test 5: Current state is " << (collision_result_.collision ? "in" : "not in") << " self collision");
+        // collision_detection::CollisionResult::ContactMap::const_iterator it;
+        // for (it = collision_result_.contacts.begin(); it != collision_result_.contacts.end(); ++it)
+        // {
+        //     ROS_INFO("Contact between: %s and %s", it->first.first.c_str(), it->first.second.c_str());
+        // }
+
+        // collision_result_.clear();
+        // planning_scene_->checkSelfCollision(collision_request_, collision_result_, current_state, acm);
+        // std::cout << current_state.getVariableCount() << std::endl;
+        return collision_result_.collision;
+    }
 }

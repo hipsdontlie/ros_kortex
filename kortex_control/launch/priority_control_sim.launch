@@ -4,6 +4,20 @@
     <arg unless="$(arg debug)" name="launch_prefix" value="" /> 
     <arg if="$(arg debug)" name="launch_prefix" value="gdb --ex run --args" />
     <!-- GDB Debug Option -->
+    
+    <!-- Arm type -->
+    <arg name="arm" default="gen3"/>
+    <arg name="dof" default="7" if="$(eval arg('arm') == 'gen3')"/> <!-- Number of degrees of freedom of the arm -->
+    <arg name="vision" default="true"/> <!-- True if the arm has a Vision module -->
+    <arg name="prefix" default=""/>
+    
+    <!-- Default gripper for Gen3 is none, default gripper for Gen3 lite is gen3_lite_2f -->
+    <arg name="gripper" default="" if="$(eval arg('arm') == 'gen3')"/>
+    
+    <arg name="robot_name" default="my_$(arg arm)"/>
+
+    <param name="collision_robot_description" command="$(find xacro)/xacro --inorder $(find kortex_description)/robots/$(arg arm).xacro dof:=$(arg dof) vision:=$(arg vision) sim:=true prefix:=$(arg prefix)"
+            if="$(eval not arg('gripper'))"/>
 
     <node pkg="kortex_control" type="master_controller" name="master_controller" output="screen"  launch-prefix="$(arg launch_prefix)">
         <param name="robot_description" command="xacro $(find kortex_control)/arm_description/robot_model.xacro" />

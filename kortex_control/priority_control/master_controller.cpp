@@ -5,18 +5,18 @@
 #include <geometry_msgs/Transform.h>
 #include <geometry_msgs/Twist.h>
 #include <std_msgs/Float64MultiArray.h>
-// #include <geometry_msgs/PoseStamped.h>
-// #include <geometry_msgs/Pose.h>
-// #include <geometry_msgs/Vector3.h>
-// #include <arthur_planning/arthur_traj.h>
 #include <std_msgs/Bool.h>
-// #include <std_msgs/Int16.h>
+#include <std_msgs/Empty.h>
 #include <std_msgs/Float64.h>
 #include <kortex_driver/SendJointSpeedsCommand.h>
 #include <sensor_msgs/JointState.h>
 #include <boost/bind.hpp>
 #include <vector>
 #include <array>
+
+#include <moveit/robot_model_loader/robot_model_loader.h>
+#include <moveit/planning_scene/planning_scene.h>
+#include <moveit/kinematic_constraints/utils.h>
 
 #include "arthur_robot_model.hpp"
 #include "task.hpp"
@@ -85,6 +85,11 @@ void controllerFlagCallback(const std_msgs::Bool::ConstPtr &msg, bool* controlle
     (*controller_flag) = msg->data;
 }
 
+void clearFaultCallback(const std_msgs::Empty::ConstPtr &msg, std::shared_ptr<PriorityController>* controller)
+{
+    (*controller)->reset_fault();
+}
+
 // Replacement SIGINT handler
 void mySigIntHandler(int sig)
 {
@@ -133,9 +138,13 @@ int main(int argc, char **argv)
     std::string ee_marker_frame_;
     node.getParam("/master_controller/ee_marker_frame", ee_marker_frame_);
 
+    robot_model_loader::RobotModelLoader robot_model_loader_("collision_robot_description");
+    const moveit::core::RobotModelPtr& kinematic_model_ = robot_model_loader_.getModel();
+    std::shared_ptr<planning_scene::PlanningScene>planning_scene_ = std::make_shared<planning_scene::PlanningScene>(kinematic_model_);
+
     // std::array<bool, 6> task_dof_= {true, true, true, true, true, true};
     
-    std::shared_ptr<ArthurRobotModel> robot_ = std::make_shared<ArthurRobotModel>(robot_description_, base_frame_, tip_frame_);
+    std::shared_ptr<ArthurRobotModel> robot_ = std::make_shared<ArthurRobotModel>(robot_description_, base_frame_, tip_frame_, planning_scene_);
     // std::shared_ptr<Task> task_ = std::make_shared<Task>(robot_, task_dof_, tip_frame_);
     std::shared_ptr<PelvisAlignmentTask> pelvis_task_ = std::make_shared<PelvisAlignmentTask>(robot_, tip_frame_);
     std::shared_ptr<CameraAlignmentTask> camera_task_ = std::make_shared<CameraAlignmentTask>(robot_, ee_marker_frame_);
@@ -181,6 +190,7 @@ int main(int argc, char **argv)
     ros::Publisher camera_error_metrics_pub_ = node.advertise<std_msgs::Float64MultiArray>("/error_metrics/camera", 1);
     ros::Publisher singularity_measure_pub_ = node.advertise<std_msgs::Float64>("/controls_singularity", 1);
     ros::Publisher joint_limit_pub_ = node.advertise<std_msgs::Bool>("/controls_jlimits", 1);
+    ros::Subscriber clear_fault_sub_ = node.subscribe<std_msgs::Empty>("/controller_clear_fault", 1, boost::bind(&clearFaultCallback, _1, &priority_controller_));
     ros::Subscriber controller_flag_sub_ = node.subscribe<std_msgs::Bool>("/controller_flag", 1, boost::bind(&controllerFlagCallback, _1, &controller_enabled_));
     ros::Subscriber joint_state_sub_ = node.subscribe<sensor_msgs::JointState>("/my_gen3/joint_states", 1, boost::bind(&jointStateCallback, _1, &q_pos_, robot_));
     ros::Subscriber pelvis_tracking_frame_sub_ = node.subscribe<geometry_msgs::Transform>("/tf/tool_frame_to_dummy_pelvis", 1, boost::bind(&pelvisErrorCallback, _1, &pelvis_error_));
@@ -242,28 +252,32 @@ int main(int argc, char **argv)
         // std::cout << "+++++++++++++++++" << std::endl;
         // std::cout << robot_->segnr2name(robot_->name2segnr(ee_marker_frame_)) << std::endl;
         // std::cout << robot_->segnr2name(robot_->name2segnr(tip_frame_)) << std::endl;
+        bool successful_update = true;
         
         if(!pelvis_task_->updateError(q_pos_, pelvis_error_, pelvis_twist_, pelvis_error_metrics_pub_))
         {
+            successful_update = false;
             ROS_WARN("Pelvis error could not be updated!!!");
         }
         if(!camera_task_->updateError(q_pos_, camera_error_, camera_twist_, camera_error_metrics_pub_))
         {
+            successful_update = false;
             ROS_WARN("Camera error could not be updated!!!");
         }
         // std::cout << "Check 2" << std::endl;
         if (!priority_controller_->computeJointVelocityCommand(q_pos_))
         {
+            successful_update = false;
             ROS_WARN("Could not compute next velocity command!!!");
         }
         // std::cout << "Check 3" << std::endl;
 
-        singularity_measure_.data = priority_controller_->manipulability(q_pos_);
+        singularity_measure_.data = 1.0 / priority_controller_->manipulability(q_pos_);
         singularity_measure_pub_.publish(singularity_measure_);
         hit_joint_lim_.data = priority_controller_->hit_joint_limit();
         joint_limit_pub_.publish(hit_joint_lim_);
-        
-        if (controller_enabled_)
+
+        if (controller_enabled_ && successful_update)
         {
             q_vel_command_ = priority_controller_->getJointVelocityCommand();
         }

@@ -18,6 +18,7 @@ namespace priority_control
         Eigen::VectorXd const& getJointVelocityCommand();
         double manipulability(const KDL::JntArray& q_pos);
         bool hit_joint_limit();
+        void reset_fault();
 
         protected:
         std::shared_ptr<ArthurRobotModel> robot_;
@@ -32,6 +33,7 @@ namespace priority_control
         Eigen::MatrixXd joint_lim_avoidance_Wq_;
         Eigen::VectorXd joint_lim_avoidance_F_;
         Eigen::VectorXd singularity_avoidance_F_;
+        bool fault_;
 
         bool validJointVel(const Eigen::VectorXd& q_vel);
         size_t atJointVelLimit(const Eigen::VectorXd& q_vel);

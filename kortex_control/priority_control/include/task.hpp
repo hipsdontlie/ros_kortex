@@ -23,6 +23,8 @@ namespace priority_control
         bool set_q_vel(Eigen::VectorXd q_vel);
         Eigen::VectorXd const& get_q_vel();
         std::array<bool, ArthurRobotModel::CARTESIAN_DOF> const& task_dof();
+        size_t num_task_dof();
+        int rank();
 
         protected:
         size_t num_task_dof_;
@@ -38,6 +40,7 @@ namespace priority_control
         Eigen::VectorXd task_twist_;
         Eigen::MatrixXd I_;
         Eigen::VectorXd q_vel_;
+        int task_jacobian_rank_;
         
         bool compute_jacobian(const Eigen::MatrixXd& joint_limit_avoidance_Wq, const Eigen::MatrixXd& null_space_projector);
         bool rotate_jacobian();

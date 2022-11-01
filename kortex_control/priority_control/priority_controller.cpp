@@ -15,6 +15,7 @@ namespace priority_control
         singularity_avoidance_F_ = Eigen::VectorXd::Zero(robot_->nj());
         joint_lim_avoidance_active_ = false;
         hit_joint_lim_ = false;
+        fault_ = false;
     }
 
     bool PriorityController::addTask(std::shared_ptr<Task> task, size_t priority_num)
@@ -46,6 +47,7 @@ namespace priority_control
     {
         q_pos_ = q_pos;
         hit_joint_lim_ = false;
+        // std::cout << robot_->is_colliding(q_pos) << std::endl;
         // ROS_INFO("Manipulability Metric: %f", 1.0/manipulability(q_pos));
         // std::cout << "Check 2.1" << std::endl;
         computeJointLimitAvoidance(joint_lim_avoidance_Wq_, joint_lim_avoidance_F_, q_pos_);
@@ -54,13 +56,14 @@ namespace priority_control
         // std::cout << "Check 2.3" << std::endl;
         computeTaskJointVelocities();
         // std::cout << "Check 2.4" << std::endl;
+        q_vel_cmd_ = q_vel_sum_;
         if (joint_lim_avoidance_active_)
         {
-            q_vel_cmd_ = q_vel_sum_ + null_space_projector_ * (robot_->identity_matrix() - joint_lim_avoidance_Wq_) * joint_lim_avoidance_F_; 
+            q_vel_cmd_ = q_vel_cmd_ + null_space_projector_ * (robot_->identity_matrix() - joint_lim_avoidance_Wq_) * joint_lim_avoidance_F_; 
         }
         else
         {
-            q_vel_cmd_ = q_vel_sum_ + null_space_projector_ * singularity_avoidance_F_;
+            q_vel_cmd_ = q_vel_cmd_ + null_space_projector_ * singularity_avoidance_F_;
         }
         // std::cout << "Check 2.5" << std::endl;
         // auto task_check = tasks_.begin();
@@ -75,17 +78,31 @@ namespace priority_control
             jointAtLimit = atJointVelLimit(q_vel_cmd_);
         }
         // std::cout << "Check 2.6" << std::endl;
-
-        while (!validJointVel(q_vel_cmd_) && task != tasks_.rend())
+        // ROS_INFO("Rank: %d", task->second->rank());
+        while ((!validJointVel(q_vel_cmd_) && task != tasks_.rend()) || task->second->rank() < task->second->num_task_dof()-1)
         {
+            if (task->second->num_task_dof()-1)
+            {
+                ROS_ERROR("Target Out of Reach");
+                q_vel_cmd_ = Eigen::VectorXd::Zero(robot_->nj());
+                fault_ = true;
+                return false;
+            }
             ROS_INFO("Removing Next Lowest Priority Task Due to Invalid Task Velocity");
             q_vel_cmd_ = q_vel_cmd_ - task->second->get_q_vel();
             ++task;
         }
+
+        // task = tasks_.rbegin();
+        // while (task != tasks_.rend())
+        // {
+        //     ROS_INFO("Task: %ld, Rank: %d", task->first, task->second->rank());
+        //     ++task;
+        // }
         // std::cout << "Check 2.7" << std::endl;
         if (!validJointVel(q_vel_cmd_))
         {
-            // ROS_WARN("Only Joint Lim Avoidance Left");
+            ROS_WARN("Only Joint Lim Avoidance Left");
             // std::cout << null_space_projector_ * (robot_->identity_matrix() - joint_lim_avoidance_Wq_) * joint_lim_avoidance_F_ << std::endl;
             q_vel_cmd_ = Eigen::VectorXd::Zero(robot_->nj());
             hit_joint_lim_ = true;
@@ -93,7 +110,7 @@ namespace priority_control
             return false;
         }
         // std::cout << "Check 2.8" << std::endl;
-        return true;
+        return true && !fault_;
     }
 
     Eigen::VectorXd const& PriorityController::getJointVelocityCommand()
@@ -114,8 +131,15 @@ namespace priority_control
             }
         }
 
+        if (robot_->is_colliding(q_pos_next))
+        {
+            ROS_WARN("Robot or Pelvis is Bad Position. Avoiding Collisions!!!");
+            fault_ = true;
+            return false;
+        }
+
         KDL::Jacobian jac_next = KDL::Jacobian(robot_->nj());
-        if (robot_->jac_solver_->JntToJac(q_pos_next, jac_next) < 0)
+        if (robot_->jac_solver_->JntToJac(q_pos_next, jac_next) != 0)
         {
             ROS_ERROR("Could not compute jacobian!");
             // TODO: Stop Controller or Send Message to Watchdog
@@ -185,6 +209,7 @@ namespace priority_control
             {
                 Wq(i,i) = 0;
                 F(i) = 0;
+                fault_ = true;
             }
         }
     }
@@ -225,7 +250,7 @@ namespace priority_control
     double PriorityController::manipulability(const KDL::JntArray& q_pos)
     {
         KDL::Jacobian jac = KDL::Jacobian(robot_->nj());
-        if (robot_->jac_solver_->JntToJac(q_pos, jac) < 0)
+        if (robot_->jac_solver_->JntToJac(q_pos, jac) != 0)
         {
             ROS_ERROR("Could not compute jacobian!");
             // TODO: Stop Controller or Send Message to Watchdog
@@ -262,6 +287,11 @@ namespace priority_control
                 // std::cout << "Check 2.34" << std::endl;
             q_vel_sum_ = q_vel_sum_ + task.second->get_q_vel();
         }
+    }
+
+    void PriorityController::reset_fault()
+    {
+        fault_ = false;
     }
 
 }
