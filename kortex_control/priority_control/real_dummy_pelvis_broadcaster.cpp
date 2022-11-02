@@ -5,7 +5,7 @@
 void poseCallback(const geometry_msgs::PoseStampedConstPtr& msg){
   static tf::TransformBroadcaster br;
   tf::Transform transform;
-  transform.setOrigin(tf::Vector3(0, 0.15, 0.15) );
+  transform.setOrigin(tf::Vector3(0, 0.2, 0) );
   tf::Quaternion q;
   q.setEuler(0, -M_PI/2.0, 0);
   transform.setRotation(q);

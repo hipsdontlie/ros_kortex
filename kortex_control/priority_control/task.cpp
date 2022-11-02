@@ -237,7 +237,7 @@ namespace priority_control
                 robot_->svd_full_solver_->matrixV().col(i) *
                 robot_->svd_full_solver_->matrixU().col(i).transpose());
                 task_jacobian_rank_ = std::min(i, task_jacobian_rank_);
-                ROS_WARN("Singularity Damping Activated for %s", task_frame_.c_str());
+                // ROS_WARN("Singularity Damping Activated for %s, %d", task_frame_.c_str(), i);
                 // ROS_WARN("Damping For Singularity! %s, %d, %f, %f", task_frame_.c_str(), i, (robot_->svd_full_solver_->singularValues()(i) / 
                 // ((robot_->svd_full_solver_->singularValues()(i) * robot_->svd_full_solver_->singularValues()(i)) + 
                 // (lambda_scaled * lambda_scaled))), lambda_scaled);

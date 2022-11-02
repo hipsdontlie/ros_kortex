@@ -195,8 +195,10 @@ int main(int argc, char **argv)
     ros::Subscriber joint_state_sub_ = node.subscribe<sensor_msgs::JointState>("/my_gen3/joint_states", 1, boost::bind(&jointStateCallback, _1, &q_pos_, robot_));
     ros::Subscriber pelvis_tracking_frame_sub_ = node.subscribe<geometry_msgs::Transform>("/tf/tool_frame_to_dummy_pelvis", 1, boost::bind(&pelvisErrorCallback, _1, &pelvis_error_));
     ros::Subscriber pelvis_tracking_twist_sub_ = node.subscribe<geometry_msgs::Twist>("/tf/twist/tool_frame_to_dummy_pelvis", 1, boost::bind(&pelvisTwistCallback, _1, &pelvis_twist_));
-    ros::Subscriber camera_tracking_frame_sub_ = node.subscribe<geometry_msgs::Transform>("/tf/ee_marker_frame_to_dummy_camera", 1, boost::bind(&cameraErrorCallback, _1, &camera_error_));
-    ros::Subscriber camera_tracking_twist_sub_ = node.subscribe<geometry_msgs::Twist>("/tf/twist/ee_marker_frame_to_dummy_camera", 1, boost::bind(&cameraTwistCallback, _1, &camera_twist_));
+    // ros::Subscriber camera_tracking_frame_sub_ = node.subscribe<geometry_msgs::Transform>("/tf/ee_marker_frame_to_dummy_camera", 1, boost::bind(&cameraErrorCallback, _1, &camera_error_));
+    // ros::Subscriber camera_tracking_twist_sub_ = node.subscribe<geometry_msgs::Twist>("/tf/twist/ee_marker_frame_to_dummy_camera", 1, boost::bind(&cameraTwistCallback, _1, &camera_twist_));
+    ros::Subscriber camera_tracking_frame_sub_ = node.subscribe<geometry_msgs::Transform>("/tf/ee_marker_frame_to_camera", 1, boost::bind(&cameraErrorCallback, _1, &camera_error_));
+    ros::Subscriber camera_tracking_twist_sub_ = node.subscribe<geometry_msgs::Twist>("/tf/twist/ee_marker_frame_to_camera", 1, boost::bind(&cameraTwistCallback, _1, &camera_twist_));
     ros::ServiceClient joint_speed_commander_ = node.serviceClient<kortex_driver::SendJointSpeedsCommand>("/my_gen3/base/send_joint_speeds_command");
 
     // // sends wrench commands to kortex_driver service

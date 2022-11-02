@@ -148,6 +148,8 @@ namespace priority_control
 
         robot_->svd_fast_solver_->compute(jac_next.data);
         int basic_rank = robot_->svd_fast_solver_->rank();
+
+        
         Eigen::MatrixXd Wq_temp = Eigen::MatrixXd::Identity(robot_->nj(), robot_->nj());
         Eigen::VectorXd F_temp = Eigen::VectorXd::Zero(robot_->nj());
         computeJointLimitAvoidance(Wq_temp, F_temp, q_pos_next);
@@ -257,6 +259,15 @@ namespace priority_control
             return -1;
         }
         robot_->svd_fast_solver_->compute(jac.data);
+        // if (robot_->svd_fast_solver_->rank() < 6)
+        // {
+        //     ROS_INFO("At Singularity! Jacobian Rank is %ld", robot_->svd_fast_solver_->rank());
+        // }
+        // else
+        // {
+        //     ROS_INFO("Jacobian Rank is %ld", robot_->svd_fast_solver_->rank());
+        //     std::cout << jac.data << std::endl;
+        // }
         return robot_->svd_fast_solver_->singularValues()(0) / robot_->svd_fast_solver_->singularValues()(robot_->CARTESIAN_DOF - 1);
     }
 

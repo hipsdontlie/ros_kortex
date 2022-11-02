@@ -71,7 +71,7 @@ int main(int argc, char **argv)
     inputs.currTime_ee = ros::Time::now().toSec();
     inputs.currTime_rp = ros::Time::now().toSec();
 
-    if(inputs.currTime_pelvis - inputs.prevTime_pelvis > ros::Duration(0.025).toSec())
+    if(inputs.currTime_pelvis - inputs.prevTime_pelvis > ros::Duration(0.035).toSec())
     {
       // std::cout<<"Pelvis marker not visible"<<std::endl;
       ROS_INFO("Pelvis not visible!\n");
@@ -85,7 +85,7 @@ int main(int argc, char **argv)
     }
     
     //if you stop receiving 
-    if(inputs.currTime_ee - inputs.prevTime_ee > ros::Duration(0.025).toSec())
+    if(inputs.currTime_ee - inputs.prevTime_ee > ros::Duration(0.035).toSec())
     {
       // std::cout<<"End-effector not visible"<<std::endl;
       ROS_INFO("End-effector not visible!\n");
@@ -93,7 +93,7 @@ int main(int argc, char **argv)
       eStop_pub.publish(eStop_msg);
     }
 
-    if(inputs.currTime_rp - inputs.prevTime_rp > ros::Duration(0.025).toSec())
+    if(inputs.currTime_rp - inputs.prevTime_rp > ros::Duration(0.035).toSec())
     {
       // std::cout<<"End-effector not visible"<<std::endl;
       ROS_INFO("Registration probe not visible!\n");
