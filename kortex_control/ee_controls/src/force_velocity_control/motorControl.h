@@ -23,10 +23,10 @@ class MotorControl{
         //Pins needed for communication
         byte PWM_Pin_; 
         byte DIR_Pin_; 
-        byte ENCB_Pin_;
-        byte ENCA_Pin_;
-        byte LIM_Switch_1_;
-        byte LIM_Switch_2_;
+        volatile static byte ENCB_Pin_;
+        volatile static byte ENCA_Pin_;
+        volatile static byte LIM_Switch_1_;
+        volatile static byte LIM_Switch_2_;
 
     public:
     /* -------------------------------- Public Variables -------------------------------- */
@@ -38,15 +38,15 @@ class MotorControl{
         //PID Velocity control parameters 
         int Kp_vel_, Kd_vel_, Ki_vel_;
         int PIDOutVel_;
-        double rpmPrev_,rpmCurr_,rpmTimer_;
+        double rpmPrev_,rpmCurr_,rpmTimer_, tempPosCurr_, tempPosPrev_;
 
         //Other generic PID parameters
-        double encoderValue_;
+        volatile static int encoderValue_;
         double currentTime_, previousTime_, deltaT_;
         double errorIntegral_, errorDerivative_, errorProportional_;
 
         //Some stopping variables 
-        bool watchDogStop_, limitSwitchStop_;
+        volatile static bool watchDogStop_, limitSwitchStop_;
 
         /* -------------------------------- Public Members ----------------------------------- */
       
@@ -68,8 +68,8 @@ class MotorControl{
         // Get current position 
         int getMotorPos();
 
-        //Encoder interrupt function 
-        void encoder();
+        //Encoder interrupt service routine (interrupt service routines need to be static) 
+        static void encoder(int encoderVal);
 
         //PID position control 
         void pidPositionControl(int targetTick);
@@ -86,8 +86,8 @@ class MotorControl{
         //Set PID velocity control constants 
         void setPIDVelConstants(double Kp, double Ki, double Kd);
 
-        //LimitSwitch trigger 
-        void triggerLimitSwitch();
+        //LimitSwitch trigger interrupt service routine (interrupt service routines need to be static)
+        static void triggerLimitSwitch();
 
 };
 

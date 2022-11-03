@@ -12,7 +12,7 @@ MotorControl::MotorControl(byte PWM_Pin, byte DIR_Pin, byte ENCA_Pin, byte ENCB_
     PWM_Pin_ = PWM_Pin;
     DIR_Pin_ = DIR_Pin;
     ENCB_Pin_ = ENCB_Pin;
-    ENCA_Pin_ = ENCA_Pin_;
+    ENCA_Pin_ = ENCA_Pin;
     LIM_Switch_1_ = LIM_Switch_1;
     LIM_Switch_2_ = LIM_Switch_2;
     init();
@@ -21,7 +21,7 @@ MotorControl::MotorControl(byte PWM_Pin, byte DIR_Pin, byte ENCA_Pin, byte ENCB_
 /*
 @brief Initialize the motor with the desired pin
 */
-MotorControl::init(){
+void MotorControl::init(){
 
     //Motor 
     pinMode(PWM_Pin_, OUTPUT);
@@ -34,20 +34,31 @@ MotorControl::init(){
     //Limit switches 
     pinMode(LIM_Switch_1_, INPUT_PULLUP);
     pinMode(LIM_Switch_2_, INPUT_PULLUP);
-    attachInterrupt(digitalPinToInterrupt(LIM_1), triggerLimSwitch, HIGH);
-    attachInterrupt(digitalPinToInterrupt(LIM_2), triggerLimSwitch, HIGH);
+    attachInterrupt(digitalPinToInterrupt(LIM_Switch_1_), triggerLimitSwitch, HIGH);
+    attachInterrupt(digitalPinToInterrupt(LIM_Switch_2_), triggerLimitSwitch, HIGH);
     
     //Set PID position control parameters to 0
     Kp_pos_, Kd_pos_, Ki_pos_, PIDOutPos_, posPrev_,posCurr_  = 0;
 
     //Set PIDVelocity control parameters to 0
-    Kp_vel_, Kd_vel_, Ki_vel_, PIDOutVel_, rpmPrev_, rpmCurr_, rpmTimer_ = 0;
+    Kp_vel_, Kd_vel_, Ki_vel_, PIDOutVel_, rpmPrev_, rpmCurr_, rpmTimer_, tempPosCurr_, tempPosPrev_ = 0;
 
     //Set other generic control parameters to 0
-    encoderValue_, currentTime_, previousTime_, deltaT_, errorIntegral_, errorDerivative_, errorProportional_ = 0;
+    currentTime_, previousTime_, deltaT_, errorIntegral_, errorDerivative_, errorProportional_ = 0;
 
     //Set stopping variables to false
     watchDogStop_, limitSwitchStop_ = false;
+
+    //Set encoder value to 0
+    encoderValue_ = 0;
+}
+
+/*
+@brief Run the motor using analogWrite 
+*/
+void MotorControl::runMotor(int analogValue){
+  analogWrite(PWM_Pin_, analogValue);
+  return;
 }
 
 /*
@@ -61,11 +72,11 @@ void MotorControl::stopMotor(){
 /*
 @brief Interrupt function for encoder position 
 */
-void MotorControl::encoder(){
-    if (digitalRead(ENCB_Pin_) == HIGH)
-        encoderValue_++;
+void MotorControl::encoder(int encoderValue, int ENCPin){
+    if (digitalRead(ENCPin) == HIGH)
+        encoderValue++;
     else
-        encoderValue_--;  
+        encoderValue--;  
     return;
 }
 
@@ -82,9 +93,9 @@ int MotorControl::getMotorPos(){
 double MotorControl::getMotorRPM(){
     currentTime_ = micros();
     deltaT_ = ((float) (currentTime_-previousTime_)/1000000); //TODO: Find the right constant 
-    posCurr_ = encoderValue_;
-    rpmCurr_ = float(pos_-posPrev_)/deltaT_*0.37;
-    posPrev_ = posCurr_;
+    tempPosCurr_ = encoderValue_;
+    rpmCurr_ = float(tempPosCurr_-tempPosPrev_)/deltaT_*0.37;
+    tempPosPrev_ = tempPosCurr_;
     previousTime_ = micros();
     rpmTimer_ = millis();
     return rpmCurr_;
@@ -110,22 +121,31 @@ void MotorControl::pidPositionControl(int targetPos){
 /*
 @brief PID velocity control to a targetVel
 */
-void MotorControl::pidVelocityControl(int targetVelocity){
+void MotorControl::pidVelocityControl(int rpmTarget){
 
-    errorProportional_ = float(targetVelocity)-abs(velCurr_);
-    errorDerivative_ = (prev_rpm_-vel_)/deltaT_;
-    prevRPM_ = vel_;
-    errorIntegral_ += (float(set_val_)-abs(vel_))*deltaT_;
+    //Compute error terms 
+    errorProportional_ = float(rpmTarget)-abs(rpmCurr_);
+    errorDerivative_ = (rpmPrev_-rpmCurr_)/deltaT_;
+    errorIntegral_ += (float(rpmTarget)-abs(rpmCurr_))*deltaT_;
+
+    //Update previous RPM to current RPM
+    rpmPrev_ = rpmCurr_;
+
+    //Get PID output 
     PIDOutVel_ = PIDOutVel_ + int((Kp_vel_*errorProportional_+Kd_vel_*errorDerivative_+Ki_vel_*errorIntegral_));
+    
+    //Threshold the output 
     if (PIDOutVel_ > 255){
         PIDOutVel_ = 255;
     }
 
     if (PIDOutVel_ < 0){
         PIDOutVel_ = 0;
-    }
+    } 
 
-    analogWrite(PWM_Pin_, PIDOutVel_);
+    //Actuate motor with the output value 
+    runMotor(PIDOutVel_);
+
     return;
 }
 
@@ -141,7 +161,7 @@ void MotorControl::setPIDPosConstants(double Kp, double Ki, double Kd){
 /*
 @brief Set PID velocity control constants 
 */
-void MotorControl::setPIDPosConstants(double Kp, double Ki, double Kd){
+void MotorControl::setPIDVelConstants(double Kp, double Ki, double Kd){
     Kp_vel_ = Kp;
     Kd_vel_ = Kd; 
     Ki_vel_ = Ki;
@@ -151,9 +171,9 @@ void MotorControl::setPIDPosConstants(double Kp, double Ki, double Kd){
 /*
 @brief Limit switch interrupt function
 */
-void MotorControl::triggerLimSwitch(){
-  limitSwitchStop_ = true;
-  stopMotors();
-}
+// void MotorControl::triggerLimitSwitch(){
+//   limitSwitchStop_ = true;
+//   analogWrite(ENC_B_)
+// }
 
 

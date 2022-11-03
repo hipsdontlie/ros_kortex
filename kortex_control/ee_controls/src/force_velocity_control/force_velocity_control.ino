@@ -6,13 +6,21 @@
 #include "currentSensor.h"
 #include "motorControl.h"
 //Current sensor pin 
-#define currentSensorPin  A0
+byte currentSensorPin = A0;
 
 //Reamer Motor Pins 
-#define PWM_Pin_ReamerMotor 6
-#define DIR_Pin_ReamerMotor 5
-#define ENCA_Pin_ReamerMotor 21
-#define ENCB_Pin_ReamerMotor 20
+byte PWM_Pin_ReamerMotor = 6;
+byte DIR_Pin_ReamerMotor = 5;
+byte ENCA_Pin_ReamerMotor = 21;
+byte ENCB_Pin_ReamerMotor = 20;
+static int encoderValue_ReamerMotor = 0;
+static int encoderValue_LinearActMotor = 0;
+static int encPIN_ReamerMotor // TODO
+static int encPIN_ReamerMotor // TODO
+
+//Limit switch pins
+byte LimSwitch_Pin_1 = 2;
+byte LimSwitch_Pin_2 = 3;
 
 // ROS Definitions
 ros::NodeHandle nh;
@@ -23,7 +31,7 @@ ros::Publisher pub_C1("current", &curr_1);
 currentSensor currSensor(currentSensorPin);
 
 //Reamer motor 
-MotorControl reamerMotor(PWM_Pin_ReamerMotor, DIR_Pin_ReamerMotor, ENCA_Pin_ReamerMotor, ENCB_Pin_ReamerMotor);
+MotorControl reamerMotor(PWM_Pin_ReamerMotor, DIR_Pin_ReamerMotor, ENCA_Pin_ReamerMotor, ENCB_Pin_ReamerMotor, LimSwitch_Pin_1, LimSwitch_Pin_2);
 
 void setup(){
     Serial.begin(57600);
