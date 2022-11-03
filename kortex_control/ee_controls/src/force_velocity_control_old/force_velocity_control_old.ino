@@ -18,7 +18,6 @@ ros::Publisher pub_C1("current",&curr_1);
 // Pin Definitions
 byte CURR_1 = A0;
 
-
 //Limit switch pins 
 int LIM_1 = 2; 
 int LIM_2 = 3;
