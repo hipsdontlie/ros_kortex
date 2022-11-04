@@ -7,15 +7,13 @@ Author: Kaushik Balasundar
 /*
  @brief motorControl constructor that calls init() 
 */
-MotorControl::MotorControl(byte PWM_Pin, byte DIR_Pin, byte ENCA_Pin, byte ENCB_Pin, byte LIM_Switch_1, byte LIM_Switch_2){
+MotorControl::MotorControl(byte PWM_Pin, byte DIR_Pin, int whichMotor){
 
     PWM_Pin_ = PWM_Pin;
     DIR_Pin_ = DIR_Pin;
-    ENCB_Pin_ = ENCB_Pin;
-    ENCA_Pin_ = ENCA_Pin;
-    LIM_Switch_1_ = LIM_Switch_1;
-    LIM_Switch_2_ = LIM_Switch_2;
+    whichMotor_ = whichMotor;
     init();
+
 }
 
 /*
@@ -23,22 +21,23 @@ MotorControl::MotorControl(byte PWM_Pin, byte DIR_Pin, byte ENCA_Pin, byte ENCB_
 */
 void MotorControl::init(){
 
-    //Motor 
+    //Generic Motor Pins 
     pinMode(PWM_Pin_, OUTPUT);
     pinMode(DIR_Pin_, OUTPUT);
-    pinMode(ENCA_Pin_, INPUT_PULLUP);
-    pinMode(ENCB_Pin_, INPUT);
-    attachInterrupt(digitalPinToInterrupt(ENCA_Pin_), encoder, FALLING);
-    stopMotor();
-    
-    //Limit switches 
-    pinMode(LIM_Switch_1_, INPUT_PULLUP);
-    pinMode(LIM_Switch_2_, INPUT_PULLUP);
-    attachInterrupt(digitalPinToInterrupt(LIM_Switch_1_), triggerLimitSwitch, HIGH);
-    attachInterrupt(digitalPinToInterrupt(LIM_Switch_2_), triggerLimitSwitch, HIGH);
-    
+
+    //Reamer end-effector interrupt pins
+    pinMode(ENCB_Pin_ReamerMotor_, INPUT);
+    pinMode(ENCA_Pin_ReamerMotor_, INPUT_PULLUP);
+    attachInterrupt(digitalPinToInterrupt(ENCA_Pin_ReamerMotor_), ReamerMotorEncoder, FALLING);
+
+    //Linear Actuator end-effector interrupt pins 
+    pinMode(ENCB_Pin_LinearActMotor_, INPUT);
+    pinMode(ENCA_Pin_LinearActMotor_, INPUT_PULLUP);
+    attachInterrupt(digitalPinToInterrupt(ENCA_Pin_LinearActMotor_), LinearActMotorEncoder, FALLING);  
+  
+   
     //Set PID position control parameters to 0
-    Kp_pos_, Kd_pos_, Ki_pos_, PIDOutPos_, posPrev_,posCurr_  = 0;
+    Kp_pos_, Kd_pos_, Ki_pos_, PIDOutPos_, posPrev_,posCurr_, cmd_ = 0;
 
     //Set PIDVelocity control parameters to 0
     Kp_vel_, Kd_vel_, Ki_vel_, PIDOutVel_, rpmPrev_, rpmCurr_, rpmTimer_, tempPosCurr_, tempPosPrev_ = 0;
@@ -46,17 +45,26 @@ void MotorControl::init(){
     //Set other generic control parameters to 0
     currentTime_, previousTime_, deltaT_, errorIntegral_, errorDerivative_, errorProportional_ = 0;
 
-    //Set stopping variables to false
-    watchDogStop_, limitSwitchStop_ = false;
-
     //Set encoder value to 0
     encoderValue_ = 0;
+
+    
 }
 
 /*
-@brief Run the motor using analogWrite 
+@brief Run the motor forward using analogWrite 
 */
-void MotorControl::runMotor(int analogValue){
+void MotorControl::runMotorForward(int analogValue){
+  digitalWrite(DIR_Pin_, LOW);
+  analogWrite(PWM_Pin_, analogValue);
+  return;
+}
+
+/*
+@brief Run the motor backward using analogWrite 
+*/
+void MotorControl::runMotorBackward(int analogValue){
+  digitalWrite(DIR_Pin_, HIGH);
   analogWrite(PWM_Pin_, analogValue);
   return;
 }
@@ -69,14 +77,30 @@ void MotorControl::stopMotor(){
     return;
 }
 
+void MotorControl::setupInterruptPins(){
+
+
+}
+
 /*
-@brief Interrupt function for encoder position 
+@brief Interrupt service routine function for encoder position of reamer motor
 */
-void MotorControl::encoder(int encoderValue, int ENCPin){
-    if (digitalRead(ENCPin) == HIGH)
-        encoderValue++;
+void MotorControl::ReamerMotorEncoder(){
+    if (digitalRead(ENCB_Pin_ReamerMotor_) == HIGH)
+        encoderValue_ReamerMotor_++;
     else
-        encoderValue--;  
+        encoderValue_ReamerMotor_--;  
+    return;
+}
+
+/*
+@brief Interrupt service routine function for encoder position of reamer motor
+*/
+void MotorControl::LinearActMotorEncoder(){
+    if (digitalRead(ENCB_Pin_LinearActMotor_) == HIGH)
+        encoderValue_LinearActMotor_++;
+    else
+        encoderValue_LinearActMotor_--;  
     return;
 }
 
@@ -84,13 +108,25 @@ void MotorControl::encoder(int encoderValue, int ENCPin){
 @brief Returns the current encoder position
 */
 int MotorControl::getMotorPos(){
-    return encoderValue_;
+
+    if(whichMotor_ == 1)
+        return encoderValue_ReamerMotor_;
+    
+    else return encoderValue_LinearActMotor_;
 }
 
 /*
 @brief Returns the current motor rpm
 */
-double MotorControl::getMotorRPM(){
+float MotorControl::getMotorRPM(){
+    
+    if(whichMotor_ == 1){
+        encoderValue_ = encoderValue_ReamerMotor_;
+    }
+    else{
+        encoderValue_ = encoderValue_LinearActMotor_;  
+    } 
+
     currentTime_ = micros();
     deltaT_ = ((float) (currentTime_-previousTime_)/1000000); //TODO: Find the right constant 
     tempPosCurr_ = encoderValue_;
@@ -112,47 +148,82 @@ void MotorControl::calibrateMotor(){
 /*
 @brief PID position control to a targetPos
 */
-void MotorControl::pidPositionControl(int targetPos){
+int MotorControl::pidPositionControl(int targetPos){
 
+    if(whichMotor_ == 1)
+        posCurr_ = encoderValue_ReamerMotor_; 
+    else 
+        posCurr_ = encoderValue_LinearActMotor_;
 
-    return;
+    //Compute error terms 
+    errorProportional_ = float(targetPos)-posCurr_;
+    errorDerivative_ = (posPrev_-posCurr_)/deltaT_;
+    errorIntegral_ += (float(targetPos)-posCurr_)*deltaT_;
+
+    //Update prevPos to currPos
+    posPrev_ = posCurr_;
+    
+    //Get PID output 
+    PIDOutPos_ = PIDOutPos_ + int((Kp_pos_*errorProportional_ + Kd_pos_*errorDerivative_ + Ki_pos_*errorIntegral_));
+ 
+    //Threshold the output 
+    if (abs(PIDOutVel_) > 255)
+        cmd_ = 255;
+    else if (PIDOutVel_ < 0)
+        cmd_ = abs(PIDOutVel_);
+    else
+        cmd_ = PIDOutVel_;
+    
+    //Actuate motor with the output value based on direction of targetPos
+    if(targetPos > 0)
+      runMotorForward(cmd_);
+    else
+      runMotorBackward(cmd_);
+
+    return PIDOutPos_;
+
 }
 
 /*
 @brief PID velocity control to a targetVel
 */
-void MotorControl::pidVelocityControl(int rpmTarget){
+int MotorControl::pidVelocityControl(int rpmTarget){
+
+    //Update the RPM of the motor
+    getMotorRPM();
 
     //Compute error terms 
-    errorProportional_ = float(rpmTarget)-abs(rpmCurr_);
+    errorProportional_ = float(rpmTarget)-rpmCurr_;
     errorDerivative_ = (rpmPrev_-rpmCurr_)/deltaT_;
-    errorIntegral_ += (float(rpmTarget)-abs(rpmCurr_))*deltaT_;
+    errorIntegral_ += (float(rpmTarget)-rpmCurr_)*deltaT_;
 
     //Update previous RPM to current RPM
     rpmPrev_ = rpmCurr_;
 
     //Get PID output 
-    PIDOutVel_ = PIDOutVel_ + int((Kp_vel_*errorProportional_+Kd_vel_*errorDerivative_+Ki_vel_*errorIntegral_));
+    PIDOutVel_ = PIDOutVel_ + int((Kp_vel_*errorProportional_ + Kd_vel_*errorDerivative_ + Ki_vel_*errorIntegral_));
     
     //Threshold the output 
-    if (PIDOutVel_ > 255){
-        PIDOutVel_ = 255;
-    }
+    if (abs(PIDOutVel_) > 255)
+        cmd_ = 255;
+    else if (PIDOutVel_ < 0)
+        cmd_ = abs(PIDOutVel_);
+    else
+        cmd_ = PIDOutVel_;
 
-    if (PIDOutVel_ < 0){
-        PIDOutVel_ = 0;
-    } 
+    //Actuate motor with the output value based on direction of targetVek
+    if(rpmTarget > 0)
+      runMotorForward(cmd_);
+    else
+      runMotorBackward(cmd_);
 
-    //Actuate motor with the output value 
-    runMotor(PIDOutVel_);
-
-    return;
+    return PIDOutVel_;
 }
 
 /*
 @brief Set PID position control constants 
 */
-void MotorControl::setPIDPosConstants(double Kp, double Ki, double Kd){
+void MotorControl::setPIDPosConstants(float Kp, float Ki, float Kd){
     Kp_pos_ = Kp;
     Kd_pos_ = Kd; 
     Ki_pos_ = Ki;
@@ -161,7 +232,7 @@ void MotorControl::setPIDPosConstants(double Kp, double Ki, double Kd){
 /*
 @brief Set PID velocity control constants 
 */
-void MotorControl::setPIDVelConstants(double Kp, double Ki, double Kd){
+void MotorControl::setPIDVelConstants(float Kp, float Ki, float Kd){
     Kp_vel_ = Kp;
     Kd_vel_ = Kd; 
     Ki_vel_ = Ki;

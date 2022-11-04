@@ -9,10 +9,7 @@ Arduino Library for low level position and velocity control of the end-effector 
 #define MOTORCONTROL_H
 
 #include <Arduino.h>
-#include <ros.h> 
-#include <std_msgs/Int16.h>
-#include <std_msgs/Float64.h>
-#include <std_msgs/Bool.h>
+
 
 
 class MotorControl{
@@ -23,68 +20,86 @@ class MotorControl{
         //Pins needed for communication
         byte PWM_Pin_; 
         byte DIR_Pin_; 
-        volatile static byte ENCB_Pin_;
-        volatile static byte ENCA_Pin_;
-        volatile static byte LIM_Switch_1_;
-        volatile static byte LIM_Switch_2_;
+        int whichMotor_;
+
 
     public:
     /* -------------------------------- Public Variables -------------------------------- */
         
         //PID Position control parameters
-        int Kp_pos_, Kd_pos_, Ki_pos_;
-        int PIDOutPos_, posCurr_, posPrev_;
+        float Kp_pos_, Kd_pos_, Ki_pos_;
+        float PIDOutPos_;
+        int posCurr_, posPrev_;
 
         //PID Velocity control parameters 
-        int Kp_vel_, Kd_vel_, Ki_vel_;
+        float Kp_vel_, Kd_vel_, Ki_vel_;
         int PIDOutVel_;
-        double rpmPrev_,rpmCurr_,rpmTimer_, tempPosCurr_, tempPosPrev_;
+        int cmd_;
+        float rpmPrev_,rpmCurr_,rpmTimer_, tempPosCurr_, tempPosPrev_;
 
         //Other generic PID parameters
-        volatile static int encoderValue_;
-        double currentTime_, previousTime_, deltaT_;
-        double errorIntegral_, errorDerivative_, errorProportional_;
+        int encoderValue_;
+        volatile static int encoderValue_ReamerMotor_;
+        volatile static int encoderValue_LinearActMotor_;
+        float currentTime_, previousTime_, deltaT_;
+        float errorIntegral_, errorDerivative_, errorProportional_;
 
         //Some stopping variables 
         volatile static bool watchDogStop_, limitSwitchStop_;
 
+        //Interrupt pins 
+        volatile static byte ENCB_Pin_ReamerMotor_;
+        volatile static byte ENCA_Pin_ReamerMotor_;
+        volatile static byte ENCB_Pin_LinearActMotor_;
+        volatile static byte ENCA_Pin_LinearActMotor_;
+        
+
         /* -------------------------------- Public Members ----------------------------------- */
       
         // Setup pins and call init()
-        MotorControl(byte PWM_Pin_, byte DIRin, byte ENCA_Pin, byte ENCB_Pin, byte LIM_Switch_1, byte LIM_Switch_2);
+        MotorControl(byte PWM_Pin_, byte DIRin, int whichMotor);
 
         // Setup the appropriate pinMode and turn off the motor (default state)
         void init();
         
-        // Power on the motor using analogWrite 
-        void runMotor(int analogValue);
+        // Actuate motor forward using analogWrite 
+        void runMotorForward(int analogValue);
+
+        // Actuate motor backward using analogWrite 
+        void runMotorBackward(int analogValue);
 
         // Power off the motor
         void stopMotor();
 
         // Get RPM of the motor 
-        double getMotorRPM();
+        float getMotorRPM();
 
         // Get current position 
         int getMotorPos();
 
         //Encoder interrupt service routine (interrupt service routines need to be static) 
-        static void encoder(int encoderVal);
+        static void ReamerMotorEncoder();
+
+        //Encoder interrupt service routine (interrupt service routines need to be static) 
+        static void LinearActMotorEncoder();
+
+        //Setup encoder pins 
+        void setupInterruptPins();
 
         //PID position control 
-        void pidPositionControl(int targetTick);
+        int pidPositionControl(int targetPos);
 
         //PID velocity control 
-        void pidVelocityControl(int targetVelocity);
+        int pidVelocityControl(int targetVelocity);
         
         //Calibrate motor 
         void calibrateMotor(); 
 
         //Set PID position control constants 
-        void setPIDPosConstants(double Kp, double Ki, double Kd);
+        void setPIDPosConstants(float Kp, float Ki, float Kd);
 
         //Set PID velocity control constants 
-        void setPIDVelConstants(double Kp, double Ki, double Kd);
+        void setPIDVelConstants(float Kp, float Ki, float Kd);
 
         //LimitSwitch trigger interrupt service routine (interrupt service routines need to be static)
         static void triggerLimitSwitch();

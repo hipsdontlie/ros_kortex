@@ -88,11 +88,14 @@ unsigned long rpm_timer_M2 = 0;
 
 void changevelocity_M1( const std_msgs::Int16& velocity_M1){
   stop = false;
+  nh.loginfo("Inside callback!");
+
   if ((millis() - pid_timer_M1) > 400) {
     if(velocity_M1.data > 0){
       digitalWrite(DIR_Pin_M1,LOW);
     }
     else{
+      nh.loginfo("Changing direction!!---------------------------------------");
       digitalWrite(DIR_Pin_M1,HIGH);
     }
     set_val_M1 = velocity_M1.data;
@@ -188,7 +191,7 @@ void loop()
   }
 
   else{
-    nh.loginfo("Not Stopping!");
+    // nh.loginfo("Not Stopping!");
   }
 
   
