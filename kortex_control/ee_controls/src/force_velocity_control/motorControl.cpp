@@ -13,7 +13,6 @@ MotorControl::MotorControl(byte PWM_Pin, byte DIR_Pin, int whichMotor){
     DIR_Pin_ = DIR_Pin;
     whichMotor_ = whichMotor;
     init();
-
 }
 
 /*
@@ -55,9 +54,17 @@ void MotorControl::init(){
 @brief Run the motor forward using analogWrite 
 */
 void MotorControl::runMotorForward(int analogValue){
-  digitalWrite(DIR_Pin_, LOW);
-  analogWrite(PWM_Pin_, analogValue);
-  return;
+  
+  if(!limitSwitchStop_ && !watchDogStop_){
+    digitalWrite(DIR_Pin_, LOW);
+    analogWrite(PWM_Pin_, analogValue);
+    return;
+  }
+
+  else{
+    stopMotor();
+  }
+
 }
 
 /*
@@ -190,7 +197,7 @@ int MotorControl::pidPositionControl(int targetPos){
 int MotorControl::pidVelocityControl(int rpmTarget){
 
     //Update the RPM of the motor
-    getMotorRPM();
+    double rpm = getMotorRPM();
 
     //Compute error terms 
     errorProportional_ = float(rpmTarget)-rpmCurr_;
@@ -217,7 +224,7 @@ int MotorControl::pidVelocityControl(int rpmTarget){
     else
       runMotorBackward(cmd_);
 
-    return PIDOutVel_;
+    return rpm;
 }
 
 /*
