@@ -17,7 +17,7 @@ void dummyPoseBroadcaster(float t){
   // transformStamped.transform.translation.y = 0.001 + 0.1*sin(t*3.142/180);
   // transformStamped.transform.translation.z = 0.433 + 0.05*sin(t*3.142/180);
   transformStamped.transform.translation.x = 0.001 + 0.1*sin(t*3.142/180);
-  transformStamped.transform.translation.y = -0.757 + 0.1*sin(t*3.142/180);
+  transformStamped.transform.translation.y = -0.6 + 0.1*sin(t*3.142/180);
   transformStamped.transform.translation.z = 0.433 + 0.05*sin(t*3.142/180);
   //-0.001, -0.434, -0.756
   //[0.500, 0.500, 0.500, -0.500]

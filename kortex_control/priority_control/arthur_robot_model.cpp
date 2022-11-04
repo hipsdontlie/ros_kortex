@@ -181,6 +181,8 @@ namespace priority_control
         // // }
         acm.setEntry("table", "base_link", true);
         acm.setEntry("base_link", "table", true);
+        acm.setEntry("table", "wall", true);
+        acm.setEntry("wall", "table", true);
         acm.setEntry("base_link", "shoulder_link", true);
         acm.setEntry("shoulder_link", "base_link", true);
         collision_request_.contacts = true;
