@@ -17,7 +17,7 @@ int main(int argc, char **argv)
 
   std::ofstream fw("/home/mrsd-team-c/arthur_ws/CPlusPlusSampleFile.txt", std::ofstream::out);
 
-  bool controller_flag = false;
+  // bool controller_flag = false;
 
   Inputs inputs;
   Perception perception;
@@ -40,6 +40,8 @@ int main(int argc, char **argv)
   ros::Subscriber singularity_sub = n.subscribe("controls_singularity", 1, &Controls::singularity_check, &controls);
 
   ros::Subscriber jlimits_sub = n.subscribe("controls_jlimits", 1, &Controls::joint_limits, &controls);
+
+  ros::Subscriber controlFault_sub = n.subscribe("controller_fault", 1, &Controls::controller_fault, &controls);
 
   ros::Subscriber reamerSpeed_sub = n.subscribe("controls_jlimits", 1, &Controls::joint_limits, &controls);
 
@@ -74,29 +76,29 @@ int main(int argc, char **argv)
     if(inputs.currTime_pelvis - inputs.prevTime_pelvis > ros::Duration(0.035).toSec())
     {
       // std::cout<<"Pelvis marker not visible"<<std::endl;
-      ROS_INFO("Pelvis not visible!\n");
+      // ROS_INFO("Pelvis not visible!\n");
       inputs.pelvis_visible = false;
       if (fw.is_open())
       {
           fw << inputs.pelvis_visible << "\n";
       }
         fw.close();
-      eStop_pub.publish(eStop_msg);
+      // eStop_pub.publish(eStop_msg);
     }
     
     //if you stop receiving 
     if(inputs.currTime_ee - inputs.prevTime_ee > ros::Duration(0.035).toSec())
     {
       // std::cout<<"End-effector not visible"<<std::endl;
-      ROS_INFO("End-effector not visible!\n");
+      // ROS_INFO("End-effector not visible!\n");
       inputs.ee_visible = false;
-      eStop_pub.publish(eStop_msg);
+      // eStop_pub.publish(eStop_msg);
     }
 
     if(inputs.currTime_rp - inputs.prevTime_rp > ros::Duration(0.035).toSec())
     {
       // std::cout<<"End-effector not visible"<<std::endl;
-      ROS_INFO("Registration probe not visible!\n");
+      // ROS_INFO("Registration probe not visible!\n");
       inputs.probe_visible = false;
     }
 
@@ -108,38 +110,42 @@ int main(int argc, char **argv)
     percep_msg.rmse_error = perception.rmse_error;
     percep_pub.publish(percep_msg);
 
-    if (inputs.pelvis_visible==true && inputs.ee_visible==true && perception.rmse_error==true)
+    std::cout<<"Control trans error: "<<controls.trans_bool<<std::endl; 
+    std::cout<<"Control orientation error: "<<controls.orien_bool<<std::endl; 
+    std::cout<<"Control singularity error: "<<controls.singularity_bool<<std::endl; 
+    std::cout<<"Control joint limits error: "<<controls.jlimits_bool<<std::endl; 
+    if (inputs.pelvis_visible && inputs.ee_visible && perception.rmse_error && controls.trans_bool && controls.orien_bool && controls.jlimits_bool && controls.singularity_bool && controls.controlsFault_bool)
     {
-      controller_flag = true;
-      control_msg.data = controller_flag;
-      ROS_INFO("Setting controller flag to true");
+      controls.controller_flag = true;
+      control_msg.data = controls.controller_flag;
+      // ROS_INFO("Setting controller flag to true");
     }
     else
     {
-      controller_flag = false;
-      control_msg.data = controller_flag;
+      controls.controller_flag = false;
+      control_msg.data = controls.controller_flag;
     }
 
 
     if(controls.currTime_error - controls.prevTime_error > ros::Duration(0.033).toSec())
     {
       // std::cout<<"End-effector not visible"<<std::endl;
-      ROS_INFO("Controller error publisher dropped below 30Hz!\n");
-      controller_flag = false;
+      // ROS_INFO("Controller error publisher dropped below 30Hz!\n");
+      controls.controller_flag = false;
     }
 
     if(controls.currTime_singularity - controls.prevTime_singularity > ros::Duration(0.033).toSec())
     {
       // std::cout<<"End-effector not visible"<<std::endl;
-      ROS_INFO("Controller singularity publisher dropped below 30Hz!\n");
-      controller_flag = false;
+      // ROS_INFO("Controller singularity publisher dropped below 30Hz!\n");
+      controls.controller_flag = false;
     }
 
     if(controls.currTime_jlimits - controls.prevTime_jlimits > ros::Duration(0.033).toSec())
     {
       // std::cout<<"End-effector not visible"<<std::endl;
-      ROS_INFO("Controller joint limits publisher dropped below 30Hz!\n");
-      controller_flag = false;
+      // ROS_INFO("Controller joint limits publisher dropped below 30Hz!\n");
+      controls.controller_flag = false;
     }
 
     controllerFlag_pub.publish(control_msg);

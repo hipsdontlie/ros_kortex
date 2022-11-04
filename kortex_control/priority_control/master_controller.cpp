@@ -180,6 +180,7 @@ int main(int argc, char **argv)
     singularity_measure_.data = 1.0;
     bool controller_enabled_ = false;
     std_msgs::Bool hit_joint_lim_;
+    std_msgs::Bool fault_;
     hit_joint_lim_.data = false;
     
     // Eigen::MatrixXd Wq = Eigen::MatrixXd::Identity(robot_->nj(), robot_->nj());
@@ -190,6 +191,7 @@ int main(int argc, char **argv)
     ros::Publisher camera_error_metrics_pub_ = node.advertise<std_msgs::Float64MultiArray>("/error_metrics/camera", 1);
     ros::Publisher singularity_measure_pub_ = node.advertise<std_msgs::Float64>("/controls_singularity", 1);
     ros::Publisher joint_limit_pub_ = node.advertise<std_msgs::Bool>("/controls_jlimits", 1);
+    ros::Publisher controller_fault_ = node.advertise<std_msgs::Bool>("/controller_fault", 1);
     ros::Subscriber clear_fault_sub_ = node.subscribe<std_msgs::Empty>("/controller_clear_fault", 1, boost::bind(&clearFaultCallback, _1, &priority_controller_));
     ros::Subscriber controller_flag_sub_ = node.subscribe<std_msgs::Bool>("/controller_flag", 1, boost::bind(&controllerFlagCallback, _1, &controller_enabled_));
     ros::Subscriber joint_state_sub_ = node.subscribe<sensor_msgs::JointState>("/my_gen3/joint_states", 1, boost::bind(&jointStateCallback, _1, &q_pos_, robot_));
@@ -286,6 +288,17 @@ int main(int argc, char **argv)
         else
         {
             q_vel_command_ = Eigen::VectorXd::Zero(robot_->nj());
+        }
+
+        if (!successful_update)
+        {
+            fault_.data = true;
+            controller_fault_.publish(fault_);
+        }
+        else
+        {
+            fault_.data = false;
+            controller_fault_.publish(fault_);
         }
         
         sendJointSpeeds(joint_speed_commander_, q_vel_command_, robot_);
