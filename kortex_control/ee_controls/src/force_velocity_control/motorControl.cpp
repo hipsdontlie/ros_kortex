@@ -84,11 +84,6 @@ void MotorControl::stopMotor(){
     return;
 }
 
-void MotorControl::setupInterruptPins(){
-
-
-}
-
 /*
 @brief Interrupt service routine function for encoder position of reamer motor
 */
@@ -147,7 +142,7 @@ float MotorControl::getMotorRPM(){
 /*
 @brief Actuate motors until limit switches are triggered and move a small amount 
 */
-void MotorControl::calibrateMotor(){
+void MotorControl::calibrate(){
 
     return;
 }
@@ -174,15 +169,15 @@ int MotorControl::pidPositionControl(int targetPos){
     PIDOutPos_ = PIDOutPos_ + int((Kp_pos_*errorProportional_ + Kd_pos_*errorDerivative_ + Ki_pos_*errorIntegral_));
  
     //Threshold the output 
-    if (abs(PIDOutVel_) > 255)
+    if (abs(PIDOutPos_) > 255)
         cmd_ = 255;
-    else if (PIDOutVel_ < 0)
-        cmd_ = abs(PIDOutVel_);
+    else if (PIDOutPos_ < 0)
+        cmd_ = abs(PIDOutPos_);
     else
-        cmd_ = PIDOutVel_;
+        cmd_ = PIDOutPos_;
     
     //Actuate motor with the output value based on direction of targetPos
-    if(targetPos > 0)
+    if(PIDOutPos_ > 0)
       runMotorForward(cmd_);
     else
       runMotorBackward(cmd_);
@@ -246,12 +241,6 @@ void MotorControl::setPIDVelConstants(float Kp, float Ki, float Kd){
 }
 
 
-/*
-@brief Limit switch interrupt function
-*/
-// void MotorControl::triggerLimitSwitch(){
-//   limitSwitchStop_ = true;
-//   analogWrite(ENC_B_)
-// }
+
 
 

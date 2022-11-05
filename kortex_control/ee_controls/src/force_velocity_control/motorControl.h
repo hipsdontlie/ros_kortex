@@ -44,7 +44,7 @@ class MotorControl{
         float currentTime_, previousTime_, deltaT_;
         float errorIntegral_, errorDerivative_, errorProportional_;
 
-        //Some stopping variables 
+        //Some stopping variables for safety 
         volatile static bool watchDogStop_, limitSwitchStop_;
 
         //Interrupt pins 
@@ -52,7 +52,6 @@ class MotorControl{
         volatile static byte ENCA_Pin_ReamerMotor_;
         volatile static byte ENCB_Pin_LinearActMotor_;
         volatile static byte ENCA_Pin_LinearActMotor_;
-        
 
         /* -------------------------------- Public Members ----------------------------------- */
       
@@ -93,7 +92,7 @@ class MotorControl{
         int pidVelocityControl(int targetVelocity);
         
         //Calibrate motor 
-        void calibrateMotor(); 
+        void calibrate(); 
 
         //Set PID position control constants 
         void setPIDPosConstants(float Kp, float Ki, float Kd);
