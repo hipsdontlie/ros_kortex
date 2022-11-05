@@ -25,12 +25,20 @@ class Controls
 
         void error_check(const std_msgs::Float64MultiArray::ConstPtr& error_msg);
 
+        void controller_fault(const std_msgs::Bool::ConstPtr& controls_fault);
+
         double currTime_error;
         double prevTime_error;
         double currTime_singularity;
         double prevTime_singularity;
         double currTime_jlimits;
         double prevTime_jlimits;
+        bool controller_flag;
+        bool trans_bool;
+        bool orien_bool;
+        bool singularity_bool;
+        bool jlimits_bool;
+        bool controlsFault_bool;
 
 
 

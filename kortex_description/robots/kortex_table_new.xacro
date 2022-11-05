@@ -26,56 +26,82 @@
             <link name="world" />       
             <link name="table">
                 <visual>
-                <geometry>
-                    <mesh filename="package://kortex_description/meshes/table/visual/table.dae"/>
-                </geometry>
+                    <origin xyz="0 0 0.01" rpy="1.5708 0 0" />
+                    <geometry>
+                        <mesh filename="package://kortex_description/meshes/environment/Table_v2.STL"/>
+                    </geometry>
                 </visual>
                 <collision>
-                <geometry>
-                    <mesh filename="package://kortex_description/meshes/table/collision/table.obj"/>
-                </geometry>
+                    <origin xyz="0 0 0" rpy="1.5708 0 0" />
+                    <geometry>
+                        <mesh filename="package://kortex_description/meshes/environment/Table_v2.STL"/>
+                    </geometry>
+                </collision>
+            </link>
+            <link name="wall">
+                <visual>
+                    <geometry>
+                        <mesh filename="package://kortex_description/meshes/environment/Wall.STL"/>
+                    </geometry>
+                </visual>
+                <collision>
+                    <geometry>
+                        <mesh filename="package://kortex_description/meshes/environment/Wall.STL"/>
+                    </geometry>
                 </collision>
             </link>
 
         
-              <link name="pelvis_link">
-                <visual>
-                <geometry>
-                    <mesh filename="package://kortex_description/meshes/pelvis/pelvis_new.dae" scale="0.001 0.001 0.001"/>
-                </geometry>
-                </visual>
-                <!-- <collision>
-                <geometry>
-                    <mesh filename="package://kortex_description/meshes/pelvis/pelvis_new.dae" scale="0.001 0.001 0.001"/>
-                </geometry>
-                </collision> -->
-            </link>
+            <!-- <link name="pelvis_link">
+              <visual>
+              <geometry>
+                  <mesh filename="package://kortex_description/meshes/pelvis/pelvis_new.dae" scale="0.001 0.001 0.001"/>
+              </geometry>
+              </visual>
+              <collision>
+              <geometry>
+                  <mesh filename="package://kortex_description/meshes/pelvis/pelvis_new.dae" scale="0.001 0.001 0.001"/>
+              </geometry>
+              </collision>
+            </link> -->
 
             <joint name="world_joint" type="fixed">
                 <parent link="world"/>
                 <child link="table"/>
-                <origin rpy="0.0 0.0 0" xyz="0.0 0.0 -0.005"/>
+                <origin rpy="0.0 0.0 0.0" xyz="0.0 0.0 0.0"/>
             </joint>
 
-            <joint name="pelvis_joint" type="fixed">
+            <joint name="world2wall_joint" type="fixed">
+                <parent link="world"/>
+                <child link="wall"/>
+                <origin rpy="1.5708 0.0 1.5708" xyz="0.0 0.32 0.0"/>
+            </joint>
+
+            <!-- <joint name="pelvis_joint" type="fixed">
                 <parent link="table" />
                 <child link = "pelvis_link" />
                 <origin xyz="0.5 0.3 0.01" rpy="0.5 0 2.0" />
                 <limit lower="-3.1416" upper="3.1416" effort="10" velocity="3"/>
                 <axis xyz="0 1 0"/>
-            </joint>
+            </joint> -->
              
             <joint name="table_joint" type="fixed">
-                <child link="${prefix}base_link" />
                 <parent link="table" />
+                <child link="${prefix}base_link" />
                 <origin xyz="0 0 0" rpy="0 0 0" />    
             </joint>
 
             
-            <gazebo reference="pelvis">
+            <!-- <gazebo reference="pelvis">
+                <selfCollide>true</selfCollide>
+            </gazebo> -->
+            <gazebo reference="table">
                 <selfCollide>true</selfCollide>
             </gazebo>
-            <gazebo reference="table">
+            <gazebo reference="wall">
+                <selfCollide>true</selfCollide>
+            </gazebo>
+            <gazebo reference="${prefix}base_link">
                 <selfCollide>true</selfCollide>
             </gazebo>
 

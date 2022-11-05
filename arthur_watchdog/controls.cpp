@@ -7,28 +7,43 @@ void Controls::error_check(const std_msgs::Float64MultiArray::ConstPtr& error_ms
   prevTime_error = ros::Time::now().toSec();
   double trans_error = error_msg->data[0];
   double orientation_error = error_msg->data[1];
-  if (trans_error > 30.0)
+  if (trans_error > 80.0)
   {
     ROS_INFO("Translation error is too high!\n");
+    // controller_flag = false;
+    trans_bool = false;
+  }
+  else if(orientation_error > 45)
+  {
+    ROS_INFO("Translation error is too high!\n");
+    // controller_flag = false;
+    orien_bool = false;
   }
   else
   { 
     // std::cout<<error_msg->data<<std::endl;
     ROS_INFO("Translation error within threshold! Continue...\n");
+    // controller_flag = true;
+    trans_bool = true;
+    orien_bool = true;
   }
 }
 
 void Controls::singularity_check(const std_msgs::Float64::ConstPtr& singularity_msg)
 {
   prevTime_singularity = ros::Time::now().toSec();
-  if (singularity_msg->data > 0.9)
+  if (singularity_msg->data < 0.05)
   {
     ROS_INFO("Very close to singularity! Please realign!\n");
+    // controller_flag = false;
+    singularity_bool = false;
   }
   else
   { 
     // std::cout<<singularity_msg->data<<std::endl;
     ROS_INFO("Singularity within limits...\n");
+    // controller_flag = true;
+    singularity_bool = true;
   }
 }
 
@@ -38,11 +53,33 @@ void Controls::joint_limits(const std_msgs::Bool::ConstPtr& jlimits_msg)
   if (jlimits_msg->data == true)
   {
     ROS_INFO("Very close to joint limits! Please realign!\n");
+    // controller_flag = false;
+    jlimits_bool = false;
   }
   else
   { 
     // std::cout<<singularity_msg->data<<std::endl;
     ROS_INFO("Joints within limits...\n");
+    // controller_flag = true;
+    jlimits_bool = true;
   }
 }
+
+void Controls::controller_fault(const std_msgs::Bool::ConstPtr& controls_fault)
+{
+  if (controls_fault->data == true)
+  {
+    ROS_INFO("Controller has fault! Please realign!\n");
+    // controller_flag = false;
+    controlsFault_bool = false;
+  }
+  else
+  { 
+    // std::cout<<singularity_msg->data<<std::endl;
+    ROS_INFO("Joints within limits...\n");
+    // controller_flag = true;
+    controlsFault_bool = true;
+  }
+}
+
 
