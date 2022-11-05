@@ -42,7 +42,8 @@ void MotorControl::init(){
     Kp_vel_, Kd_vel_, Ki_vel_, PIDOutVel_, rpmPrev_, rpmCurr_, rpmTimer_, tempPosCurr_, tempPosPrev_ = 0;
 
     //Set other generic control parameters to 0
-    currentTime_, previousTime_, deltaT_, errorIntegral_, errorDerivative_, errorProportional_ = 0;
+    currentTimePos_, previousTimePos_, deltaTPos_, errorIntegralPos_, errorDerivativePos_, errorProportionalPos_, errorPrevPos_, errorCurrPos_ = 0;
+    currentTimeVel_, previousTimeVel_, deltaTVel_, errorIntegralVel_, errorDerivativeVel_, errorProportionalVel_, errorPrevVel_, errorCurrVel_ = 0;
 
     //Set encoder value to 0
     encoderValue_ = 0;
@@ -100,9 +101,9 @@ void MotorControl::ReamerMotorEncoder(){
 */
 void MotorControl::LinearActMotorEncoder(){
     if (digitalRead(ENCB_Pin_LinearActMotor_) == HIGH)
-        encoderValue_LinearActMotor_++;
+        encoderValue_LinearActMotor_--;
     else
-        encoderValue_LinearActMotor_--;  
+        encoderValue_LinearActMotor_++;  
     return;
 }
 
@@ -129,12 +130,12 @@ float MotorControl::getMotorRPM(){
         encoderValue_ = encoderValue_LinearActMotor_;  
     } 
 
-    currentTime_ = micros();
-    deltaT_ = ((float) (currentTime_-previousTime_)/1000000); //TODO: Find the right constant 
+    currentTimeVel_ = micros();
+    deltaTVel_ = ((float) (currentTimeVel_-previousTimeVel_)/1000000); //TODO: Find the right constant 
     tempPosCurr_ = encoderValue_;
-    rpmCurr_ = float(tempPosCurr_-tempPosPrev_)/deltaT_*0.37;
+    rpmCurr_ = float(tempPosCurr_-tempPosPrev_)/deltaTVel_*0.37;
     tempPosPrev_ = tempPosCurr_;
-    previousTime_ = micros();
+    previousTimeVel_ = micros();
     rpmTimer_ = millis();
     return rpmCurr_;
 }
@@ -144,6 +145,9 @@ float MotorControl::getMotorRPM(){
 */
 void MotorControl::calibrate(){
 
+    //Actuate motor until it hits limit switch 
+    
+
     return;
 }
 
@@ -151,28 +155,50 @@ void MotorControl::calibrate(){
 @brief PID position control to a targetPos
 */
 int MotorControl::pidPositionControl(int targetPos){
+    
+    currentTimePos_ = micros();
+    deltaTPos_ = currentTimePos_ - previousTimePos_; 
+    previousTimePos_ = currentTimePos_;
+            
+    if(whichMotor_ == 1){
+        
+      ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+          posCurr_ = encoderValue_ReamerMotor_;
+        }
+    }
 
-    if(whichMotor_ == 1)
-        posCurr_ = encoderValue_ReamerMotor_; 
-    else 
-        posCurr_ = encoderValue_LinearActMotor_;
+    else { 
+        ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+          posCurr_ = encoderValue_LinearActMotor_;
+        }
+    }
+        
 
     //Compute error terms 
-    errorProportional_ = float(targetPos)-posCurr_;
-    errorDerivative_ = (posPrev_-posCurr_)/deltaT_;
-    errorIntegral_ += (float(targetPos)-posCurr_)*deltaT_;
-
-    //Update prevPos to currPos
-    posPrev_ = posCurr_;
+    errorCurrPos_ = float(targetPos)-posCurr_;
+    errorProportionalPos_ = errorCurrPos_;
+    errorDerivativePos_ = (errorCurrPos_ - errorPrevPos_)/deltaTPos_;
+    errorIntegralPos_ = errorIntegralPos_ + errorCurrPos_*deltaTPos_;
+    
+    //Update previous values
+    errorPrevPos_ = errorCurrPos_;
     
     //Get PID output 
-    PIDOutPos_ = PIDOutPos_ + int((Kp_pos_*errorProportional_ + Kd_pos_*errorDerivative_ + Ki_pos_*errorIntegral_));
+    PIDOutPos_ = (Kp_pos_*errorProportionalPos_) + (Kd_pos_*errorDerivativePos_) + (Ki_pos_*errorIntegralPos_);
  
     //Threshold the output 
     if (abs(PIDOutPos_) > 255)
         cmd_ = 255;
+  
     else if (PIDOutPos_ < 0)
         cmd_ = abs(PIDOutPos_);
+
+    else if (PIDOutPos_ > -10 && PIDOutPos_ < 10)
+        stopMotor();
+
+    else if(abs(PIDOutPos_) > 5 && abs(PIDOutPos_) < 35)
+        cmd_ = 50;
+
     else
         cmd_ = PIDOutPos_;
     
@@ -182,28 +208,30 @@ int MotorControl::pidPositionControl(int targetPos){
     else
       runMotorBackward(cmd_);
 
-    return PIDOutPos_;
+    return posCurr_;
 
 }
 
 /*
 @brief PID velocity control to a targetVel
 */
-int MotorControl::pidVelocityControl(int rpmTarget){
+int MotorControl::pidSpeedControl(int rpmTarget){
 
-    //Update the RPM of the motor
-    double rpm = getMotorRPM();
+    if(rpmTarget == 0){
+      stopMotor();
+      return 0;
+    }
 
-    //Compute error terms 
-    errorProportional_ = float(rpmTarget)-rpmCurr_;
-    errorDerivative_ = (rpmPrev_-rpmCurr_)/deltaT_;
-    errorIntegral_ += (float(rpmTarget)-rpmCurr_)*deltaT_;
+     //Compute error terms 
+    errorProportionalVel_ = float(rpmTarget)-rpmCurr_;
+    errorDerivativeVel_ = (rpmPrev_-rpmCurr_)/deltaTVel_;
+    errorIntegralVel_ += (float(rpmTarget)-rpmCurr_)*deltaTVel_;
 
     //Update previous RPM to current RPM
     rpmPrev_ = rpmCurr_;
 
     //Get PID output 
-    PIDOutVel_ = PIDOutVel_ + int((Kp_vel_*errorProportional_ + Kd_vel_*errorDerivative_ + Ki_vel_*errorIntegral_));
+    PIDOutVel_ = PIDOutVel_ + int((Kp_vel_*errorProportionalVel_ + Kd_vel_*errorDerivativeVel_ + Ki_vel_*errorIntegralVel_));
     
     //Threshold the output 
     if (abs(PIDOutVel_) > 255)
@@ -219,7 +247,7 @@ int MotorControl::pidVelocityControl(int rpmTarget){
     else
       runMotorBackward(cmd_);
 
-    return rpm;
+    return rpmCurr_;
 }
 
 /*
@@ -239,6 +267,19 @@ void MotorControl::setPIDVelConstants(float Kp, float Ki, float Kd){
     Kd_vel_ = Kd; 
     Ki_vel_ = Ki;
 }
+
+
+/*
+@brief Initialize PID params  
+*/
+
+void MotorControl::initPID(){
+    
+    //Set other generic control parameters to 0
+    currentTimePos_, previousTimePos_, deltaTPos_, errorIntegralPos_, errorDerivativePos_, errorProportionalPos_, errorPrevPos_, errorCurrPos_, PIDOutPos_ = 0;
+    currentTimeVel_, previousTimeVel_, deltaTVel_, errorIntegralVel_, errorDerivativeVel_, errorProportionalVel_, errorPrevVel_, errorCurrVel_, PIDOutVel_ = 0;
+}
+
 
 
 

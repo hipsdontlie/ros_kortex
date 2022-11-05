@@ -9,6 +9,7 @@ Arduino Library for low level position and velocity control of the end-effector 
 #define MOTORCONTROL_H
 
 #include <Arduino.h>
+#include <util/atomic.h> // For the ATOMIC_BLOCK macro
 
 
 
@@ -30,19 +31,23 @@ class MotorControl{
         float Kp_pos_, Kd_pos_, Ki_pos_;
         float PIDOutPos_;
         int posCurr_, posPrev_;
+        float errorIntegralPos_, errorDerivativePos_, errorProportionalPos_, errorCurrPos_, errorPrevPos_;
+        float currentTimePos_, previousTimePos_, deltaTPos_;
+
 
         //PID Velocity control parameters 
         float Kp_vel_, Kd_vel_, Ki_vel_;
         int PIDOutVel_;
         int cmd_;
         float rpmPrev_,rpmCurr_,rpmTimer_, tempPosCurr_, tempPosPrev_;
+        float errorIntegralVel_, errorDerivativeVel_, errorProportionalVel_, errorCurrVel_, errorPrevVel_;
+        float currentTimeVel_, previousTimeVel_, deltaTVel_;
+
 
         //Other generic PID parameters
         int encoderValue_;
         volatile static int encoderValue_ReamerMotor_;
         volatile static int encoderValue_LinearActMotor_;
-        float currentTime_, previousTime_, deltaT_;
-        float errorIntegral_, errorDerivative_, errorProportional_;
 
         //Some stopping variables for safety 
         volatile static bool watchDogStop_, limitSwitchStop_;
@@ -88,8 +93,8 @@ class MotorControl{
         //PID position control 
         int pidPositionControl(int targetPos);
 
-        //PID velocity control 
-        int pidVelocityControl(int targetVelocity);
+        //PID speed control 
+        int pidSpeedControl(int targetSpeed);
         
         //Calibrate motor 
         void calibrate(); 
@@ -102,6 +107,10 @@ class MotorControl{
 
         //LimitSwitch trigger interrupt service routine (interrupt service routines need to be static)
         static void triggerLimitSwitch();
+
+        //Initialize PID
+        void initPID();
+
 
 };
 

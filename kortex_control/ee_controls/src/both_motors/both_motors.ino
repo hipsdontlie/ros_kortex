@@ -184,6 +184,10 @@ void setup()
 void loop()
 {
   // Serial.println("here");
+  
+  bool limswitch2 = digitalRead(LIM_1);
+  Serial.println(limswitch2);
+
   nh.spinOnce();
 
   if(stop){

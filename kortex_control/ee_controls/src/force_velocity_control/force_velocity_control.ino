@@ -74,8 +74,9 @@ bool startReaming = false;
 bool dynamicCompensation = false;
 
 // Enum for which low level controller to use
-enum {positionControl, velocityControl} ReamerMotorControlType;  
-enum {positionControl, velocityControl} LinearActMotorControlType;  
+enum controlType {positionControl, speedControl};  
+controlType ReamerMotorControlType = speedControl;
+controlType LinearActMotorControlType = speedControl;
 
 /*------------------------------------------ROS Callbacks -------------------------------------------*/ 
 
@@ -85,9 +86,9 @@ void changespeed_ReamerMotor(const std_msgs::Int16& cmdReamerMotorSpeed){
   // TODO: Does this really need to be done? PID might take care of this. Test...
   // reamerMotorSpeed = map(abs(velocity_ReamerMotor.data),0,601,0,255);
   reamerMotorCommand = cmdReamerMotorSpeed.data;
-
   //Switch Controllers
-  ReamerMotorControlType = velocityControl;
+  ReamerMotorControlType = speedControl;
+  reamerMotor.initPID();
 
 }
 
@@ -96,16 +97,19 @@ void changespeed_LinearActuatorMotor(const std_msgs::Int16& cmdLinearActuatorMot
   linearActuatorMotorCommand = cmdLinearActuatorMotorSpeed.data;
 
   //Switch Controllers
-  LinearActMotorControlType = velocityControl;
+  LinearActMotorControlType = speedControl;
+  linearActuator.initPID();
 }
 
 //Callback for reamer motor position command 
 void changepos_ReamerMotor(const std_msgs::Int16& cmdReamerMotorPos){
 
+  
   reamerMotorCommand = cmdReamerMotorPos.data;
 
   //Switch Controllers
   ReamerMotorControlType = positionControl;
+  reamerMotor.initPID();
 }
 
 //Callback for linear actuator motor position command 
@@ -114,6 +118,7 @@ void changepos_LinearActuatorMotor(const std_msgs::Int16& cmdLinearActuatorMotor
 
   //Switch Controllers
   LinearActMotorControlType = positionControl;
+  linearActuator.initPID();
 }
 
 // Callback for start reaming command
@@ -166,11 +171,12 @@ volatile static bool MotorControl::limitSwitchStop_ = false;
 
 // Limit switch interrupr service routine 
 void triggerLimSwitch(){
-  nh.loginfo("Limit switch hit, stopping!");
+  // nh.loginfo("Limit switch hit, stopping!");
   MotorControl::limitSwitchStop_ = true;
   reamerMotor.stopMotor();
   linearActuator.stopMotor();
 }
+
 
 void setup(){
 
@@ -179,19 +185,32 @@ void setup(){
 
     //ROS Setup
     nh.initNode();
+
+    //Subscribers
+    nh.subscribe(subReamerMotorVelCmd);
+    nh.subscribe(subLinearActuatorMotorVelCmd);
+    nh.subscribe(subReamerMotorPosCmd);
+    nh.subscribe(subLinearActuatorMotorPosCmd);
+    nh.subscribe(subReamingCmd);
+    nh.subscribe(subDynamicCompCmd);
+    nh.subscribe(subCalibrateCmd);
+    nh.subscribe(subWatchdogCmd);
+
+
     nh.advertise(pubCurrentSensor);
+    nh.advertise(pubReamerMotorSpeed);
 
     // Motor control setup
     reamerMotor.setPIDVelConstants(0.15,0.03,0);
-    reamerMotor.setPIDPosConstants(0.15,0.03,0);
+    reamerMotor.setPIDPosConstants(0.3,0,1);
     linearActuator.setPIDVelConstants(0.15,0.03,0);
-    linearActuator.setPIDPosConstants(0.15,0.03,0);
+    linearActuator.setPIDPosConstants(0.3,0,0.1);
 
     // Limit switch setup
     pinMode(LimSwitchPin1, INPUT_PULLUP);
     pinMode(LimSwitchPin2, INPUT_PULLUP);
-    attachInterrupt(digitalPinToInterrupt(LimSwitchPin1), triggerLimSwitch, HIGH);
-    attachInterrupt(digitalPinToInterrupt(LimSwitchPin2), triggerLimSwitch, HIGH);
+    attachInterrupt(digitalPinToInterrupt(LimSwitchPin1), triggerLimSwitch, RISING);
+    attachInterrupt(digitalPinToInterrupt(LimSwitchPin2), triggerLimSwitch, RISING);
 }
 
 void loop(){
@@ -205,17 +224,30 @@ void loop(){
 
   // Get the current readings from the current sensor 
   nh.spinOnce();
-  float current_value = currSensor.getCurrent();
-  current.data = current_value;
-  pubCurrentSensor.publish(&current);
+  // float current_value = currSensor.getCurrent();
+  // current.data = current_value;
+  // pubCurrentSensor.publish(&current);
+  bool limswitch1 = digitalRead(LimSwitchPin1);
+  bool limswitch2 = digitalRead(LimSwitchPin2);
+  // if(!limswitch1)
+  //   Serial.println("Lim switch 1");
+  // if(!limswitch2)
+  //   Serial.println("Lim switch 2");
 
   // Set LimitSwitch interrupt flag to false
-  MotorControl::limitSwitchStop_ = false;
-
+  if(digitalRead(LimSwitchPin1) && digitalRead(LimSwitchPin2))
+    MotorControl::limitSwitchStop_ = false;
+  
+  
   // Reamer Motor Speed Control
-  if ((((millis()-rpmTimerM2)) > 400) && (ReamerMotorControlType == speedControl)){
-    float rpm = reamerMotor.pidVelocityControl(reamerMotorCommand);
+  if ((((millis()-rpmTimerM1)) > 400) && (ReamerMotorControlType == speedControl)){
+    float rpm = reamerMotor.getMotorRPM();
+    reamerMotor.pidSpeedControl(reamerMotorCommand);
     rpmTimerM1 = millis();
+    
+    // Serial.print("RPM: ");
+    // Serial.println(rpm);
+
 
     // Publish the rpm of the reamer motor
     rpmReamerMotor.data = rpm;
@@ -224,34 +256,48 @@ void loop(){
 
   // Linear Actuator Motor Speed Control
   if ((((millis()-rpmTimerM2)) > 400) && (LinearActMotorControlType == speedControl)){
-    float rpm = linearActuator.pidVelocityControl(linearActuatorMotorCommand);
+    float rpm = linearActuator.getMotorRPM();
+    linearActuator.pidSpeedControl(linearActuatorMotorCommand);
+    Serial.print("RPM: ");
+    Serial.println(rpm);
     rpmTimerM2 = millis();
 
-    // Publish the rpm of the LinearAct motor
-    rpmLinearActuatorMotor.data = rpm;
-    pubLinearActMotorSpeed.publish(&rpmLinearActuatorMotor);
+    // // Publish the rpm of the LinearAct motor
+    // rpmLinearActuatorMotor.data = rpm;
+    // pubLinearActMotorSpeed.publish(&rpmLinearActuatorMotor);
   }
 
 
   // Reamer Motor Position Control
-  if ((((millis()-rpmTimerM2)) > 400) && (ReamerMotorControlType == positionControl)){
+  if ((((millis()-rpmTimerM1)) > 400) && (ReamerMotorControlType == positionControl)){
 
-    float rpm = reamerMotor.pidPositionControl(reamerMotorCommand);
+    float pidout = reamerMotor.pidPositionControl(reamerMotorCommand);
     rpmTimerM1 = millis();
 
-    // Publish the rpm of the reamer motor
-    rpmReamerMotor.data = rpm;
-    pubReamerMotorSpeed.publish(&rpmReamerMotor);
+    // Serial.print("Error: ");
+    // Serial.println(pidout);
+
+
+    // // Publish the rpm of the reamer motor
+    // rpmReamerMotor.data = rpm;
+    // pubReamerMotorSpeed.publish(&rpmReamerMotor);
   }
 
   // Linear Actuator Motor Position Control
-  if (((millis()-rpmTimerM2)) > 400 && (LinearActMotorControlType == positionControl)){
-    float rpm = linearActuator.pidPositionControl(linearActuatorMotorCommand);
-    rpmTimerM2 = millis();
+  if ((((millis()-rpmTimerM2)) > 400) && (LinearActMotorControlType == positionControl)){
 
-    // Publish the rpm of the LinearAct motor
-    rpmLinearActuatorMotor.data = rpm;
-    pubLinearActMotorSpeed.publish(&rpmLinearActuatorMotor);
+    float pidout = linearActuator.pidPositionControl(linearActuatorMotorCommand);
+    rpmTimerM2 = millis();
+    Serial.print(" Linear Actuator Current Position: ");
+    Serial.println(linearActuator.getMotorPos());
+
+    Serial.print("Error: ");
+    Serial.println(pidout);
+
+
+    // Publish the rpm of the reamer motor
+    // rpmLinearActMotorControlType.data = rpm;
+    // pubLinearActMotorControlTypeSpeed.publish(&rpmLinearActMotorControlType);
   }
 
 
