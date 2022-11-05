@@ -22,8 +22,8 @@ byte ENCBPinReamerMotor = 20;
 //Linear Actuator Motor Pins
 byte PWMPinLinearActMotor = 7;
 byte DIRPinLinearActMotor = 8;
-byte ENCAPinLinearActMotor = 18;
-byte ENCBPinLinearActMotor = 19;
+byte ENCAPinLinearActMotor = 19;
+byte ENCBPinLinearActMotor = 18;
 
 //Limit switch pins
 byte LimSwitchPin1 = 2;
@@ -46,11 +46,13 @@ std_msgs::Float64 rpmReamerMotor;
 std_msgs::Float64 force;
 std_msgs::Float64 rpmLinearActuatorMotor;
 std_msgs::Float64 reamingPercentage; 
+std_msgs::Int16 posLinearActuatorMotor;
 
 // ROS publishers
 ros::Publisher pubCurrentSensor("hardware_current/data", &current);
 ros::Publisher pubLinearActMotorSpeed("linear_actuator_speed/data",&rpmLinearActuatorMotor);
 ros::Publisher pubReamerMotorSpeed("hardware_reamerSpeed/data",&rpmReamerMotor);
+ros::Publisher pubLinearActuatorMotorPos("linear_actuator_pos/data",&posLinearActuatorMotor);
 ros::Publisher pubForce("hardware_force/data",&force);
 ros::Publisher pubReamingPercentage("hardware_reamPercent/data",&reamingPercentage);
 
@@ -76,7 +78,7 @@ bool dynamicCompensation = false;
 // Enum for which low level controller to use
 enum controlType {positionControl, speedControl};  
 controlType ReamerMotorControlType = speedControl;
-controlType LinearActMotorControlType = speedControl;
+controlType LinearActMotorControlType = positionControl;
 
 /*------------------------------------------ROS Callbacks -------------------------------------------*/ 
 
@@ -129,7 +131,7 @@ void getReamingCmd(const std_msgs::Bool& reamingCmd){
     startReaming = false;
 }
 
-//Callback for dynamic compensation command
+// //Callback for dynamic compensation command
 void getDynamicCompCmd(const std_msgs::Bool& dynamicCompensationCmd){
   dynamicCompensation = dynamicCompensationCmd.data;
 }
@@ -224,9 +226,10 @@ void loop(){
 
   // Get the current readings from the current sensor 
   nh.spinOnce();
-  // float current_value = currSensor.getCurrent();
-  // current.data = current_value;
-  // pubCurrentSensor.publish(&current);
+  float current_value = currSensor.getCurrent();
+  current.data = current_value;
+  pubCurrentSensor.publish(&current);
+
   bool limswitch1 = digitalRead(LimSwitchPin1);
   bool limswitch2 = digitalRead(LimSwitchPin2);
   // if(!limswitch1)
@@ -262,42 +265,33 @@ void loop(){
     Serial.println(rpm);
     rpmTimerM2 = millis();
 
-    // // Publish the rpm of the LinearAct motor
-    // rpmLinearActuatorMotor.data = rpm;
-    // pubLinearActMotorSpeed.publish(&rpmLinearActuatorMotor);
+    // Publish the rpm of the LinearAct motor
+    rpmLinearActuatorMotor.data = rpm;
+    pubLinearActMotorSpeed.publish(&rpmLinearActuatorMotor);
   }
 
 
   // Reamer Motor Position Control
   if ((((millis()-rpmTimerM1)) > 400) && (ReamerMotorControlType == positionControl)){
 
-    float pidout = reamerMotor.pidPositionControl(reamerMotorCommand);
+    int posCurr = reamerMotor.pidPositionControl(reamerMotorCommand);
     rpmTimerM1 = millis();
 
-    // Serial.print("Error: ");
-    // Serial.println(pidout);
-
-
-    // // Publish the rpm of the reamer motor
-    // rpmReamerMotor.data = rpm;
+    // Publish the rpm of the reamer motor
+    // rpmReamerMotor.data = posCurr;
     // pubReamerMotorSpeed.publish(&rpmReamerMotor);
   }
 
   // Linear Actuator Motor Position Control
   if ((((millis()-rpmTimerM2)) > 400) && (LinearActMotorControlType == positionControl)){
 
-    float pidout = linearActuator.pidPositionControl(linearActuatorMotorCommand);
+    int currPos = linearActuator.getMotorPos();
+    int currPos2 = linearActuator.pidPositionControl(linearActuatorMotorCommand);
     rpmTimerM2 = millis();
-    Serial.print(" Linear Actuator Current Position: ");
-    Serial.println(linearActuator.getMotorPos());
-
-    Serial.print("Error: ");
-    Serial.println(pidout);
-
 
     // Publish the rpm of the reamer motor
-    // rpmLinearActMotorControlType.data = rpm;
-    // pubLinearActMotorControlTypeSpeed.publish(&rpmLinearActMotorControlType);
+    posLinearActuatorMotor.data = currPos;
+    pubLinearActuatorMotorPos.publish(&posLinearActuatorMotor);
   }
 
 

@@ -101,9 +101,9 @@ void MotorControl::ReamerMotorEncoder(){
 */
 void MotorControl::LinearActMotorEncoder(){
     if (digitalRead(ENCB_Pin_LinearActMotor_) == HIGH)
-        encoderValue_LinearActMotor_--;
+        encoderValue_LinearActMotor_++;
     else
-        encoderValue_LinearActMotor_++;  
+        encoderValue_LinearActMotor_--;  
     return;
 }
 
@@ -184,7 +184,7 @@ int MotorControl::pidPositionControl(int targetPos){
     errorPrevPos_ = errorCurrPos_;
     
     //Get PID output 
-    PIDOutPos_ = (Kp_pos_*errorProportionalPos_) + (Kd_pos_*errorDerivativePos_) + (Ki_pos_*errorIntegralPos_);
+    PIDOutPos_ =  int((Kp_pos_*errorProportionalPos_) + (Kd_pos_*errorDerivativePos_) + (Ki_pos_*errorIntegralPos_));
  
     //Threshold the output 
     if (abs(PIDOutPos_) > 255)
@@ -231,7 +231,7 @@ int MotorControl::pidSpeedControl(int rpmTarget){
     rpmPrev_ = rpmCurr_;
 
     //Get PID output 
-    PIDOutVel_ = PIDOutVel_ + int((Kp_vel_*errorProportionalVel_ + Kd_vel_*errorDerivativeVel_ + Ki_vel_*errorIntegralVel_));
+    PIDOutVel_ = int((Kp_vel_*errorProportionalVel_ + Kd_vel_*errorDerivativeVel_ + Ki_vel_*errorIntegralVel_));
     
     //Threshold the output 
     if (abs(PIDOutVel_) > 255)
