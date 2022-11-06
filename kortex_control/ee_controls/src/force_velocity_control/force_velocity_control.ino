@@ -96,6 +96,15 @@ enum states
 
 enum states currentState = CALIBRATE;
 
+// High level controller parameters 
+float currentSetPoint = 1.5;
+float errorCurrent = 0; 
+float errorPrevCurrent = 0;
+float Kp_current, Ki_current, Kd_current = 0;
+float errorProportionalCurrent, errorIntegralCurrent, errorDerivativeCurrent = 0;
+float PIDOutCurrent = 0;
+int cmd = 0;
+
 /*------------------------------------------ROS Callbacks -------------------------------------------*/ 
 
 //Callback for reamer motor speed command 
@@ -172,7 +181,6 @@ void getWatchdogCmd(const std_msgs::Bool& watchdogCmd){
     MotorControl::watchDogStop_ = false;
 }
 
-
 /*------------------------------------------End of ROS Callbacks -------------------------------------------*/ 
 
 // ROS Subscribers 
@@ -197,6 +205,89 @@ void triggerLimSwitch(){
   linearActuator.stopMotor();
 }
 
+// Calibrate Motors 
+
+void calibrateMotors (){
+
+  if(!(digitalRead(LimSwitchPin1))){
+    reachedEnd = true;
+  }
+
+  if(digitalRead(LimSwitchPin1) && !reachedEnd){
+    nh.loginfo("Calibration in progress...");
+    reamerMotor.runMotorBackward(50);
+    linearActuator.runMotorBackward(50);
+  }
+
+  else{
+
+    if(reachedEnd && !posCalibration){
+      nh.loginfo("Reached end...");
+      reamerMotor.runMotorForwardUnsafe(200);
+      linearActuator.runMotorForwardUnsafe(200);
+      delay(1000);
+      reamerMotor.stopMotor();
+      linearActuator.stopMotor();
+      posCalibration = true;
+      MotorControl::encoderValue_ReamerMotor_ = 0;
+      MotorControl::encoderValue_LinearActMotor_ = 0;
+    }
+
+    else{
+      ReamerMotorControlType = positionControl;
+      LinearActMotorControlType = positionControl;
+      reamerMotorCommand = 500;
+      linearActuatorMotorCommand = 500;
+      nh.loginfo("Repositioning...");
+      if(linearActuator.getMotorPos() > 450)
+        currentState =  WAITFORCMD; 
+    }       
+  }
+}
+
+
+float forceController(currentValue){
+
+    if ((millis()-rpmTimerCurrent) > 400){
+      //Compute error terms 
+      errorCurrent =  currentSetPoint-currentValue;
+      errorProportionalCurrent = errorCurrent;
+      errorDerivativeCurrent = (errorCurrent - errorPrevCurrent)/deltaTCurrent;
+      errorIntegralCurrent = errorCurrent*deltaTCurrent;
+      
+      //Update previous values
+      errorPrevCurrent = errorCurrent;
+      rpmTimerCurrent = millis();
+      
+      //Get PID output 
+      PIDOutCurrent = int((Kp_Current*errorProportionalCurrent) + (Kd_Current*errorDerivativeCurrent) + (Ki_Current*errorIntegralCurrent));
+  
+      //Threshold the output 
+      if (abs(PIDOutCurrent) > 255)
+          cmd = 255;
+    
+      else if (PIDOutCurrent < 0)
+          cmd = abs(PIDOutCurrent);
+
+      else if (PIDOutCurrent > -10 && PIDOutCurrent < 10)
+          stopMotor();
+
+      else if(abs(PIDOutCurrent) > 5 && abs(PIDOutCurrent) < 35)
+          cmd = 50;
+
+      else
+          cmd = PIDOutCurrent;
+      
+      //Actuate motor with the output value based on direction of targetPos
+      if(PIDOutCurrent > 0)
+        linearActuator.runMotorForward(cmd);
+      else
+        linearActuator.runMotorBackward(cmd);
+
+    }
+    return PIDOutCurrent;
+  
+}
 
 void setup(){
 
@@ -251,46 +342,7 @@ void loop(){
     // Calibrate linear actuator position 
     case CALIBRATE:
 
-      if(!(digitalRead(LimSwitchPin1))){
-        reachedEnd = true;
-      }
-
-      if(digitalRead(LimSwitchPin1) && !reachedEnd){
-        nh.loginfo("Calibration in progress...");
-        reamerMotor.runMotorBackward(50);
-        linearActuator.runMotorBackward(50);
-      }
-
-      else{
-
-        if(reachedEnd && !posCalibration){
-          nh.loginfo("Repositioning...");
-          reamerMotor.runMotorForwardUnsafe(200);
-          linearActuator.runMotorForwardUnsafe(200);
-          delay(1000);
-          reamerMotor.stopMotor();
-          linearActuator.stopMotor();
-          posCalibration = true;
-          MotorControl::encoderValue_ReamerMotor_ = 0;
-          MotorControl::encoderValue_LinearActMotor_ = 0;
-        }
-
-        else{
-
-            ReamerMotorControlType = positionControl;
-            LinearActMotorControlType = positionControl;
-            reamerMotorCommand = 500;
-            linearActuatorMotorCommand = 500;
-            nh.loginfo("Almost done...");
-            if(linearActuator.getMotorPos() > 250){
-              currentState =  WAITFORCMD;
-            }
-        }
-        
-
-       
-      }
-
+      calibrateMotors();
       break;
 
     //Wait until you get the actuation signal from arm controller
@@ -299,24 +351,32 @@ void loop(){
       nh.loginfo("Waiting for command...");
       reamerMotor.stopMotor();
       linearActuator.stopMotor();
-      linearActuatorMotorCommand = 100;
-      reamerMotorCommand = 0;
-      ReamerMotorControlType = speedControl;
-      LinearActMotorControlType = positionControl;
-      if(startReaming == true){
-          currentState = MOVEUNTILCONTACT;
-      }
+
+      // Hold position at calibration position
+      // ReamerMotorControlType = speedControl;
+      // LinearActMotorControlType = positionControl;
+      // reamerMotorCommand = 0;
+      // linearActuatorMotorCommand = 450;
+      // if(startReaming == true){
+      //     currentState = MOVEUNTILCONTACT;
+      // }
       break;
 
     //Actuate motor until contact is made with the pelvis
     case MOVEUNTILCONTACT:
       nh.loginfo("Moving until contact with bone...");
+      LinearActMotorControlType = speedControl;
+      reamerMotorCommand = forceController(current_value);
       
       break;
 
     //Ream as long as pelvis error is within thresholds and goal has not been reached 
     case STARTREAMING:
       
+      ReamerMotorControlType = speedControl;
+      LinearActMotorControlType = speedControl;
+      reamerMotorCommand = forceController(current_value);
+      linearActuatorMotorCommand = 400;
 
       break;
 
