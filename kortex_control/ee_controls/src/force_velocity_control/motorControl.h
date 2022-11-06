@@ -58,6 +58,9 @@ class MotorControl{
         volatile static byte ENCB_Pin_LinearActMotor_;
         volatile static byte ENCA_Pin_LinearActMotor_;
 
+        //Calibration variables 
+        bool reachedEnd;
+
         /* -------------------------------- Public Members ----------------------------------- */
       
         // Setup pins and call init()
@@ -66,8 +69,11 @@ class MotorControl{
         // Setup the appropriate pinMode and turn off the motor (default state)
         void init();
         
-        // Actuate motor forward using analogWrite 
+        // Actuate motor forward using analogWrite with safety checks
         void runMotorForward(int analogValue);
+
+        // Actuate motor forward using analogWrite without safety checks
+        void runMotorForwardUnsafe(int analogValue);
 
         // Actuate motor backward using analogWrite 
         void runMotorBackward(int analogValue);

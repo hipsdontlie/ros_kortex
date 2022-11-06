@@ -48,11 +48,14 @@ void MotorControl::init(){
     //Set encoder value to 0
     encoderValue_ = 0;
 
+    //Calibration stuff
+    reachedEnd = false;
+
     
 }
 
 /*
-@brief Run the motor forward using analogWrite 
+@brief Run the motor forward using analogWrite with limitswitch and watchdog checks
 */
 void MotorControl::runMotorForward(int analogValue){
   
@@ -69,11 +72,26 @@ void MotorControl::runMotorForward(int analogValue){
 }
 
 /*
+@brief Run the motor forward using analogWrite without any checks (only use for calibration!)
+*/
+void MotorControl::runMotorForwardUnsafe(int analogValue){
+
+  digitalWrite(DIR_Pin_, LOW);
+  analogWrite(PWM_Pin_, analogValue);
+  return;
+
+}
+
+
+
+/*
 @brief Run the motor backward using analogWrite 
 */
 void MotorControl::runMotorBackward(int analogValue){
-  digitalWrite(DIR_Pin_, HIGH);
-  analogWrite(PWM_Pin_, analogValue);
+  if(!limitSwitchStop_ && !watchDogStop_){
+    digitalWrite(DIR_Pin_, HIGH);
+    analogWrite(PWM_Pin_, analogValue);
+  }
   return;
 }
 
@@ -146,7 +164,24 @@ float MotorControl::getMotorRPM(){
 void MotorControl::calibrate(){
 
     //Actuate motor until it hits limit switch 
+    runMotorBackward(50);
+
+    //After limit switch    
+    if(limitSwitchStop_){
+        digitalWrite(DIR_Pin_, HIGH);
+        analogWrite(PWM_Pin_, 100);
+        delay(500);
+        stopMotor();
+        delay(5000);
+        reachedEnd = true;
+    }
     
+    if(reachedEnd){
+      encoderValue_ReamerMotor_ = 0;
+      encoderValue_LinearActMotor_ = 0;
+      reachedEnd = false;
+      pidPositionControl(200);
+    }
 
     return;
 }
