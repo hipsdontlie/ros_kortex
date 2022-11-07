@@ -23,6 +23,12 @@ class Hardware
 
         void load_applied(const std_msgs::Float64::ConstPtr& loadApplied_msg);
 
+        void ream_percent(const std_msgs::Float64::ConstPtr& reamPercent_msg);
+
+        void current_drawn(const std_msgs::Float64::ConstPtr& currentDrawn_msg);
+
+        bool hardware_flag;
+
         // void error_check(const std_msgs::Float64MultiArray::ConstPtr& error_msg);
 
 };

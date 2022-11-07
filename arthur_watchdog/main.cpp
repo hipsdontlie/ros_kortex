@@ -26,15 +26,19 @@ int main(int argc, char **argv)
 
   perception.rmse_thresh->data = 1.0;
 
-  //subscribers
+  //********************************************** subscribers *************************************************
+
+  //inputs to the system subscribers
   ros::Subscriber sub = n.subscribe("pelvis_pose", 1, &Inputs::pelvisCallback, &inputs);
 
   ros::Subscriber rp_sub = n.subscribe("probe_pose", 1, &Inputs::rpCallback, &inputs);
 
   ros::Subscriber ee_sub = n.subscribe("end_effector_pose", 1, &Inputs::eeCallback, &inputs);
 
+  //perception subsystem subscriber
   ros::Subscriber rmse_sub = n.subscribe("percep_rmse", 1, &Perception::perception_eval, &perception);
 
+  //controls subsystem subscribers
   ros::Subscriber errors_sub = n.subscribe("controls_error", 1, &Controls::error_check, &controls);
   
   ros::Subscriber singularity_sub = n.subscribe("controls_singularity", 1, &Controls::singularity_check, &controls);
@@ -43,19 +47,26 @@ int main(int argc, char **argv)
 
   ros::Subscriber controlFault_sub = n.subscribe("controller_fault", 1, &Controls::controller_fault, &controls);
 
-  ros::Subscriber reamerSpeed_sub = n.subscribe("controls_jlimits", 1, &Controls::joint_limits, &controls);
+  //hardware/end-effector subscribers
+  ros::Subscriber reamerSpeed_sub = n.subscribe("hardware_force/data", 1, &Hardware::reamer_speed, &hardware);
 
-  ros::Subscriber loadApplied_sub = n.subscribe("controls_jlimits", 1, &Controls::joint_limits, &controls);
+  ros::Subscriber loadApplied_sub = n.subscribe("hardware_reamerSpeed/data", 1, &Hardware::load_applied, &hardware);
+
+  ros::Subscriber reamPercent_sub = n.subscribe("hardware_reamPercent/data", 1, &Hardware::ream_percent, &hardware);
+
+  ros::Subscriber currentDrawn_sub = n.subscribe("hardware_xurrent/data", 1, &Hardware::current_drawn, &hardware);
 
 
 
 
   // ros::Subscriber ee_control_sub = n.subscribe("control_error", 1000, &Controls::error_check, &controls);
 
-  //publishers
+  //*********************************************** publishers ********************************************************
+  
   ros::Publisher inputs_pub = n.advertise<arthur_watchdog::inputs>("input_health", 1);
   ros::Publisher percep_pub = n.advertise<arthur_watchdog::perception>("perception_health", 1);
   ros::Publisher controllerFlag_pub = n.advertise<std_msgs::Bool>("controller_flag", 1);
+  ros::Publisher hardwareFlag_pub = n.advertise<std_msgs::Bool>("hardware_flag", 1);
   ros::Publisher eStop_pub = n.advertise<std_msgs::Empty>("my_gen3/in/emergency_stop", 1);
 
   ros::Rate loop_rate(1000);
@@ -80,9 +91,10 @@ int main(int argc, char **argv)
       inputs.pelvis_visible = false;
       if (fw.is_open())
       {
-          fw << inputs.pelvis_visible << "\n";
+          // fw << inputs.pelvis_visible << "\n";
+        fw << "Pelvis marker is not visible \n";
       }
-        fw.close();
+        // fw.close();
       // eStop_pub.publish(eStop_msg);
     }
     
@@ -92,6 +104,11 @@ int main(int argc, char **argv)
       // std::cout<<"End-effector not visible"<<std::endl;
       // ROS_INFO("End-effector not visible!\n");
       inputs.ee_visible = false;
+      if (fw.is_open())
+      {
+          // fw << inputs.pelvis_visible << "\n";
+        fw << "End-effector marker is not visible \n";
+      }
       // eStop_pub.publish(eStop_msg);
     }
 
@@ -100,6 +117,7 @@ int main(int argc, char **argv)
       // std::cout<<"End-effector not visible"<<std::endl;
       // ROS_INFO("Registration probe not visible!\n");
       inputs.probe_visible = false;
+      
     }
 
     input_msg.ee_visible = inputs.ee_visible;
@@ -109,6 +127,12 @@ int main(int argc, char **argv)
 
     percep_msg.rmse_error = perception.rmse_error;
     percep_pub.publish(percep_msg);
+
+    if (fw.is_open() && !perception.rmse_error)
+    {
+        // fw << inputs.pelvis_visible << "\n";
+      fw << "Registration RMSE error is higher than 0.3 \n";
+    }
 
     std::cout<<"Control trans error: "<<controls.trans_bool<<std::endl; 
     std::cout<<"Control orientation error: "<<controls.orien_bool<<std::endl; 
@@ -124,6 +148,11 @@ int main(int argc, char **argv)
     {
       controls.controller_flag = false;
       control_msg.data = controls.controller_flag;
+      if (fw.is_open())
+      {
+          // fw << inputs.pelvis_visible << "\n";
+        fw << "Controller flag couldn't be set to true because downstream processes are unhealthy \n";
+      }
     }
 
 
