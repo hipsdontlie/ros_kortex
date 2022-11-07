@@ -26,9 +26,23 @@ void currentSensor::init(){
 @brief Get the voltage reading, and convert to the current readings based on calibrated constants 
 */
 
-double currentSensor::getCurrent(){
-    current_ = (analogRead(pin_)-510)/14;
-    return current_;
+float currentSensor::getCurrent(){
+    currentRaw_ = 0;
+    currentRawAvg_ = 0;
+    current_ = 0;
+    // Average filtering
+    for(int i=0 ; i<50; i++){
+      currentRaw_ += getRaw();
+    }
+
+    currentRawAvg_ = currentRaw_/50;
+    current_ = (float(currentRawAvg_)-510)/14;
+
+    return abs(current_);
+}
+
+int currentSensor::getRaw(){
+    return analogRead(pin_);
 }
 
 

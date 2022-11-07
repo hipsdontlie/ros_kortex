@@ -52,7 +52,7 @@ std_msgs::Int16 posLinearActuatorMotor;
 // ros::Publisher pubCurrentSensor("hardware_current/data", &current);
 // ros::Publisher pubLinearActMotorSpeed("linear_actuator_speed/data",&rpmLinearActuatorMotor);
 // ros::Publisher pubReamerMotorSpeed("hardware_reamerSpeed/data",&rpmReamerMotor);
-// // ros::Publisher pubLinearActuatorMotorPos("linear_actuator_pos/data",&posLinearActuatorMotor);
+// ros::Publisher pubLinearActuatorMotorPos("linear_actuator_pos/data",&posLinearActuatorMotor);
 // ros::Publisher pubForce("hardware_force/data",&force);
 // ros::Publisher pubReamingPercentage("hardware_reamPercent/data",&reamingPercentage);
 
@@ -72,7 +72,7 @@ unsigned long rpmTimerM1 = 0;
 unsigned long rpmTimerM2 = 0;
 
 // Controller flags
-bool startReaming = false;
+bool startReamingProcess = true;
 bool dynamicCompensation = false;
 bool reachedEnd = false;
 bool posCalibration = false;
@@ -97,89 +97,92 @@ enum states
 enum states currentState = CALIBRATE;
 
 // High level controller parameters 
-float currentSetPoint = 1.5;
-float errorCurrent = 0; 
-float errorPrevCurrent = 0;
-float Kp_current, Ki_current, Kd_current = 0;
-float errorProportionalCurrent, errorIntegralCurrent, errorDerivativeCurrent = 0;
-float PIDOutCurrent = 0;
+float forceSetPoint = 0.25;
+float errorForce = 0; 
+float errorPrevForce = 0;
+float KpForce, KiForce, KdForce = 0;
+float currentTimeForce, previousTimeForce = 0;
+float errorProportionalForce, errorIntegralForce, errorDerivativeForce = 0;
+float PIDOutForce = 0;
+float deltaTForce = 0;
 int cmd = 0;
+float timerForce = 0;
 
 /*------------------------------------------ROS Callbacks -------------------------------------------*/ 
 
 //Callback for reamer motor speed command 
-void changespeed_ReamerMotor(const std_msgs::Int16& cmdReamerMotorSpeed){
+// void changespeed_ReamerMotor(const std_msgs::Int16& cmdReamerMotorSpeed){
 
-  // TODO: Does this really need to be done? PID might take care of this. Test...
-  // reamerMotorSpeed = map(abs(velocity_ReamerMotor.data),0,601,0,255);
-  reamerMotorCommand = cmdReamerMotorSpeed.data;
-  //Switch Controllers
-  ReamerMotorControlType = speedControl;
-  currentState = TESTING;
-  reamerMotor.initPID();
+//   // TODO: Does this really need to be done? PID might take care of this. Test...
+//   // reamerMotorSpeed = map(abs(velocity_ReamerMotor.data),0,601,0,255);
+//   reamerMotorCommand = cmdReamerMotorSpeed.data;
+//   //Switch Controllers
+//   ReamerMotorControlType = speedControl;
+//   currentState = TESTING;
+//   reamerMotor.initPID();
 
-}
+// }
 
-//Callback for linear actuator motor speed command 
-void changespeed_LinearActuatorMotor(const std_msgs::Int16& cmdLinearActuatorMotorSpeed){
-  linearActuatorMotorCommand = cmdLinearActuatorMotorSpeed.data;
-  currentState = TESTING;
+// //Callback for linear actuator motor speed command 
+// void changespeed_LinearActuatorMotor(const std_msgs::Int16& cmdLinearActuatorMotorSpeed){
+//   linearActuatorMotorCommand = cmdLinearActuatorMotorSpeed.data;
+//   currentState = TESTING;
 
-  //Switch Controllers
-  LinearActMotorControlType = speedControl;
-  linearActuator.initPID();
-}
+//   //Switch Controllers
+//   LinearActMotorControlType = speedControl;
+//   linearActuator.initPID();
+// }
 
-//Callback for reamer motor position command 
-void changepos_ReamerMotor(const std_msgs::Int16& cmdReamerMotorPos){
+// //Callback for reamer motor position command 
+// void changepos_ReamerMotor(const std_msgs::Int16& cmdReamerMotorPos){
 
-  reamerMotorCommand = cmdReamerMotorPos.data;
-  currentState = TESTING;
+//   reamerMotorCommand = cmdReamerMotorPos.data;
+//   currentState = TESTING;
 
-  //Switch Controllers
-  ReamerMotorControlType = positionControl;
-  reamerMotor.initPID();
-}
+//   //Switch Controllers
+//   ReamerMotorControlType = positionControl;
+//   reamerMotor.initPID();
+// }
 
-//Callback for linear actuator motor position command 
-void changepos_LinearActuatorMotor(const std_msgs::Int16& cmdLinearActuatorMotorPos){
-  linearActuatorMotorCommand = cmdLinearActuatorMotorPos.data;
-  currentState = TESTING;
+// //Callback for linear actuator motor position command 
+// void changepos_LinearActuatorMotor(const std_msgs::Int16& cmdLinearActuatorMotorPos){
+//   linearActuatorMotorCommand = cmdLinearActuatorMotorPos.data;
+//   currentState = TESTING;
 
-  //Switch Controllers
-  LinearActMotorControlType = positionControl;
-  linearActuator.initPID();
-}
+//   //Switch Controllers
+//   LinearActMotorControlType = positionControl;
+//   linearActuator.initPID();
+// }
 
-// Callback for start reaming command
-void getReamingCmd(const std_msgs::Bool& reamingCmd){
-  nh.loginfo("Start reaming callback!");
-  if(reamingCmd.data == true)
-    startReaming  = true;
-  else
-    startReaming = false;
-}
+// // Callback for start reaming command
+// void getReamingCmd(const std_msgs::Bool& reamingCmd){
+//   // nh.loginfo("Start reaming callback!");
+//   if(reamingCmd.data == true)
+//     startReamingProcess  = true;
+//   else
+//     startReamingProcess = false;
+// }
 
-// //Callback for dynamic compensation command
-void getDynamicCompCmd(const std_msgs::Bool& dynamicCompensationCmd){
-  dynamicCompensation = dynamicCompensationCmd.data;
-}
+// // //Callback for dynamic compensation command
+// void getDynamicCompCmd(const std_msgs::Bool& dynamicCompensationCmd){
+//   dynamicCompensation = dynamicCompensationCmd.data;
+// }
 
-// Callback for calibration command
-// TODO: Ensure calibration process happens only once 
-void getCalibrateCmd(const std_msgs::Bool& calibrateCmd){
-  if(calibrateCmd.data == true)
-    currentState = CALIBRATE;
-}
+// // Callback for calibration command
+// // TODO: Ensure calibration process happens only once 
+// // void getCalibrateCmd(const std_msgs::Bool& calibrateCmd){
+// //   if(calibrateCmd.data == true)
+// //     currentState = CALIBRATE;
+// // }
 
-// Callback for watchdog command
-void getWatchdogCmd(const std_msgs::Bool& watchdogCmd){
-  if(watchdogCmd.data == true)
-    MotorControl::watchDogStop_ = true;
+// // Callback for watchdog command
+// void getWatchdogCmd(const std_msgs::Bool& watchdogCmd){
+//   if(watchdogCmd.data == true)
+//     MotorControl::watchDogStop_ = true;
   
-  else
-    MotorControl::watchDogStop_ = false;
-}
+//   else
+//     MotorControl::watchDogStop_ = false;
+// }
 
 /*------------------------------------------End of ROS Callbacks -------------------------------------------*/ 
 
@@ -201,8 +204,8 @@ volatile static bool MotorControl::limitSwitchStop_ = false;
 void triggerLimSwitch(){
   // nh.loginfo("Limit switch hit, stopping!");
   MotorControl::limitSwitchStop_ = true;
-  reamerMotor.stopMotor();
-  linearActuator.stopMotor();
+  // reamerMotor.stopMotor();
+  // linearActuator.stopMotor();
 }
 
 // Calibrate Motors 
@@ -214,20 +217,22 @@ void calibrateMotors (){
   }
 
   if(digitalRead(LimSwitchPin1) && !reachedEnd){
-    nh.loginfo("Calibration in progress...");
-    reamerMotor.runMotorBackward(50);
+    // nh.loginfo("Calibration in progress...");
+    // Serial.println("Calibration in progress...");
+    // reamerMotor.runMotorBackward(50);
     linearActuator.runMotorBackward(50);
   }
+  
 
   else{
 
     if(reachedEnd && !posCalibration){
-      nh.loginfo("Reached end...");
-      reamerMotor.runMotorForwardUnsafe(200);
-      linearActuator.runMotorForwardUnsafe(200);
-      delay(1000);
-      reamerMotor.stopMotor();
-      linearActuator.stopMotor();
+      // nh.loginfo("Reached end...");
+      // reamerMotor.runMotorForwardUnsafe(255);
+      linearActuator.runMotorForwardUnsafe(255);
+      delay(500);
+      // reamerMotor.stopMotor();
+      // linearActuator.stopMotor();
       posCalibration = true;
       MotorControl::encoderValue_ReamerMotor_ = 0;
       MotorControl::encoderValue_LinearActMotor_ = 0;
@@ -236,56 +241,42 @@ void calibrateMotors (){
     else{
       ReamerMotorControlType = positionControl;
       LinearActMotorControlType = positionControl;
-      reamerMotorCommand = 500;
-      linearActuatorMotorCommand = 500;
-      nh.loginfo("Repositioning...");
-      if(linearActuator.getMotorPos() > 450)
+      // reamerMotorCommand = 500;
+      linearActuatorMotorCommand = 350;
+      // nh.loginfo("Repositioning...");
+      if(linearActuator.getMotorPos() > 300)
         currentState =  WAITFORCMD; 
     }       
   }
 }
 
 
-float forceController(currentValue){
+float forceController(float forceValue){
+    
+    Serial.print("#######################################################Current force: ");
+    Serial.println(forceValue);
 
-    if ((millis()-rpmTimerCurrent) > 400){
+    if ((millis()-timerForce) > 100){
       //Compute error terms 
-      errorCurrent =  currentSetPoint-currentValue;
-      errorProportionalCurrent = errorCurrent;
-      errorDerivativeCurrent = (errorCurrent - errorPrevCurrent)/deltaTCurrent;
-      errorIntegralCurrent = errorCurrent*deltaTCurrent;
+      currentTimeForce = micros();
+      deltaTForce = currentTimeForce - previousTimeForce; 
+      previousTimeForce = currentTimeForce;
+
+      errorForce = forceSetPoint-forceValue;
+      errorProportionalForce = errorForce;
+      errorDerivativeForce = (errorForce - errorPrevForce)/deltaTForce;
+      errorIntegralForce = errorForce*deltaTForce;
       
       //Update previous values
-      errorPrevCurrent = errorCurrent;
-      rpmTimerCurrent = millis();
-      
+      errorPrevForce = errorForce;
+      timerForce = millis();
       //Get PID output 
-      PIDOutCurrent = int((Kp_Current*errorProportionalCurrent) + (Kd_Current*errorDerivativeCurrent) + (Ki_Current*errorIntegralCurrent));
-  
+      PIDOutForce = (KpForce*errorProportionalForce) + (KdForce*errorDerivativeForce) + (KiForce*errorIntegralForce);
+      // Serial.print("Error proportional: ");
+      // Serial.println(errorForce);
       //Threshold the output 
-      if (abs(PIDOutCurrent) > 255)
-          cmd = 255;
-    
-      else if (PIDOutCurrent < 0)
-          cmd = abs(PIDOutCurrent);
-
-      else if (PIDOutCurrent > -10 && PIDOutCurrent < 10)
-          stopMotor();
-
-      else if(abs(PIDOutCurrent) > 5 && abs(PIDOutCurrent) < 35)
-          cmd = 50;
-
-      else
-          cmd = PIDOutCurrent;
-      
-      //Actuate motor with the output value based on direction of targetPos
-      if(PIDOutCurrent > 0)
-        linearActuator.runMotorForward(cmd);
-      else
-        linearActuator.runMotorBackward(cmd);
-
     }
-    return PIDOutCurrent;
+    return PIDOutForce;
   
 }
 
@@ -323,8 +314,10 @@ void setup(){
     attachInterrupt(digitalPinToInterrupt(LimSwitchPin1), triggerLimSwitch, RISING);
     attachInterrupt(digitalPinToInterrupt(LimSwitchPin2), triggerLimSwitch, RISING);
 
-    //sleep so that subs get initiated 
-    delay(3000);    
+  // High level controller gains 
+    KpForce = 250;
+    KdForce = 0;
+    KiForce = 0; 
 }
 
 void loop(){
@@ -332,75 +325,102 @@ void loop(){
 /*-------------------------------------HIGH LEVEL CONTROL-------------------------------------*/
   // Get the current readings from the current sensor 
   // nh.spinOnce();
-  float current_value = currSensor.getCurrent();
-  // current.data = current_value;
+  float forceValue = currSensor.getCurrent();
+  // int currentRaw = currSensor.getRaw();
+  // Serial.println(forceValue);
+  // Serial.println(currentRaw);
+  // current.data = currentValue;
   // pubCurrentSensor.publish(&current);
 
+  if(!digitalRead(LimSwitchPin1))
+    // Serial.println("Limit switch 1 is on!");
 
+  if(!digitalRead(LimSwitchPin2))
+    // Serial.println("Limit switch 2 is on!");
+
+  Serial.print(currentState);
   switch (currentState) {
     
     // Calibrate linear actuator position 
     case CALIBRATE:
-
+      Serial.println("Calibrate!");
       calibrateMotors();
       break;
 
     //Wait until you get the actuation signal from arm controller
     case WAITFORCMD: 
       
-      nh.loginfo("Waiting for command...");
+      // nh.loginfo("Waiting for command...");
+      Serial.println("Waiting...");
       reamerMotor.stopMotor();
       linearActuator.stopMotor();
-
       // Hold position at calibration position
-      // ReamerMotorControlType = speedControl;
-      // LinearActMotorControlType = positionControl;
-      // reamerMotorCommand = 0;
-      // linearActuatorMotorCommand = 450;
-      // if(startReaming == true){
-      //     currentState = MOVEUNTILCONTACT;
-      // }
+      ReamerMotorControlType = speedControl;
+      LinearActMotorControlType = positionControl;
+      reamerMotorCommand = 0;
+      linearActuatorMotorCommand = 300;
+      if(startReamingProcess == true){
+          currentState = MOVEUNTILCONTACT;
+      }
       break;
 
     //Actuate motor until contact is made with the pelvis
     case MOVEUNTILCONTACT:
-      nh.loginfo("Moving until contact with bone...");
+
+      // Serial.println("Move until contact!");
+      // nh.loginfo("Moving until contact with bone...");
       LinearActMotorControlType = speedControl;
-      reamerMotorCommand = forceController(current_value);
-      
+      reamerMotorCommand = 0;
+      float forceOut  = forceController(forceValue);
+      Serial.println(forceOut);
+      linearActuatorMotorCommand = int(forceOut);
+      // Serial.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!HERE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+      if(forceValue >= forceSetPoint){
+          currentState = DYNAMICCOMP;
+          linearActuatorMotorCommand = 0;
+          Serial.println(currentState);
+          Serial.println("Force threshold exceeded!------------------------------------------");
+      }
+
       break;
 
     //Ream as long as pelvis error is within thresholds and goal has not been reached 
     case STARTREAMING:
       
+      Serial.println("Start reaming...");
       ReamerMotorControlType = speedControl;
       LinearActMotorControlType = speedControl;
-      reamerMotorCommand = forceController(current_value);
-      linearActuatorMotorCommand = 400;
+      linearActuatorMotorCommand = forceController(forceValue);
+      reamerMotorCommand = 300;
 
       break;
 
     // Dynamic compensation - change state back to 1 after performing compensation routine 
     case DYNAMICCOMP:
       
-      currentState = WAITFORCMD;
+      Serial.println("Dynamic comp!");
+      // currentState = WAITFORCMD;
       break;
 
     // Goal has been reached, stop reaming! 
     case DONEREAMING: 
       
+      Serial.println("Done reaming!");
       reamerMotor.stopMotor();
       linearActuator.stopMotor();
-      nh.loginfo("Done reaming!");
+      // nh.loginfo("Done reaming!");
       break;
 
     case TESTING:
-      nh.loginfo("Testing state...");
+      Serial.println("Testing!");
+
+      // nh.loginfo("Testing state...");
       break;
   
     default:
       
-      nh.loginfo("Invalid state, stopping reaming!");
+      // nh.loginfo("Invalid state, stopping reaming!");
+      Serial.println("Invalid state!");
       reamerMotor.stopMotor();
       linearActuator.stopMotor();
       break;
@@ -410,12 +430,12 @@ void loop(){
 /*-------------------------------------LOW LEVEL CONTROL-------------------------------------*/
 
 
-
+  Serial.println("Low level controller!");
   // Set LimitSwitch interrupt flag to false
   if(digitalRead(LimSwitchPin1) && digitalRead(LimSwitchPin2))
+    // Serial.println("Both limit swtiches not engaged!");
     MotorControl::limitSwitchStop_ = false;
-  
-  
+
   // Reamer Motor Speed Control
   if ((((millis()-rpmTimerM1)) > 400) && (ReamerMotorControlType == speedControl)){
     float rpm = reamerMotor.getMotorRPM();
@@ -431,10 +451,10 @@ void loop(){
   if ((((millis()-rpmTimerM2)) > 400) && (LinearActMotorControlType == speedControl)){
     float rpm = linearActuator.getMotorRPM();
     linearActuator.pidSpeedControl(linearActuatorMotorCommand);
-    Serial.print("RPM: ");
-    Serial.println(rpm);
+    // Serial.print("RPM: ");
+    // Serial.println(rpm);
     rpmTimerM2 = millis();
-    nh.loginfo("Low level speed control...");
+    // nh.loginfo("Low level speed control...");
     // Publish the rpm of the LinearAct motor
     // rpmLinearActuatorMotor.data = rpm;
     // pubLinearActMotorSpeed.publish(&rpmLinearActuatorMotor);
@@ -450,7 +470,9 @@ void loop(){
 
   // Linear Actuator Motor Position Control
   if ((((millis()-rpmTimerM2)) > 400) && (LinearActMotorControlType == positionControl)){
-    nh.loginfo("Linear Actuator Low level Position control...");
+    // nh.loginfo("Linear Actuator Low level Position control...");
+    // Serial.println(linearActuatorMotorCommand);
+
     int currPos = linearActuator.getMotorPos();
     linearActuator.pidPositionControl(linearActuatorMotorCommand);
     rpmTimerM2 = millis();

@@ -22,7 +22,9 @@ class currentSensor{
 
         /* -------------------------------- Public Variables -------------------------------- */
 
-        double current_; 
+        float current_;
+        int currentRaw_;
+        float currentRawAvg_; 
 
         /* -------------------------------- Public Members ----------------------------------- */
         
@@ -33,10 +35,13 @@ class currentSensor{
         void init();
 
         // Get current 
-        double getCurrent(); 
+        float getCurrent(); 
 
         //Publish current to a ROS topic 
         void publishCurrent();
+
+        //Get raw sensor readings 
+        int getRaw();
 
 };
 
