@@ -33,11 +33,11 @@ class Controls
         double prevTime_singularity;
         double currTime_jlimits;
         double prevTime_jlimits;
-        bool controller_flag;
-        bool trans_bool;
-        bool orien_bool;
-        bool singularity_bool;
-        bool jlimits_bool;
+        bool controller_flag = false;
+        bool trans_bool = false;
+        bool orien_bool = false;
+        bool singularity_bool = false;
+        bool jlimits_bool = false;
         bool controlsFault_bool;
 
         bool controllerFlag_printed = false;

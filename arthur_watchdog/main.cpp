@@ -98,11 +98,11 @@ int main(int argc, char **argv)
       {
         time_t rawtime;
         struct tm * timeinfo;
-        char st [80];
+        char st [128];
         
         time (&rawtime);
         timeinfo = localtime (&rawtime);
-        strftime (st,80,"Date: %y-%m-%d  Time: %I:%M%p",timeinfo);
+        strftime (st,128,"Date: %y-%m-%d  Time: %I:%M:%S",timeinfo);
         fw << st <<"     ";
         fw << "Pelvis marker is not visible\n";
         inputs.pelvis_printed = true;
@@ -119,13 +119,14 @@ int main(int argc, char **argv)
       {
         time_t rawtime;
         struct tm * timeinfo;
-        char st [80];
+        char st [128];
         
         time (&rawtime);
         timeinfo = localtime (&rawtime);
-        strftime (st,80,"Date: %y-%m-%d  Time: %I:%M%p",timeinfo);
+        strftime (st,128,"Date: %y-%m-%d  Time: %I:%M:%S",timeinfo);
         fw << st <<"     ";
-        fw << "End-effector marker is not visible          ";
+        fw << "End-effector marker is not visible\n";
+        inputs.ee_printed = true;
       }
       // eStop_pub.publish(eStop_msg);
     }
@@ -145,11 +146,11 @@ int main(int argc, char **argv)
     {
       time_t rawtime;
       struct tm * timeinfo;
-      char st [80];
+      char st [128];
       
       time (&rawtime);
       timeinfo = localtime (&rawtime);
-      strftime (st,80,"Date: %y-%m-%d  Time: %I:%M%p",timeinfo);
+      strftime (st,128,"Date: %y-%m-%d  Time: %I:%M:%S",timeinfo);
       fw << st <<"     ";
       fw << "Pelvis is visible \n";
 
@@ -160,11 +161,11 @@ int main(int argc, char **argv)
     {
       time_t rawtime;
       struct tm * timeinfo;
-      char st [80];
+      char st [128];
       
       time (&rawtime);
       timeinfo = localtime (&rawtime);
-      strftime (st,80,"Date: %y-%m-%d  Time: %I:%M%p",timeinfo);
+      strftime (st,128,"Date: %y-%m-%d  Time: %I:%M:%S",timeinfo);
       fw << st <<"     ";
       fw << "End-effector is visible \n";
 
@@ -187,10 +188,10 @@ int main(int argc, char **argv)
 
     // ************************************* end of perception **********************************************
 
-    // std::cout<<"Control trans error: "<<controls.trans_bool<<std::endl; 
-    // std::cout<<"Control orientation error: "<<controls.orien_bool<<std::endl; 
-    // std::cout<<"Control singularity error: "<<controls.singularity_bool<<std::endl; 
-    // std::cout<<"Control joint limits error: "<<controls.jlimits_bool<<std::endl; 
+    std::cout<<"Control trans error: "<<controls.trans_bool<<std::endl; 
+    std::cout<<"Control orientation error: "<<controls.orien_bool<<std::endl; 
+    std::cout<<"Control singularity error: "<<controls.singularity_bool<<std::endl; 
+    std::cout<<"Control joint limits error: "<<controls.jlimits_bool<<std::endl; 
     
     // ******************************************* controls ******************************************************
     
@@ -205,13 +206,13 @@ int main(int argc, char **argv)
       {
         time_t rawtime;
         struct tm * timeinfo;
-        char st [80];
+        char st [128];
         
         time (&rawtime);
         timeinfo = localtime (&rawtime);
-        strftime (st,80,"Date: %y-%m-%d  Time: %I:%M%p",timeinfo);
+        strftime (st,128,"Date: %y-%m-%d  Time: %I:%M:%S",timeinfo);
         fw << st <<"     ";
-        fw << "Controller flag set to true         ";
+        fw << "Controller flag set to true\n";
         controls.controllerFlag_printed = false;
       }
     }
@@ -223,13 +224,13 @@ int main(int argc, char **argv)
       {
         time_t rawtime;
         struct tm * timeinfo;
-        char st [80];
+        char st [128];
         
         time (&rawtime);
         timeinfo = localtime (&rawtime);
-        strftime (st,80,"Date: %y-%m-%d  Time: %I:%M%p",timeinfo);
+        strftime (st,128,"Date: %y-%m-%d  Time: %I:%M:%S",timeinfo);
         fw << st <<"     ";
-        fw << "Controller flag couldn't be set to true because downstream processes are unhealthy          ";
+        fw << "Controller flag couldn't be set to true because downstream processes are unhealthy\n";
         controls.controllerFlag_printed = true;
       }
     }
@@ -239,6 +240,8 @@ int main(int argc, char **argv)
     {
       // std::cout<<"End-effector not visible"<<std::endl;
       // ROS_INFO("Controller error publisher dropped below 30Hz!\n");
+      controls.trans_bool = false;
+      controls.orien_bool = false;
       controls.controller_flag = false;
     }
 
@@ -246,6 +249,7 @@ int main(int argc, char **argv)
     {
       // std::cout<<"End-effector not visible"<<std::endl;
       // ROS_INFO("Controller singularity publisher dropped below 30Hz!\n");
+      controls.singularity_bool = false;
       controls.controller_flag = false;
     }
 
@@ -253,20 +257,13 @@ int main(int argc, char **argv)
     {
       // std::cout<<"End-effector not visible"<<std::endl;
       // ROS_INFO("Controller joint limits publisher dropped below 30Hz!\n");
+      controls.jlimits_bool = false;
       controls.controller_flag = false;
     }
 
     controllerFlag_pub.publish(control_msg);
 
-    time_t rawtime;
-    struct tm * timeinfo;
-    char st [80];
-    
-    time (&rawtime);
-    timeinfo = localtime (&rawtime);
-    strftime (st,80,"Date: %y-%m-%d  Time: %I:%M%p",timeinfo);
-    fw << st << std::endl;
-
+  // ****************************************** end of controls ********************************************************
 
     ros::spinOnce();
     loop_rate.sleep();
