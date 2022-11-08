@@ -41,7 +41,9 @@ class Controls
         bool controlsFault_bool;
 
         bool controllerFlag_printed = false;
-        bool controls_printed = false;
+        bool error_printed = false;
+        bool singularity_printed = false;
+        bool jlimits_printed = false;
 
 
 

@@ -28,7 +28,19 @@ class Hardware
         void current_drawn(const std_msgs::Float64::ConstPtr& currentDrawn_msg);
 
         bool hardware_flag;
+        bool reamerSpeed_printed = false;
+        bool loadApplied_printed = false;
+        bool reamPercent_printed = false;
+        bool currentDrawn_printed = false;
 
+        double currTime_reamerSpeed;
+        double prevTime_reamerSpeed;
+        double currTime_loadApplied;
+        double prevTime_loadApplied;
+        double currTime_reamPercent;
+        double prevTime_reamPercent;
+        double currTime_currentDrawn;
+        double prevTime_currentDrawn;
         // void error_check(const std_msgs::Float64MultiArray::ConstPtr& error_msg);
 
 };
