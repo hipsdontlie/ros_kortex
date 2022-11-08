@@ -43,7 +43,7 @@ class Inputs
         bool pelvis_visible = false;
         bool robot_connected = false;
 
-        bool inputs_printed = false;
-        
+        bool pelvis_printed = false;
+        bool ee_printed = false;
     
 };
