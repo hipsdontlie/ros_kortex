@@ -22,6 +22,7 @@ void Inputs::pelvisCallback(const geometry_msgs::PoseStamped::ConstPtr& pelvis_m
       {
         ROS_INFO("Pelvis marker is visible\n");
         pelvis_visible = true;
+        inputs_printed = false;
       }
     }
 
@@ -58,5 +59,6 @@ void Inputs::eeCallback(const geometry_msgs::PoseStamped::ConstPtr& ee_msg)
     {
         ROS_INFO("End effector visible\n");
         ee_visible = true;
+        inputs_printed = false;
     }
 }

@@ -36,13 +36,13 @@ void Hardware::ream_percent(const std_msgs::Float64::ConstPtr& reamPercent_msg)
 {
   if (reamPercent_msg->data > 100.0)
   {
-    ROS_INFO("Goal point reached. Reaming percentage above 100%. Stopping..\n");
+    ROS_INFO("Goal point reached. Reaming percentage above 100. Stopping..\n");
     hardware_flag = false;
   }
   else
   { 
     // std::cout<<singularity_msg->data<<std::endl;
-    ROS_INFO("Reaming percentage below 100%. Reaming...\n");
+    ROS_INFO("Reaming percentage below 100. Reaming...\n");
     hardware_flag = true;
   }
 }

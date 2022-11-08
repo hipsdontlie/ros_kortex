@@ -53,10 +53,12 @@ include_directories(
 add_executable(watchdog_main include/inputs.hpp
                             include/perception.hpp
                             include/controls.hpp
+                            include/hardware.hpp
                             main.cpp
                             inputs.cpp
                             perception.cpp
                             controls.cpp
+                            hardware.cpp
                             )
 add_dependencies(watchdog_main arthur_watchdog_generate_messages_cpp)
 # add_dependencies(inputs ${${PROJECT_NAME}_EXPORTED_TARGETS})

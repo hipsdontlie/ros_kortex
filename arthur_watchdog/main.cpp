@@ -7,6 +7,7 @@
 #include<std_msgs/Bool.h>
 #include <fstream>
 #include<std_msgs/Empty.h>
+#include<time.h>
 
 
 
@@ -23,12 +24,15 @@ int main(int argc, char **argv)
   Perception perception;
   Controls controls;
   Hardware hardware;
+  // bool printed = false;
+
 
   perception.rmse_thresh->data = 1.0;
 
   //********************************************** subscribers *************************************************
 
   //inputs to the system subscribers
+  // ros::Subscriber sub = n.subscribe("pelvis_pose", 1, &Inputs::pelvisCallback, &inputs);
   ros::Subscriber sub = n.subscribe("pelvis_pose", 1, &Inputs::pelvisCallback, &inputs);
 
   ros::Subscriber rp_sub = n.subscribe("probe_pose", 1, &Inputs::rpCallback, &inputs);
@@ -80,6 +84,7 @@ int main(int argc, char **argv)
     std_msgs::Empty eStop_msg;
     eStop_msg = {};
 
+
     inputs.currTime_pelvis = ros::Time::now().toSec();
     inputs.currTime_ee = ros::Time::now().toSec();
     inputs.currTime_rp = ros::Time::now().toSec();
@@ -89,12 +94,26 @@ int main(int argc, char **argv)
       // std::cout<<"Pelvis marker not visible"<<std::endl;
       // ROS_INFO("Pelvis not visible!\n");
       inputs.pelvis_visible = false;
-      if (fw.is_open())
+      if (fw.is_open() && !inputs.inputs_printed && !controls.controllerFlag_printed)
       {
           // fw << inputs.pelvis_visible << "\n";
-        fw << "Pelvis marker is not visible \n";
+        fw << "Pelvis marker is not visible          ";
+        time_t rawtime;
+        struct tm * timeinfo;
+        char st [80];
+        
+        time (&rawtime);
+        timeinfo = localtime (&rawtime);
+        strftime (st,80,"Date: %y-%m-%d  Time: %I:%M%p",timeinfo);
+        fw << st << std::endl;
+
+  
+        if(!inputs.inputs_printed)
+          inputs.inputs_printed = true;
+        if(!controls.controllerFlag_printed)
+          controls.controllerFlag_printed = true;
       }
-        // fw.close();
+        //
       // eStop_pub.publish(eStop_msg);
     }
     
@@ -104,10 +123,24 @@ int main(int argc, char **argv)
       // std::cout<<"End-effector not visible"<<std::endl;
       // ROS_INFO("End-effector not visible!\n");
       inputs.ee_visible = false;
-      if (fw.is_open())
+      if (fw.is_open() && !inputs.inputs_printed && !controls.controllerFlag_printed)
       {
           // fw << inputs.pelvis_visible << "\n";
-        fw << "End-effector marker is not visible \n";
+        fw << "End-effector marker is not visible          ";
+        time_t rawtime;
+        struct tm * timeinfo;
+        char st [80];
+        
+        time (&rawtime);
+        timeinfo = localtime (&rawtime);
+        strftime (st,80,"Date: %y-%m-%d  Time: %I:%M%p",timeinfo);
+        fw << st << std::endl;
+
+  
+        if(!inputs.inputs_printed)
+          inputs.inputs_printed = true;
+        if(!controls.controllerFlag_printed)
+          controls.controllerFlag_printed = true;
       }
       // eStop_pub.publish(eStop_msg);
     }
@@ -128,10 +161,11 @@ int main(int argc, char **argv)
     percep_msg.rmse_error = perception.rmse_error;
     percep_pub.publish(percep_msg);
 
-    if (fw.is_open() && !perception.rmse_error)
+    if (fw.is_open() && !perception.rmse_error && !perception.percep_printed)
     {
         // fw << inputs.pelvis_visible << "\n";
       fw << "Registration RMSE error is higher than 0.3 \n";
+      perception.percep_printed = true;
     }
 
     std::cout<<"Control trans error: "<<controls.trans_bool<<std::endl; 
@@ -148,10 +182,24 @@ int main(int argc, char **argv)
     {
       controls.controller_flag = false;
       control_msg.data = controls.controller_flag;
-      if (fw.is_open())
+      if (fw.is_open() && !inputs.inputs_printed && !controls.controllerFlag_printed)
       {
           // fw << inputs.pelvis_visible << "\n";
-        fw << "Controller flag couldn't be set to true because downstream processes are unhealthy \n";
+        fw << "Controller flag couldn't be set to true because downstream processes are unhealthy          ";
+        time_t rawtime;
+        struct tm * timeinfo;
+        char st [80];
+        
+        time (&rawtime);
+        timeinfo = localtime (&rawtime);
+        strftime (st,80,"Date: %y-%m-%d  Time: %I:%M%p",timeinfo);
+        fw << st << std::endl;
+
+      
+        if(!inputs.inputs_printed)
+          inputs.inputs_printed = true;
+        if(!controls.controllerFlag_printed)
+          controls.controllerFlag_printed = true;
       }
     }
 
@@ -178,6 +226,10 @@ int main(int argc, char **argv)
     }
 
     controllerFlag_pub.publish(control_msg);
+
+    
+
+
     ros::spinOnce();
     loop_rate.sleep();
   }

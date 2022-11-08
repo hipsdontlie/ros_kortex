@@ -256,22 +256,21 @@ float forceController(float forceValue){
     Serial.print("#######################################################Current force: ");
     Serial.println(forceValue);
 
-    if ((millis()-timerForce) > 100){
-      //Compute error terms 
-      currentTimeForce = micros();
-      deltaTForce = currentTimeForce - previousTimeForce; 
-      previousTimeForce = currentTimeForce;
+    
+    //Compute error terms 
+    currentTimeForce = micros();
+    deltaTForce = currentTimeForce - previousTimeForce; 
+    previousTimeForce = currentTimeForce;
 
-      errorForce = forceSetPoint-forceValue;
-      errorProportionalForce = errorForce;
-      errorDerivativeForce = (errorForce - errorPrevForce)/deltaTForce;
-      errorIntegralForce = errorForce*deltaTForce;
-      
-      //Update previous values
-      errorPrevForce = errorForce;
-      timerForce = millis();
-      //Get PID output 
-      PIDOutForce = (KpForce*errorProportionalForce) + (KdForce*errorDerivativeForce) + (KiForce*errorIntegralForce);
+    errorForce = forceSetPoint-forceValue;
+    errorProportionalForce = errorForce;
+    errorDerivativeForce = (errorForce - errorPrevForce)/deltaTForce;
+    errorIntegralForce = errorForce*deltaTForce;
+    
+    //Update previous values
+    errorPrevForce = errorForce;
+    //Get PID output 
+    PIDOutForce = (KpForce*errorProportionalForce) + (KdForce*errorDerivativeForce) + (KiForce*errorIntegralForce);
       // Serial.print("Error proportional: ");
       // Serial.println(errorForce);
       //Threshold the output 
@@ -332,13 +331,13 @@ void loop(){
   // current.data = currentValue;
   // pubCurrentSensor.publish(&current);
 
-  if(!digitalRead(LimSwitchPin1))
+  // if(!digitalRead(LimSwitchPin1))
     // Serial.println("Limit switch 1 is on!");
 
-  if(!digitalRead(LimSwitchPin2))
+  // if(!digitalRead(LimSwitchPin2))
     // Serial.println("Limit switch 2 is on!");
 
-  Serial.print(currentState);
+  // Serial.print(currentState);
   switch (currentState) {
     
     // Calibrate linear actuator position 
@@ -371,15 +370,22 @@ void loop(){
       // nh.loginfo("Moving until contact with bone...");
       LinearActMotorControlType = speedControl;
       reamerMotorCommand = 0;
-      float forceOut  = forceController(forceValue);
+      
+      if ((millis()-timerForce) > 400){
+            if ((millis()-timerForce) > 400){
+        linearActuatorMotorCommand = forceController(forceValue);
+        reamerMotorCommand = 300;
+        timerForce = millis();
+      }
+
       Serial.println(forceOut);
       linearActuatorMotorCommand = int(forceOut);
       // Serial.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!HERE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
       if(forceValue >= forceSetPoint){
-          currentState = DYNAMICCOMP;
+          currentState = STARTREAMING;
           linearActuatorMotorCommand = 0;
+          Serial.print("-------------------------------------------State changed to : ")
           Serial.println(currentState);
-          Serial.println("Force threshold exceeded!------------------------------------------");
       }
 
       break;
@@ -390,9 +396,12 @@ void loop(){
       Serial.println("Start reaming...");
       ReamerMotorControlType = speedControl;
       LinearActMotorControlType = speedControl;
-      linearActuatorMotorCommand = forceController(forceValue);
-      reamerMotorCommand = 300;
-
+      if ((millis()-timerForce) > 400){
+        linearActuatorMotorCommand = forceController(forceValue);
+        reamerMotorCommand = 300;
+        timerForce = millis();
+      }
+      
       break;
 
     // Dynamic compensation - change state back to 1 after performing compensation routine 
@@ -424,7 +433,7 @@ void loop(){
       reamerMotor.stopMotor();
       linearActuator.stopMotor();
       break;
-}
+  }
 
 
 /*-------------------------------------LOW LEVEL CONTROL-------------------------------------*/

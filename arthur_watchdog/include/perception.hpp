@@ -21,6 +21,8 @@ class Perception
         bool rmse_error = true;
         // bool rmse_error = false;
 
+        bool percep_printed = false;
+
 
     
 };

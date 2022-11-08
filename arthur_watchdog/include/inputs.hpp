@@ -42,6 +42,8 @@ class Inputs
         bool probe_visible = false;
         bool pelvis_visible = false;
         bool robot_connected = false;
+
+        bool inputs_printed = false;
         
     
 };

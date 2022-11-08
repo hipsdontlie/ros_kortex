@@ -40,6 +40,9 @@ class Controls
         bool jlimits_bool;
         bool controlsFault_bool;
 
+        bool controllerFlag_printed = false;
+        bool controls_printed = false;
+
 
 
 };
