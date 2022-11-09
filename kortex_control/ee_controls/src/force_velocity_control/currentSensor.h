@@ -25,6 +25,9 @@ class currentSensor{
         float current_;
         int currentRaw_;
         float currentRawAvg_; 
+        int numSamples_;
+        // float testArr[100];
+        
 
         /* -------------------------------- Public Members ----------------------------------- */
         

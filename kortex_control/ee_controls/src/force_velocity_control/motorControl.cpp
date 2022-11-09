@@ -274,8 +274,8 @@ int MotorControl::pidSpeedControl(int rpmTarget){
     else if (PIDOutVel_ < 0)
         cmd_ = abs(PIDOutVel_);
 
-    else if(abs(PIDOutVel_) > 0 && abs(PIDOutVel_) < 50)
-        cmd_ = 50; //Minimum speed to keep the linear actuator moving 
+    // else if(abs(PIDOutVel_) > 0 && abs(PIDOutVel_) < 50)
+    //     cmd_ = 50; //Minimum speed to keep the linear actuator moving 
 
     else
         cmd_ = PIDOutVel_;

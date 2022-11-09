@@ -4,7 +4,6 @@ Author: Kaushik Balasundar
 */
 
 #include "currentSensor.h"
-
 /*
  @brief currentSensor constructor that calls init() 
 */
@@ -30,15 +29,16 @@ float currentSensor::getCurrent(){
     currentRaw_ = 0;
     currentRawAvg_ = 0;
     current_ = 0;
+    numSamples_ = 20; 
     // Average filtering
-    for(int i=0 ; i<50; i++){
-      currentRaw_ += getRaw();
+    for(int i=0 ; i<numSamples_ && getRaw() > 0 && getRaw() < 1023; i++){
+      currentRaw_ = currentRaw_ + getRaw();
     }
 
-    currentRawAvg_ = currentRaw_/50;
-    current_ = (float(currentRawAvg_)-510)/14;
+    currentRawAvg_ = float(currentRaw_)/numSamples_;
+    current_ = (float(currentRawAvg_)-510.0)/14.0;
 
-    return abs(current_);
+    return -current_;
 }
 
 int currentSensor::getRaw(){

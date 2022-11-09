@@ -94,10 +94,10 @@ enum states
   DONEREAMING
 };
 
-enum states currentState = TESTING;
+enum states currentState = CALIBRATE;
 
 // High level controller parameters 
-float forceSetPoint = 0.6;
+float forceSetPoint = 0.65;
 float errorForce = 0; 
 float errorPrevForce = 0;
 float KpForce, KiForce, KdForce = 0;
@@ -108,7 +108,9 @@ float deltaTForce = 0;
 int cmd = 0;
 float timerForce1 = 0;
 float timerForce2 = 0;
-
+float currentSampleTime = 0;
+float forceValue = 0;
+int linActPos = 0;
 
 /*------------------------------------------ROS Callbacks -------------------------------------------*/ 
 
@@ -256,11 +258,7 @@ void calibrateMotors (){
 
 
 float forceController(float forceValue){
-    
-    Serial.print("####################################################### Current force: ");
-    Serial.println(forceValue);
-
-    
+  
     //Compute error terms 
     currentTimeForce = micros();
     deltaTForce = currentTimeForce - previousTimeForce; 
@@ -269,7 +267,7 @@ float forceController(float forceValue){
     errorForce = forceSetPoint-forceValue;
     errorProportionalForce = errorForce;
     errorDerivativeForce = (errorForce - errorPrevForce)/deltaTForce;
-    errorIntegralForce = errorForce*deltaTForce;
+    errorIntegralForce += errorForce*deltaTForce;
     
     //Update previous values
     errorPrevForce = errorForce;
@@ -308,7 +306,7 @@ void setup(){
     reamerMotor.setPIDVelConstants(0.15,0.03,0);
     reamerMotor.setPIDPosConstants(0.3,0,1);
     linearActuator.setPIDVelConstants(0.15,0.03,0);
-    linearActuator.setPIDPosConstants(0.3,0,0.1);
+    linearActuator.setPIDPosConstants(0.5,0,0.1);
 
     // Limit switch setup
     pinMode(LimSwitchPin1, INPUT_PULLUP);
@@ -327,11 +325,22 @@ void loop(){
 /*-------------------------------------HIGH LEVEL CONTROL-------------------------------------*/
   // Get the current readings from the current sensor 
   // nh.spinOnce();
-  float forceValue = currSensor.getCurrent();
-  Serial.print("Current state is: ");
-  Serial.println(currentState);
+  // float* forceValues;
+  if(millis() - currentSampleTime > 10){
+    forceValue = currSensor.getCurrent();
+    linActPos = linearActuator.getMotorPos();
+    currentSampleTime  = millis();
+    Serial.print("--------------------------------------------------------Current: ");
+    Serial.println(forceValue);
+    Serial.print("Motor Position: ");
+    Serial.println(linActPos);
+  }
+
+  // Serial.print("Current state is: ");
+  // Serial.println(currentState);
+
   // int currentRaw = currSensor.getRaw();
-  // Serial.println(forceValue);
+  
   // Serial.println(currentRaw);
   // current.data = currentValue;
   // pubCurrentSensor.publish(&current);
@@ -355,7 +364,7 @@ void loop(){
     case WAITFORCMD: 
       
       // nh.loginfo("Waiting for command...");
-      Serial.println("Waiting...");
+      // Serial.println("Waiting...");
       reamerMotor.stopMotor();
       linearActuator.stopMotor();
       // Hold position at calibration position
@@ -373,32 +382,41 @@ void loop(){
 
       // Serial.println("Move until contact!");
       // nh.loginfo("Moving until contact with bone...");
-      LinearActMotorControlType = speedControl;
-      reamerMotorCommand = 0;
-      
-      if ((millis()-timerForce1) > 400){
+
+      if ((millis()-timerForce1) > 10){
+        // Serial.print("Current: ");
+        // Serial.println(forceValue);
         float forceOut = forceController(forceValue);
+        Serial.print("===============================================================output from force controller: ");
         Serial.println(forceOut);
+        LinearActMotorControlType = speedControl;
+        ReamerMotorControlType = speedControl;
         linearActuatorMotorCommand = int(forceOut);
+        reamerMotorCommand = 0;
         timerForce1 = millis();
       }
 
       // Serial.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!HERE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-      if(forceValue >= forceSetPoint){
-          Serial.println(currentState);
-          currentState = STARTREAMING;
+      if(forceValue >= forceSetPoint && ){
+          // Serial.println(currentState);
+          // currentState = STARTREAMING;
           Serial.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Force threshold Exceeded! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+          Serial.print("Current at force thresh exceeded: ");
+          Serial.println(forceValue);
+          Serial.print("Current at forcesetpoint: ");
+          Serial.println(forceSetPoint);
           Serial.print("-------------------------------------------State changed to : ");
+          currentState = DONEREAMING;
           Serial.println(currentState);
           linearActuatorMotorCommand = 0;
-          
       }
 
       break;
 
     //Ream as long as pelvis error is within thresholds and goal has not been reached 
     case STARTREAMING:
-      
+      // Serial.print("####################################################### Current force: ");
+      // Serial.println(forceValue);
       Serial.println("Start reaming...");
       ReamerMotorControlType = speedControl;
       LinearActMotorControlType = speedControl;
@@ -420,14 +438,14 @@ void loop(){
     // Goal has been reached, stop reaming! 
     case DONEREAMING: 
       
-      Serial.println("Done reaming!");
+      // Serial.println("Done reaming!");
       reamerMotor.stopMotor();
       linearActuator.stopMotor();
       // nh.loginfo("Done reaming!");
       break;
 
     case TESTING:
-      Serial.println("Testing!");
+      // Serial.println("Testing!");
       ReamerMotorControlType = speedControl;
       reamerMotorCommand = 100;
       // nh.loginfo("Testing state...");
@@ -436,7 +454,7 @@ void loop(){
     default:
       
       // nh.loginfo("Invalid state, stopping reaming!");
-      Serial.println("Invalid state!");
+      // Serial.println("Invalid state!");
       reamerMotor.stopMotor();
       linearActuator.stopMotor();
       break;
@@ -449,7 +467,7 @@ void loop(){
   // Serial.println("Low level controller!");
   // Set LimitSwitch interrupt flag to false
   if(digitalRead(LimSwitchPin1) && digitalRead(LimSwitchPin2))
-    Serial.println("Both limit swtiches not engaged!");
+    // Serial.println("Both limit swtiches not engaged!");
     MotorControl::limitSwitchStop_ = false;
 
   
@@ -461,6 +479,7 @@ void loop(){
   // Reamer Motor Speed Control
   if ((((millis()-rpmTimerM1)) > 400) && (ReamerMotorControlType == speedControl)){
     float rpm = reamerMotor.getMotorRPM();
+    // reamerMotor.pidSpeedControl(reamerMotorCommand);
     reamerMotor.pidSpeedControl(reamerMotorCommand);
     rpmTimerM1 = millis();
 
