@@ -22,10 +22,10 @@ void currentSensor::init(){
 }
 
 /*
-@brief Get the voltage reading, and convert to the current readings based on calibrated constants 
+@brief Get the voltage reading, and convert to the average current readings based on calibrated constants 
 */
 
-float currentSensor::getCurrent(){
+float currentSensor::getCurrentAvg(){
     currentRaw_ = 0;
     currentRawAvg_ = 0;
     current_ = 0;
@@ -40,6 +40,24 @@ float currentSensor::getCurrent(){
 
     return -current_;
 }
+
+/*
+@brief Get the voltage reading, and convert to the current readings based on calibrated constants 
+*/
+
+float currentSensor::getCurrent(){
+    currentRaw_ = 0;
+    currentRawAvg_ = 0;
+    current_ = 0;
+    numSamples_ = 20; 
+    currentRaw_ = getRaw();
+    current_ = (float(currentRaw_)-510.0)/14.0;
+    return -current_;
+}
+
+/*
+@brief Get the raw voltage readings
+*/
 
 int currentSensor::getRaw(){
     return analogRead(pin_);

@@ -37,8 +37,12 @@ class currentSensor{
         // Setup the analogPin for reading from current sensor 
         void init();
 
+
         // Get current 
         float getCurrent(); 
+
+        // Get current 
+        float getCurrentAvg(); 
 
         //Publish current to a ROS topic 
         void publishCurrent();

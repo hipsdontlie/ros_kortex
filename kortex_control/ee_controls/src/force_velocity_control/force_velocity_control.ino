@@ -9,7 +9,7 @@ Author: Kaushik Balasundar
 #include <std_msgs/String.h>
 #include "currentSensor.h"
 #include "motorControl.h"
-
+#include <movingAvg.h>
 //Current sensor pin 
 byte currentSensorPin = A0;
 
@@ -58,6 +58,7 @@ std_msgs::Int16 posLinearActuatorMotor;
 
 //Current sensor 
 currentSensor currSensor(currentSensorPin);
+movingAvg currentSensorAvg(10);
 
 //Reamer motor 
 MotorControl reamerMotor(PWMPinReamerMotor , DIRPinReamerMotor, 1);
@@ -111,6 +112,9 @@ float timerForce2 = 0;
 float currentSampleTime = 0;
 float forceValue = 0;
 int linActPos = 0;
+float forceMovingAvg =0;
+int forceValueRaw = 0;
+
 
 /*------------------------------------------ROS Callbacks -------------------------------------------*/ 
 
@@ -284,7 +288,7 @@ void setup(){
 
     //Serial port for debugging
     Serial.begin(57600);
-
+    currentSensorAvg.begin();
     //ROS Setup
     // nh.initNode();
 
@@ -327,10 +331,14 @@ void loop(){
   // nh.spinOnce();
   // float* forceValues;
   if(millis() - currentSampleTime > 10){
-    forceValue = currSensor.getCurrent();
+    forceValueRaw = currSensor.getRaw();
+    currentSensorAvg.reading(forceValueRaw);
+    forceMovingAvg = currentSensorAvg.getAvg(10);
+    forceValue = (float(forceMovingAvg)-510.0)/14.0;
+    
     linActPos = linearActuator.getMotorPos();
     currentSampleTime  = millis();
-    Serial.print("--------------------------------------------------------Current: ");
+    Serial.print("--------------------------------------------------------Current Avg: ");
     Serial.println(forceValue);
     Serial.print("Motor Position: ");
     Serial.println(linActPos);
@@ -397,7 +405,7 @@ void loop(){
       }
 
       // Serial.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!HERE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-      if(forceValue >= forceSetPoint && ){
+      if(forceValue >= forceSetPoint){
           // Serial.println(currentState);
           // currentState = STARTREAMING;
           Serial.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Force threshold Exceeded! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
@@ -467,7 +475,7 @@ void loop(){
   // Serial.println("Low level controller!");
   // Set LimitSwitch interrupt flag to false
   if(digitalRead(LimSwitchPin1) && digitalRead(LimSwitchPin2))
-    // Serial.println("Both limit swtiches not engaged!");
+    Serial.println("Both limit swtiches not engaged!");
     MotorControl::limitSwitchStop_ = false;
 
   

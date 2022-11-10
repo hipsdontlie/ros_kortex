@@ -238,70 +238,71 @@ int main(int argc, char **argv)
       }
     }
 
-    if(controls.controller_flag)
+
+    if(controls.currTime_error - controls.prevTime_error > ros::Duration(0.033).toSec())
     {
-      if(controls.currTime_error - controls.prevTime_error > ros::Duration(0.033).toSec())
+      // ROS_INFO("Controller error publisher dropped below 30Hz!\n");
+      controls.trans_bool = false;
+      controls.orien_bool = false;
+      controls.controller_flag = false;
+      if (fw.is_open() && !controls.error_printed)
       {
-        // ROS_INFO("Controller error publisher dropped below 30Hz!\n");
-        controls.trans_bool = false;
-        controls.orien_bool = false;
-        controls.controller_flag = false;
-        if (fw.is_open() && !controls.error_printed)
-        {
-          time_t rawtime;
-          struct tm * timeinfo;
-          char st [128];
-          
-          time (&rawtime);
-          timeinfo = localtime (&rawtime);
-          strftime (st,128,"Date: %y-%m-%d  Time: %I:%M:%S",timeinfo);
-          fw << st <<"     ";
-          fw << "Controller error above threshold\n";
-          controls.error_printed = true;
-        }
-      }
-
-      if(controls.currTime_singularity - controls.prevTime_singularity > ros::Duration(0.033).toSec())
-      {
-        // ROS_INFO("Controller singularity publisher dropped below 30Hz!\n");
-        controls.singularity_bool = false;
-        controls.controller_flag = false;
-        if (fw.is_open() && !controls.singularity_printed)
-        {
-          time_t rawtime;
-          struct tm * timeinfo;
-          char st [128];
-          
-          time (&rawtime);
-          timeinfo = localtime (&rawtime);
-          strftime (st,128,"Date: %y-%m-%d  Time: %I:%M:%S",timeinfo);
-          fw << st <<"     ";
-          fw << "Arthur is close to singularity\n";
-          controls.singularity_printed = true;
-        }
-      }
-
-      if(controls.currTime_jlimits - controls.prevTime_jlimits > ros::Duration(0.033).toSec())
-      {
-        // ROS_INFO("Controller joint limits publisher dropped below 30Hz!\n");
-        controls.jlimits_bool = false;
-        controls.controller_flag = false;
-        if (fw.is_open() && !controls.jlimits_printed)
-        {
-          time_t rawtime;
-          struct tm * timeinfo;
-          char st [128];
-          
-          time (&rawtime);
-          timeinfo = localtime (&rawtime);
-          strftime (st,128,"Date: %y-%m-%d  Time: %I:%M:%S",timeinfo);
-          fw << st <<"     ";
-          fw << "Arthur is close to joint limits\n";
-          controls.jlimits_printed = true;
-        }
+        time_t rawtime;
+        struct tm * timeinfo;
+        char st [128];
+        
+        time (&rawtime);
+        timeinfo = localtime (&rawtime);
+        strftime (st,128,"Date: %y-%m-%d  Time: %I:%M:%S",timeinfo);
+        fw << st <<"     ";
+        fw << "Controller error above threshold\n";
+        controls.error_printed = true;
       }
     }
+
+    if(controls.currTime_singularity - controls.prevTime_singularity > ros::Duration(0.033).toSec())
+    {
+      // ROS_INFO("Controller singularity publisher dropped below 30Hz!\n");
+      controls.singularity_bool = false;
+      controls.controller_flag = false;
+      if (fw.is_open() && !controls.singularity_printed)
+      {
+        time_t rawtime;
+        struct tm * timeinfo;
+        char st [128];
+        
+        time (&rawtime);
+        timeinfo = localtime (&rawtime);
+        strftime (st,128,"Date: %y-%m-%d  Time: %I:%M:%S",timeinfo);
+        fw << st <<"     ";
+        fw << "Arthur is close to singularity\n";
+        controls.singularity_printed = true;
+      }
+    }
+
+    if(controls.currTime_jlimits - controls.prevTime_jlimits > ros::Duration(0.033).toSec())
+    {
+      // ROS_INFO("Controller joint limits publisher dropped below 30Hz!\n");
+      controls.jlimits_bool = false;
+      controls.controller_flag = false;
+      if (fw.is_open() && !controls.jlimits_printed)
+      {
+        time_t rawtime;
+        struct tm * timeinfo;
+        char st [128];
+        
+        time (&rawtime);
+        timeinfo = localtime (&rawtime);
+        strftime (st,128,"Date: %y-%m-%d  Time: %I:%M:%S",timeinfo);
+        fw << st <<"     ";
+        fw << "Arthur is close to joint limits\n";
+        controls.jlimits_printed = true;
+      }
+    }
+
     controllerFlag_pub.publish(control_msg);
+
+    
 
   // ****************************************** end of controls ********************************************************
 
