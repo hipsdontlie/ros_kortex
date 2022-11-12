@@ -7,22 +7,23 @@ void Controls::error_check(const std_msgs::Float64MultiArray::ConstPtr& error_ms
   prevTime_error = ros::Time::now().toSec();
   double trans_error = error_msg->data[0];
   double orientation_error = error_msg->data[1];
-  if (trans_error > 80.0)
+  if (trans_error > 150.0 || orientation_error > 45.0)
   {
-    ROS_INFO("Translation error is too high!\n");
-    // controller_flag = false;
-    trans_bool = false;
-  }
-  else if(orientation_error > 45)
-  {
-    ROS_INFO("Translation error is too high!\n");
-    // controller_flag = false;
-    orien_bool = false;
+    if(trans_error > 150.0)
+    {
+      trans_bool = false;
+      ROS_INFO("Translation error is too high!\n");
+    }
+    if(orientation_error > 45.0)
+    {
+      orien_bool = false;
+      ROS_INFO("Orientation error is too high!\n");
+    }
   }
   else
   { 
     // std::cout<<error_msg->data<<std::endl;
-    ROS_INFO("Translation error within threshold! Continue...\n");
+    ROS_INFO("Translation/Orientation error within threshold! Continue...\n");
     // controller_flag = true;
     trans_bool = true;
     orien_bool = true;

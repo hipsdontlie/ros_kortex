@@ -140,6 +140,7 @@ int main(int argc, char **argv)
       inputs.probe_visible = false;
     }
 
+    //************************ publish inputs message ******************************************
     input_msg.ee_visible = inputs.ee_visible;
     input_msg.pelvis_visible = inputs.pelvis_visible;
     input_msg.probe_visible = inputs.probe_visible;
@@ -191,10 +192,10 @@ int main(int argc, char **argv)
 
     // ************************************* end of perception **********************************************
 
-    std::cout<<"Control trans error: "<<controls.trans_bool<<std::endl; 
-    std::cout<<"Control orientation error: "<<controls.orien_bool<<std::endl; 
-    std::cout<<"Control singularity error: "<<controls.singularity_bool<<std::endl; 
-    std::cout<<"Control joint limits error: "<<controls.jlimits_bool<<std::endl; 
+    // std::cout<<"Control trans error: "<<controls.trans_bool<<std::endl; 
+    // std::cout<<"Control orientation error: "<<controls.orien_bool<<std::endl; 
+    // std::cout<<"Control singularity error: "<<controls.singularity_bool<<std::endl; 
+    // std::cout<<"Control joint limits error: "<<controls.jlimits_bool<<std::endl; 
     
     // ******************************************* controls ******************************************************
     
@@ -239,7 +240,7 @@ int main(int argc, char **argv)
     }
 
 
-    if(controls.currTime_error - controls.prevTime_error > ros::Duration(0.033).toSec())
+    if(controls.currTime_error - controls.prevTime_error > ros::Duration(0.1).toSec())
     {
       // ROS_INFO("Controller error publisher dropped below 30Hz!\n");
       controls.trans_bool = false;
@@ -255,12 +256,12 @@ int main(int argc, char **argv)
         timeinfo = localtime (&rawtime);
         strftime (st,128,"Date: %y-%m-%d  Time: %I:%M:%S",timeinfo);
         fw << st <<"     ";
-        fw << "Controller error above threshold\n";
+        fw << "Controller error publisher dropped below 30Hz\n";
         controls.error_printed = true;
       }
     }
 
-    if(controls.currTime_singularity - controls.prevTime_singularity > ros::Duration(0.033).toSec())
+    if(controls.currTime_singularity - controls.prevTime_singularity > ros::Duration(0.1).toSec())
     {
       // ROS_INFO("Controller singularity publisher dropped below 30Hz!\n");
       controls.singularity_bool = false;
@@ -275,12 +276,12 @@ int main(int argc, char **argv)
         timeinfo = localtime (&rawtime);
         strftime (st,128,"Date: %y-%m-%d  Time: %I:%M:%S",timeinfo);
         fw << st <<"     ";
-        fw << "Arthur is close to singularity\n";
+        fw << "Controller singularity publisher dropped below 30Hz\n";
         controls.singularity_printed = true;
       }
     }
 
-    if(controls.currTime_jlimits - controls.prevTime_jlimits > ros::Duration(0.033).toSec())
+    if(controls.currTime_jlimits - controls.prevTime_jlimits > ros::Duration(0.1).toSec())
     {
       // ROS_INFO("Controller joint limits publisher dropped below 30Hz!\n");
       controls.jlimits_bool = false;
@@ -295,18 +296,128 @@ int main(int argc, char **argv)
         timeinfo = localtime (&rawtime);
         strftime (st,128,"Date: %y-%m-%d  Time: %I:%M:%S",timeinfo);
         fw << st <<"     ";
-        fw << "Arthur is close to joint limits\n";
+        fw << "Controller joint limits publisher dropped below 30Hz\n";
         controls.jlimits_printed = true;
       }
     }
 
+    //publish controller flag
     controllerFlag_pub.publish(control_msg);
 
-    
+    if(controls.trans_bool == false && fw.is_open() && !controls.transError_printed)
+    {
+      time_t rawtime;
+      struct tm * timeinfo;
+      char st [128];
+      
+      time (&rawtime);
+      timeinfo = localtime (&rawtime);
+      strftime (st,128,"Date: %y-%m-%d  Time: %I:%M:%S",timeinfo);
+      fw << st <<"     ";
+      fw << "Controls translation error is high\n";
+      controls.transError_printed = true;
+    }   
+    if(controls.trans_bool && fw.is_open() && controls.transError_printed)
+    {
+      time_t rawtime;
+      struct tm * timeinfo;
+      char st [128];
+      
+      time (&rawtime);
+      timeinfo = localtime (&rawtime);
+      strftime (st,128,"Date: %y-%m-%d  Time: %I:%M:%S",timeinfo);
+      fw << st <<"     ";
+      fw << "Controls translation error is within limits\n";
+      controls.transError_printed = false;
+    }
+
+    if(controls.orien_bool == false && fw.is_open() && !controls.orienError_printed)
+    {
+      time_t rawtime;
+      struct tm * timeinfo;
+      char st [128];
+      
+      time (&rawtime);
+      timeinfo = localtime (&rawtime);
+      strftime (st,128,"Date: %y-%m-%d  Time: %I:%M:%S",timeinfo);
+      fw << st <<"     ";
+      fw << "Controls orientation error is high\n";
+      controls.orienError_printed = true;
+    } 
+
+    if(controls.orien_bool && fw.is_open() && controls.orienError_printed)
+    {
+      time_t rawtime;
+      struct tm * timeinfo;
+      char st [128];
+      
+      time (&rawtime);
+      timeinfo = localtime (&rawtime);
+      strftime (st,128,"Date: %y-%m-%d  Time: %I:%M:%S",timeinfo);
+      fw << st <<"     ";
+      fw << "Controls orientation error is within limits\n";
+      controls.orienError_printed = false;
+    }
+
+    if(controls.singularity_bool == false && fw.is_open() && !controls.singularityBool_printed)
+    {
+      time_t rawtime;
+      struct tm * timeinfo;
+      char st [128];
+      
+      time (&rawtime);
+      timeinfo = localtime (&rawtime);
+      strftime (st,128,"Date: %y-%m-%d  Time: %I:%M:%S",timeinfo);
+      fw << st <<"     ";
+      fw << "Arthur at singularity\n";
+      controls.singularityBool_printed = true;
+    }   
+
+    if(controls.singularity_bool && fw.is_open() && controls.singularityBool_printed)
+    {
+      time_t rawtime;
+      struct tm * timeinfo;
+      char st [128];
+      
+      time (&rawtime);
+      timeinfo = localtime (&rawtime);
+      strftime (st,128,"Date: %y-%m-%d  Time: %I:%M:%S",timeinfo);
+      fw << st <<"     ";
+      fw << "Arthur out of singularity\n";
+      controls.singularityBool_printed = false;
+    } 
 
   // ****************************************** end of controls ********************************************************
 
   //*************************************** end-effector **********************************************
+
+    if(hardware.hardware_flag && fw.is_open() && hardware.hardwareFlag_printed)
+      {
+        time_t rawtime;
+        struct tm * timeinfo;
+        char st [128];
+        
+        time (&rawtime);
+        timeinfo = localtime (&rawtime);
+        strftime (st,128,"Date: %y-%m-%d  Time: %I:%M:%S",timeinfo);
+        fw << st <<"     ";
+        fw << "Hardware flag set to true\n";
+        hardware.hardwareFlag_printed = false;
+      }
+
+    if(hardware.hardware_flag==false && fw.is_open() && !hardware.hardwareFlag_printed)
+      {
+        time_t rawtime;
+        struct tm * timeinfo;
+        char st [128];
+        
+        time (&rawtime);
+        timeinfo = localtime (&rawtime);
+        strftime (st,128,"Date: %y-%m-%d  Time: %I:%M:%S",timeinfo);
+        fw << st <<"     ";
+        fw << "Hardware flag set to false\n";
+        hardware.hardwareFlag_printed = true;
+      }
 
     if(hardware.currTime_reamerSpeed - hardware.prevTime_reamerSpeed > ros::Duration(0.033).toSec())
       {
@@ -322,10 +433,69 @@ int main(int argc, char **argv)
           timeinfo = localtime (&rawtime);
           strftime (st,128,"Date: %y-%m-%d  Time: %I:%M:%S",timeinfo);
           fw << st <<"     ";
-          fw << "Arthur is close to joint limits\n";
+          fw << "End-effector speed publisher dropped below 30Hz\n";
           hardware.reamerSpeed_printed = true;
         }
       }
+
+    if(hardware.currTime_loadApplied - hardware.prevTime_loadApplied > ros::Duration(0.033).toSec())
+      {
+        // ROS_INFO("Controller joint limits publisher dropped below 30Hz!\n");
+        hardware.hardware_flag = false;
+        if (fw.is_open() && !hardware.loadApplied_printed)
+        {
+          time_t rawtime;
+          struct tm * timeinfo;
+          char st [128];
+          
+          time (&rawtime);
+          timeinfo = localtime (&rawtime);
+          strftime (st,128,"Date: %y-%m-%d  Time: %I:%M:%S",timeinfo);
+          fw << st <<"     ";
+          fw << "End-effector load applied publisher dropped below 30Hz\n";
+          hardware.loadApplied_printed = true;
+        }
+      }
+
+    if(hardware.currTime_currentDrawn - hardware.prevTime_currentDrawn > ros::Duration(0.033).toSec())
+      {
+        // ROS_INFO("Controller joint limits publisher dropped below 30Hz!\n");
+        hardware.hardware_flag = false;
+        if (fw.is_open() && !hardware.currentDrawn_printed)
+        {
+          time_t rawtime;
+          struct tm * timeinfo;
+          char st [128];
+          
+          time (&rawtime);
+          timeinfo = localtime (&rawtime);
+          strftime (st,128,"Date: %y-%m-%d  Time: %I:%M:%S",timeinfo);
+          fw << st <<"     ";
+          fw << "End-effector current drawn publisher dropped below 30Hz\n";
+          hardware.currentDrawn_printed = true;
+        }
+      }
+
+    if(hardware.currTime_reamPercent - hardware.prevTime_reamPercent > ros::Duration(0.033).toSec())
+      {
+        // ROS_INFO("Controller joint limits publisher dropped below 30Hz!\n");
+        hardware.hardware_flag = false;
+        if (fw.is_open() && !hardware.reamPercent_printed)
+        {
+          time_t rawtime;
+          struct tm * timeinfo;
+          char st [128];
+          
+          time (&rawtime);
+          timeinfo = localtime (&rawtime);
+          strftime (st,128,"Date: %y-%m-%d  Time: %I:%M:%S",timeinfo);
+          fw << st <<"     ";
+          fw << "End-effector reaming percentage publisher dropped below 30Hz\n";
+          hardware.reamPercent_printed = true;
+        }
+      }
+
+      
 
     ros::spinOnce();
     loop_rate.sleep();
