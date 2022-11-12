@@ -240,7 +240,7 @@ int main(int argc, char **argv)
     }
 
 
-    if(controls.currTime_error - controls.prevTime_error > ros::Duration(0.033).toSec())
+    if(controls.currTime_error - controls.prevTime_error > ros::Duration(0.1).toSec())
     {
       // ROS_INFO("Controller error publisher dropped below 30Hz!\n");
       controls.trans_bool = false;
@@ -261,7 +261,7 @@ int main(int argc, char **argv)
       }
     }
 
-    if(controls.currTime_singularity - controls.prevTime_singularity > ros::Duration(0.033).toSec())
+    if(controls.currTime_singularity - controls.prevTime_singularity > ros::Duration(0.1).toSec())
     {
       // ROS_INFO("Controller singularity publisher dropped below 30Hz!\n");
       controls.singularity_bool = false;
@@ -281,7 +281,7 @@ int main(int argc, char **argv)
       }
     }
 
-    if(controls.currTime_jlimits - controls.prevTime_jlimits > ros::Duration(0.033).toSec())
+    if(controls.currTime_jlimits - controls.prevTime_jlimits > ros::Duration(0.1).toSec())
     {
       // ROS_INFO("Controller joint limits publisher dropped below 30Hz!\n");
       controls.jlimits_bool = false;
