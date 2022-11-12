@@ -28,6 +28,7 @@ class Hardware
         void current_drawn(const std_msgs::Float64::ConstPtr& currentDrawn_msg);
 
         bool hardware_flag;
+        bool hardwareFlag_printed;
         bool reamerSpeed_printed = false;
         bool loadApplied_printed = false;
         bool reamPercent_printed = false;

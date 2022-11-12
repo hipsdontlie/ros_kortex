@@ -33,6 +33,7 @@ class Controls
         double prevTime_singularity;
         double currTime_jlimits;
         double prevTime_jlimits;
+        
         bool controller_flag = false;
         bool trans_bool = false;
         bool orien_bool = false;
@@ -44,6 +45,12 @@ class Controls
         bool error_printed = false;
         bool singularity_printed = false;
         bool jlimits_printed = false;
+
+        bool singularityBool_printed = false;
+        bool transError_printed = false;
+        bool orienError_printed = false;
+        bool jlimitsBool_printed = false;
+
 
 
 

@@ -55,13 +55,13 @@ void Hardware::current_drawn(const std_msgs::Float64::ConstPtr& currentDrawn_msg
   prevTime_currentDrawn = ros::Time::now().toSec();
   if (currentDrawn_msg->data > 20.0)
   {
-    ROS_INFO("Load very high! Please retract\n");
+    ROS_INFO("Current drawn very high! Please retract\n");
     hardware_flag = false;
   }
   else
   { 
     // std::cout<<singularity_msg->data<<std::endl;
-    ROS_INFO("Load within limit...\n");
+    ROS_INFO("Current drawn within limit...\n");
     hardware_flag = true;
   }
 }
