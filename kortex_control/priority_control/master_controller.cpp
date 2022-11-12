@@ -195,8 +195,10 @@ int main(int argc, char **argv)
     ros::Subscriber clear_fault_sub_ = node.subscribe<std_msgs::Empty>("/controller_clear_fault", 1, boost::bind(&clearFaultCallback, _1, &priority_controller_));
     ros::Subscriber controller_flag_sub_ = node.subscribe<std_msgs::Bool>("/controller_flag", 1, boost::bind(&controllerFlagCallback, _1, &controller_enabled_));
     ros::Subscriber joint_state_sub_ = node.subscribe<sensor_msgs::JointState>("/my_gen3/joint_states", 1, boost::bind(&jointStateCallback, _1, &q_pos_, robot_));
-    ros::Subscriber pelvis_tracking_frame_sub_ = node.subscribe<geometry_msgs::Transform>("/tf/tool_frame_to_dummy_pelvis", 1, boost::bind(&pelvisErrorCallback, _1, &pelvis_error_));
-    ros::Subscriber pelvis_tracking_twist_sub_ = node.subscribe<geometry_msgs::Twist>("/tf/twist/tool_frame_to_dummy_pelvis", 1, boost::bind(&pelvisTwistCallback, _1, &pelvis_twist_));
+    // ros::Subscriber pelvis_tracking_frame_sub_ = node.subscribe<geometry_msgs::Transform>("/tf/tool_frame_to_dummy_pelvis", 1, boost::bind(&pelvisErrorCallback, _1, &pelvis_error_));
+    // ros::Subscriber pelvis_tracking_twist_sub_ = node.subscribe<geometry_msgs::Twist>("/tf/twist/tool_frame_to_dummy_pelvis", 1, boost::bind(&pelvisTwistCallback, _1, &pelvis_twist_));
+    ros::Subscriber pelvis_tracking_frame_sub_ = node.subscribe<geometry_msgs::Transform>("/tf/tool_frame_to_reaming_pose", 1, boost::bind(&pelvisErrorCallback, _1, &pelvis_error_));
+    ros::Subscriber pelvis_tracking_twist_sub_ = node.subscribe<geometry_msgs::Twist>("/tf/twist/tool_frame_to_reaming_pose", 1, boost::bind(&pelvisTwistCallback, _1, &pelvis_twist_));
     // ros::Subscriber camera_tracking_frame_sub_ = node.subscribe<geometry_msgs::Transform>("/tf/ee_marker_frame_to_dummy_camera", 1, boost::bind(&cameraErrorCallback, _1, &camera_error_));
     // ros::Subscriber camera_tracking_twist_sub_ = node.subscribe<geometry_msgs::Twist>("/tf/twist/ee_marker_frame_to_dummy_camera", 1, boost::bind(&cameraTwistCallback, _1, &camera_twist_));
     ros::Subscriber camera_tracking_frame_sub_ = node.subscribe<geometry_msgs::Transform>("/tf/ee_marker_frame_to_camera", 1, boost::bind(&cameraErrorCallback, _1, &camera_error_));
@@ -224,12 +226,28 @@ int main(int argc, char **argv)
     // ros::Publisher traj_eval_pub = node.advertise<geometry_msgs::Pose>("/actual_traj", 1);
 
 
-    listener.waitForTransform(tip_frame_, target_frame_,
-                              ros::Time::now(), ros::Duration(1.0));
+    // listener.waitForTransform(tip_frame_, target_frame_,
+    //                           ros::Time::now(), ros::Duration(1.0));
+
+    tf2_ros::Buffer tfBuffer;
+    tf2_ros::TransformListener tfListener(tfBuffer);
+    geometry_msgs::TransformStamped transformStamped;
 
     ros::spinOnce();
     while (!g_request_shutdown)
     {
+        try{
+            transformStamped = tfBuffer.lookupTransform("camera", "reaming_pose",
+                                ros::Time(0));
+            transformStamped = tfBuffer.lookupTransform("camera", "ee_marker_frame",
+                                ros::Time(0));
+        }
+        catch (tf2::TransformException &ex) 
+        {
+            ROS_WARN("%s",ex.what());
+            ros::Duration(1.0).sleep();
+            continue;
+        }
         // Eigen::VectorXd desired_twist = pidController(pelvis_error_, pelvis_twist_, pelvis_error_metrics_pub_);
         // if (std::isnan(desired_twist(0)) || std::isnan(desired_twist(1)) || std::isnan(desired_twist(2)) || std::isnan(desired_twist(3)) || std::isnan(desired_twist(4)) || std::isnan(desired_twist(5)))
         // {
@@ -256,6 +274,7 @@ int main(int argc, char **argv)
         // std::cout << "+++++++++++++++++" << std::endl;
         // std::cout << robot_->segnr2name(robot_->name2segnr(ee_marker_frame_)) << std::endl;
         // std::cout << robot_->segnr2name(robot_->name2segnr(tip_frame_)) << std::endl;
+        // ROS_WARN("Transform Found!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
         bool successful_update = true;
         
         if(!pelvis_task_->updateError(q_pos_, pelvis_error_, pelvis_twist_, pelvis_error_metrics_pub_))

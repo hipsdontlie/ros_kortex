@@ -29,16 +29,16 @@ float currentSensor::getCurrentAvg(){
     currentRaw_ = 0;
     currentRawAvg_ = 0;
     current_ = 0;
-    numSamples_ = 20; 
+    numSamples_ = 50; 
     // Average filtering
-    for(int i=0 ; i<numSamples_ && getRaw() > 0 && getRaw() < 1023; i++){
+    for(int i=0 ; i<numSamples_ ; i++){
       currentRaw_ = currentRaw_ + getRaw();
+      delay(3);
     }
 
     currentRawAvg_ = float(currentRaw_)/numSamples_;
-    current_ = (float(currentRawAvg_)-510.0)/14.0;
-
-    return -current_;
+    current_ = (2.5 - (currentRawAvg_ * (5.0 / 1024.0)) )/0.068;
+    return current_;
 }
 
 /*
