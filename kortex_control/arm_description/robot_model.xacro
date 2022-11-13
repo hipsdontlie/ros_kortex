@@ -24,25 +24,59 @@
         <origin xyz="0 0 0" rpy="0 0 0"/> 
     </xacro:load_arm>
     <!-- TODO: If the following is changed, need to change also in kortex_table and in kortex_robot xacros -->
-    <link name="$(arg prefix)ee_marker_frame"/>
-    <joint name="$(arg prefix)ee_marker_frame_joint" type="fixed">
-        <origin xyz="0 0 0" rpy="-1.5708 0 0" />
-        <parent link="$(arg prefix)${last_arm_link}" />
-        <child link="$(arg prefix)ee_marker_frame" />
-        <axis xyz="0 0 0" />
-    </joint>
-    <link name="$(arg prefix)tool_frame"/>
+    <link name="$(arg prefix)tool_frame">
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <geometry>
+            <mesh filename="package://kortex_description/arms/gen3/$(arg dof)dof/meshes/ReamerHead.STL"/>
+            </geometry>
+            <material name="">
+            <color rgba="0.75294 0.75294 0.75294 1" />
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <geometry>
+            <mesh filename="package://kortex_description/arms/gen3/$(arg dof)dof/meshes/ReamerHead.STL"/>
+            </geometry>
+        </collision>
+    </link>
     <joint name="$(arg prefix)tool_frame_joint" type="fixed">
-        <origin xyz="-0.008480 -0.191619 0 " rpy="-1.5708 0 -0.7854" />
-        <parent link="$(arg prefix)ee_marker_frame" />
+        <origin xyz="0 0 -0.0915" rpy="0 0 0" />
+        <parent link="$(arg prefix)${last_arm_link}" />
         <child link="$(arg prefix)tool_frame" />
+        <axis xyz="0 0 0" />
+        <!-- <limit lower="-0.07" upper="0" effort="200" velocity="40" /> -->
+    </joint>
+
+    <link name="$(arg prefix)reamer_head">
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <geometry>
+            <mesh filename="package://kortex_description/arms/gen3/$(arg dof)dof/meshes/ReamingHead_56MM.STL"/>
+            </geometry>
+            <material name="">
+            <color rgba="0.75294 0.75294 0.75294 1" />
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <geometry>
+            <mesh filename="package://kortex_description/arms/gen3/$(arg dof)dof/meshes/ReamingHead_56MM.STL"/>
+            </geometry>
+        </collision>
+    </link>
+    <joint name="$(arg prefix)reamer_head_joint" type="fixed">
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <parent link="$(arg prefix)tool_frame" />
+        <child link="$(arg prefix)reamer_head" />
         <axis xyz="0 0 0" />
     </joint>
 
     <link name="$(arg prefix)tool_tip_frame"/>
     <joint name="$(arg prefix)tool_tip_frame_joint" type="fixed">
-        <origin xyz="0 0 -0.023" rpy="0 0 0" />
-        <parent link="$(arg prefix)tool_frame" />
+        <origin xyz="0 0 -0.028" rpy="0 0 0" />
+        <parent link="$(arg prefix)reamer_head" />
         <child link="$(arg prefix)tool_tip_frame"/>
         <axis xyz="0 0 0" />
     </joint>

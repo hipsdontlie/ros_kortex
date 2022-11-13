@@ -300,39 +300,6 @@
         effort="9"
         velocity="1.2218" />
     </joint>
-
-
-    <!-- <link name="${prefix}ee_adapter_link">
-      <inertial>
-        <origin xyz="-9.3E-05 0.000132 -0.022905" rpy="0 0 0" />
-        <mass value="1.100" />
-        <inertia ixx="0.000214" ixy="0" ixz="1E-06" iyy="0.000223" iyz="-2E-06" izz="0.00024" />
-      </inertial>
-      <visual>
-        <origin xyz="0 0 0" rpy="0 0 0" />
-        <geometry>
-          <mesh filename="package://kortex_description/arms/gen3/${dof}dof/meshes/ReamerAssemblyCombine.stl"/>
-        </geometry>
-        <material name="">
-          <color rgba="0.75294 0.75294 0.75294 1" />
-        </material>
-      </visual>
-      <collision>
-        <origin xyz="0 0 0" rpy="0 0 0" />
-        <geometry>
-          <mesh filename="package://kortex_description/arms/gen3/${dof}dof/meshes/ReamerAssemblyCombine.stl"/>
-        </geometry>
-      </collision>
-    </link> -->
-    <!-- <joint name="${prefix}ee_joint" type="fixed">
-      <origin xyz="0 0 -0.0615250000000001" rpy="3.14159265358979 1.09937075168372E-32 0" />
-      <parent
-        link="${prefix}bracelet_link" />
-      <child
-        link="${prefix}ee_adapter_link" />
-      <axis
-        xyz="0 0 0" />
-    </joint> -->
     <link name="${prefix}ee_adapter_link">
       <inertial>
         <origin xyz="-9.3E-05 0.000132 -0.022905" rpy="0 0 0" />
@@ -342,7 +309,7 @@
       <visual>
         <origin xyz="0 0 0" rpy="0 0 0" />
         <geometry>
-          <mesh filename="package://kortex_description/arms/gen3/${dof}dof/meshes/EE_V1_compressed.stl"/>
+          <mesh filename="package://kortex_description/arms/gen3/${dof}dof/meshes/EE_V1.stl"/>
         </geometry>
         <material name="">
           <color rgba="0.75294 0.75294 0.75294 1" />
@@ -351,13 +318,13 @@
       <collision>
         <origin xyz="0 0 0" rpy="0 0 0" />
         <geometry>
-          <mesh filename="package://kortex_description/arms/gen3/${dof}dof/meshes/EE_V1_compressed.stl"/>
+          <mesh filename="package://kortex_description/arms/gen3/${dof}dof/meshes/EE_V1.stl"/>
         </geometry>
       </collision>
     </link>
 
     <joint name="${prefix}ee_joint" type="fixed">
-      <origin xyz="0 0 -0.06446" rpy="3.14159265358979 0 1.5708" />
+      <origin xyz="0 0 -0.06446" rpy="3.14159265358979 0 3.14159265358979" />
       <parent
         link="${prefix}bracelet_link" />
       <child
@@ -365,173 +332,36 @@
       <axis
         xyz="0 0 0" />
     </joint>
-
-    <!-- <link name="${prefix}ftsensor_link">
-      <inertial>
-        <origin xyz="-9.3E-05 0.000132 -0.022905" rpy="0 0 0" />
-        <mass value="0.310" />
-        <inertia ixx="0.000214" ixy="0" ixz="1E-06" iyy="0.000223" iyz="-2E-06" izz="0.00024" />
-      </inertial>
-      <visual>
-        <origin xyz="-0.04 -0.05 0" rpy="0 0 0" />
-        <geometry>
-          <mesh filename="package://kortex_description/arms/gen3/${dof}dof/meshes/FTSensor.STL" scale="0.001 0.001 0.001"/>
-        </geometry>
-        <material name="">
-          <color rgba="0.75294 0.75294 0.75294 1" />
-        </material>
-      </visual>
-      <collision>
-        <origin xyz="-0.04 -0.05 0" rpy="0 0 0" />
-        <geometry>
-          <mesh filename="package://kortex_description/arms/gen3/${dof}dof/meshes/FTSensor.STL" scale="0.001 0.001 0.001"/>
-        </geometry>
-      </collision>
-    </link>
-
-    <link name="${prefix}ee_adapter_link">
-      <inertial>
-        <origin xyz="-9.3E-05 0.000132 -0.022905" rpy="0 0 0" />
-        <mass value="0.130" />
-        <inertia ixx="0.000214" ixy="0" ixz="1E-06" iyy="0.000223" iyz="-2E-06" izz="0.00024" />
-      </inertial>
-      <visual>
-        <origin xyz="-0.04 -0.04 0" rpy="0 0 0" />
-        <geometry>
-          <mesh filename="package://kortex_description/arms/gen3/${dof}dof/meshes/FTAdapter.STL" scale="0.001 0.001 0.001"/>
-        </geometry>
-        <material name="">
-          <color rgba="0.75294 0.75294 0.75294 1" />
-        </material>
-      </visual>
-      <collision>
-        <origin xyz="-0.04 -0.04 0" rpy="0 0 0" />
-        <geometry>
-          <mesh filename="package://kortex_description/arms/gen3/${dof}dof/meshes/FTAdapter.STL" scale="0.001 0.001 0.001"/>
-        </geometry>
-      </collision>
-    </link>
-
-    <link name="${prefix}reamer_link">
-      <inertial>
-        <origin xyz="-9.3E-05 0.000132 -0.022905" rpy="0 0 0" />
-        <mass value="0.130" />
-        <inertia ixx="0.000214" ixy="0" ixz="1E-06" iyy="0.000223" iyz="-2E-06" izz="0.00024" />
-      </inertial>
-      <visual>
-        <origin xyz="-0.04 -0.04 0" rpy="0 0 0" />
-        <geometry>
-          <mesh filename="package://kortex_description/arms/gen3/${dof}dof/meshes/ReamerAssembly.STL" scale="0.001 0.001 0.001"/>
-        </geometry>
-        <material name="">
-          <color rgba="0.75294 0.75294 0.75294 1" />
-        </material>
-      </visual>
-      <collision>
-        <origin xyz="-0.04 -0.04 0" rpy="0 0 0" />
-        <geometry>
-          <mesh filename="package://kortex_description/arms/gen3/${dof}dof/meshes/ReamerAssembly.STL" scale="0.001 0.001 0.001"/>
-        </geometry>
-      </collision>
-    </link>
-
-       
-    <joint name="${prefix}ft_sensor" type="fixed">
-      <origin xyz="0 0 -0.0615250000000001" rpy="3.14159265358979 1.09937075168372E-32 0" />
-      <parent
-        link="${prefix}bracelet_link" />
-      <child
-        link="${prefix}ee_adapter_link" />
-      <axis
-        xyz="0 0 0" />
+    
+    <link name="${prefix}ee_marker_frame"/>
+    <joint name="${prefix}ee_marker_frame_joint" type="fixed">
+        <origin xyz="0.042 0.0417193 0.14523149" rpy="0 -1.570796327 0" />
+        <!-- <origin xyz="0 0.01025305 0.17316221" rpy="0 -1.570796327 0" /> -->
+        <parent link="${prefix}ee_adapter_link" />
+        <child link="${prefix}ee_marker_frame" />
+        <axis xyz="0 0 0" />
     </joint>
 
-    <joint
-      name="${prefix}ee_adapter"
-      type="fixed">
-      <origin xyz="0 0 0.075" rpy="0 0 0" />
-      <parent
-        link="${prefix}ee_adapter_link" />
-      <child
-        link="${prefix}ftsensor_link" />
-      <axis
-        xyz="0 0 0" />
-    </joint> -->
+    <link name="${prefix}ee_reamer_hole"/>
+    <joint name="${prefix}ee_reamer_hole_joint" type="fixed">
+        <origin xyz="0.02793072 -0.03146625 0.042" rpy="-1.570796327 -1.570796327 0.7853981635" />
+        <parent link="${prefix}ee_marker_frame" />
+        <child link="${prefix}ee_reamer_hole" />
+        <axis xyz="0 0 0" />
+    </joint>
+
     <link name="${prefix}end_effector_link" />
-    
-    
     <joint
       name="${prefix}end_effector"
       type="fixed">
       <origin xyz="0 0 0" rpy="0 0 0" />
       <parent
-        link="${prefix}ee_adapter_link" />
+        link="${prefix}ee_reamer_hole" />
       <child
         link="${prefix}end_effector_link" />
       <axis
         xyz="0 0 0" />
     </joint>
- <!-- 0.29990848 -->
-     <!-- <joint
-      name="${prefix}reamer_link"
-      type="fixed">
-      <origin xyz="0 0 0.1" rpy="0 0 0" />
-      <parent
-        link="${prefix}ee_adapter_link" />
-      <child
-        link="${prefix}reamer_link" />
-      <axis
-        xyz="0 0 0" />
-    </joint>
-
-    <link name="${prefix}end_effector_link"/>
-    <joint
-      name="${prefix}end_effector"
-      type="fixed">
-      <origin xyz="0 0 0" rpy="3.14159265358979 1.09937075168372E-32 0" />
-      <parent
-        link="${prefix}reamer_link" />
-      <child
-        link="${prefix}end_effector_link" />
-      <axis
-        xyz="0 0 0" />
-    </joint> -->
-    <!-- <xacro:if value="${vision}">
-      <link name="${prefix}camera_link" />
-      <joint name="${prefix}camera_module" type="fixed">
-        <origin xyz="0 0.05639 -0.00305" rpy="3.14159265358979 3.14159265358979 0" />
-        <parent link="${prefix}end_effector_link" />
-        <child  link="${prefix}camera_link" />
-      </joint>
-      <link name="${prefix}camera_depth_frame" />
-      <joint name="${prefix}depth_module" type="fixed">
-        <origin xyz="0.0275 0.066 -0.00305" rpy="3.14159265358979 3.14159265358979 0" />
-        <parent link="${prefix}end_effector_link" />
-        <child  link="${prefix}camera_depth_frame" />
-      </joint>
-      <link name="${prefix}camera_color_frame" />
-      <joint name="${prefix}color_module" type="fixed">
-        <origin xyz="0 0.05639 -0.00305" rpy="3.14159265358979 3.14159265358979 0" />
-        <parent link="${prefix}end_effector_link" />
-        <child  link="${prefix}camera_color_frame" />
-      </joint>
-    </xacro:if> -->
-
-
-    <!-- <gazebo reference="${prefix}ft_sensor">
-        <provideFeedback>true</provideFeedback>
-        <disableFixedJointLumping>true</disableFixedJointLumping> 
-        <preserveFixedJoint>true</preserveFixedJoint>
-    </gazebo>
-
-
-    <gazebo>
-        <plugin name="ft_sensor" filename="libgazebo_ros_ft_sensor.so">
-            <updateRate>100.0</updateRate>
-            <topicName>ft_sensor</topicName>
-            <jointName>${prefix}ft_sensor</jointName>
-        </plugin>
-    </gazebo> -->
   </xacro:macro>
 
   
