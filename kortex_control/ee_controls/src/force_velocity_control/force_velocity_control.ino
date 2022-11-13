@@ -316,6 +316,11 @@ float forceController(float forceValue){
   
 }
 
+double getReamingPercentage(){
+  double reamingPercentage = double(reamingEndPoint)/ticksTomm(linearActMotorEnc.read()); 
+  return reamingPercentage;
+}
+
 void setup(){
 
     //Serial port for debugging
@@ -336,6 +341,7 @@ void setup(){
     //Publishers
     nh.advertise(pubCurrentSensor);
     nh.advertise(pubReamerMotorSpeed);
+    nh.advertise(pubReamingPercentage);
     nh.advertise(pubControllerStatus);    
 
     // Motor control setup
@@ -386,25 +392,23 @@ void loop(){
 
   }
 
-    Serial.print("Current lin act position: ");
-    Serial.println(ticksTomm(linearActMotorEnc.read()));
+  //Publishing some key parameters  
+  current.data = forceValue;
+  pubCurrentSensor.publish(&current);
 
-  // Serial.print("Current state is: ");
-  // Serial.println(currentState);
+  reamingPercentage.data = getReamingPercentage();
+  pubReamingPercentage.publish(&reamingPercentage);
 
-  // int currentRaw = currSensor.getRaw();
-  
-  // Serial.println(currentRaw);
-  // current.data = currentValue;
-  // pubCurrentSensor.publish(&current);
+  // long int encValue1 = reamerMotorEnc.read();
+  // float rpm1 = reamerMotor.getMotorRPM(encValue1, REAMERMOTORPPR);
+  // rpmReamerMotor.data = rpm1;
+  // pubReamerMotorSpeed.publish(&rpmReamerMotor);
 
-  // if(!digitalRead(LimSwitchPin1))
-    // Serial.println("Limit switch 1 is on!");
+  // long int encValue2 = linearActMotorEnc.read();
+  // float rpm2 = linearActuator.getMotorRPM(encValue2, LINEARACTMOTORPPR);
+  // rpmReamerMotor.data = rpm2;
+  // pubReamerMotorSpeed.publish(&rpmReamerMotor);
 
-  // if(!digitalRead(LimSwitchPin2))
-    // Serial.println("Limit switch 2 is on!");
-
-  Serial.print(currentState);
   switch (currentState) {
     
     // Calibrate linear actuator position 
