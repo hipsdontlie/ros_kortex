@@ -58,7 +58,7 @@ int main(int argc, char **argv)
 
   ros::Subscriber reamPercent_sub = n.subscribe("hardware_reamPercent/data", 1, &Hardware::ream_percent, &hardware);
 
-  ros::Subscriber currentDrawn_sub = n.subscribe("hardware_xurrent/data", 1, &Hardware::current_drawn, &hardware);
+  ros::Subscriber currentDrawn_sub = n.subscribe("hardware_current/data", 1, &Hardware::current_drawn, &hardware);
 
 
 
@@ -70,7 +70,7 @@ int main(int argc, char **argv)
   ros::Publisher inputs_pub = n.advertise<arthur_watchdog::inputs>("input_health", 1);
   ros::Publisher percep_pub = n.advertise<arthur_watchdog::perception>("perception_health", 1);
   ros::Publisher controllerFlag_pub = n.advertise<std_msgs::Bool>("controller_flag", 1);
-  ros::Publisher hardwareFlag_pub = n.advertise<std_msgs::Bool>("hardware_flag", 1);
+  ros::Publisher hardwareFlag_pub = n.advertise<std_msgs::Bool>("hardware_flag/command", 1);
   ros::Publisher eStop_pub = n.advertise<std_msgs::Empty>("my_gen3/in/emergency_stop", 1);
 
   ros::Rate loop_rate(1000);
@@ -204,6 +204,7 @@ int main(int argc, char **argv)
         && controls.singularity_bool && controls.controlsFault_bool)
     {
       controls.controller_flag = true;
+      // hardware.hardware_flag = false;
       control_msg.data = controls.controller_flag;
       // ROS_INFO("Setting controller flag to true");
       if (fw.is_open() && controls.controllerFlag_printed)
@@ -223,6 +224,7 @@ int main(int argc, char **argv)
     else
     {
       controls.controller_flag = false;
+      // hardware.hardware_flag = true;
       control_msg.data = controls.controller_flag;
       if (fw.is_open() && !controls.controllerFlag_printed)
       {
@@ -245,7 +247,6 @@ int main(int argc, char **argv)
       // ROS_INFO("Controller error publisher dropped below 30Hz!\n");
       controls.trans_bool = false;
       controls.orien_bool = false;
-      controls.controller_flag = false;
       if (fw.is_open() && !controls.error_printed)
       {
         time_t rawtime;
@@ -419,10 +420,10 @@ int main(int argc, char **argv)
         hardware.hardwareFlag_printed = true;
       }
 
-    if(hardware.currTime_reamerSpeed - hardware.prevTime_reamerSpeed > ros::Duration(0.033).toSec())
+    if(hardware.currTime_reamerSpeed - hardware.prevTime_reamerSpeed > ros::Duration(0.2).toSec())
       {
         // ROS_INFO("Controller joint limits publisher dropped below 30Hz!\n");
-        hardware.hardware_flag = false;
+        // hardware.hardware_flag = true;
         if (fw.is_open() && !hardware.reamerSpeed_printed)
         {
           time_t rawtime;
@@ -438,10 +439,10 @@ int main(int argc, char **argv)
         }
       }
 
-    if(hardware.currTime_loadApplied - hardware.prevTime_loadApplied > ros::Duration(0.033).toSec())
+    if(hardware.currTime_loadApplied - hardware.prevTime_loadApplied > ros::Duration(0.2).toSec())
       {
         // ROS_INFO("Controller joint limits publisher dropped below 30Hz!\n");
-        hardware.hardware_flag = false;
+        // hardware.hardware_flag = true;
         if (fw.is_open() && !hardware.loadApplied_printed)
         {
           time_t rawtime;
@@ -457,10 +458,10 @@ int main(int argc, char **argv)
         }
       }
 
-    if(hardware.currTime_currentDrawn - hardware.prevTime_currentDrawn > ros::Duration(0.033).toSec())
+    if(hardware.currTime_currentDrawn - hardware.prevTime_currentDrawn > ros::Duration(0.2).toSec())
       {
         // ROS_INFO("Controller joint limits publisher dropped below 30Hz!\n");
-        hardware.hardware_flag = false;
+        hardware.hardware_flag = true;
         if (fw.is_open() && !hardware.currentDrawn_printed)
         {
           time_t rawtime;
@@ -476,10 +477,10 @@ int main(int argc, char **argv)
         }
       }
 
-    if(hardware.currTime_reamPercent - hardware.prevTime_reamPercent > ros::Duration(0.033).toSec())
+    if(hardware.currTime_reamPercent - hardware.prevTime_reamPercent > ros::Duration(0.2).toSec())
       {
         // ROS_INFO("Controller joint limits publisher dropped below 30Hz!\n");
-        hardware.hardware_flag = false;
+        hardware.hardware_flag = true;
         if (fw.is_open() && !hardware.reamPercent_printed)
         {
           time_t rawtime;
@@ -495,7 +496,7 @@ int main(int argc, char **argv)
         }
       }
 
-      
+    hardwareFlag_pub.publish(hardware.hardware_flag);
 
     ros::spinOnce();
     loop_rate.sleep();
