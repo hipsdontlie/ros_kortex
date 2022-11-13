@@ -2,16 +2,25 @@
 
 namespace priority_control
 {
+    constexpr double PelvisAlignmentTask::MAX_TRANSLATIONAL_ERROR; // mm
+    constexpr double PelvisAlignmentTask::MAX_ORIENTATION_ERROR; // deg
+
     PelvisAlignmentTask::PelvisAlignmentTask(std::shared_ptr<ArthurRobotModel> robot, const std::string& task_frame) :
     Task(robot, {true, true, true, true, true, false}, task_frame)
     {
         desired_twist_ = Eigen::VectorXd::Zero(num_task_dof_);
+        error_above_thresh_ = false;
     }
 
     bool PelvisAlignmentTask::updateError(const KDL::JntArray& q_pos, const geometry_msgs::Transform& error, const Eigen::VectorXd& twist, ros::Publisher& error_metrics_pub)
     {
         desired_twist_ = pidController(error, twist, error_metrics_pub);
         return update_task(desired_twist_);
+    }
+
+    bool PelvisAlignmentTask::errorAboveThreshold()
+    {
+        return error_above_thresh_;
     }
 
     Eigen::VectorXd PelvisAlignmentTask::pidController(const geometry_msgs::Transform& error, const Eigen::VectorXd& twist, ros::Publisher& error_metrics_pub)
@@ -48,14 +57,12 @@ namespace priority_control
         
 
 
-        // R.getRPY(twist_command(3), twist_command(4), twist_command(5));
         std_msgs::Float64MultiArray error_msg;
         error_msg.data.push_back(1000*sqrt(twist_command(0)*twist_command(0) + twist_command(1)*twist_command(1) + twist_command(2)*twist_command(2)));
-        // error_msg.data.push_back(twist_command(3));
-        // error_msg.data.push_back(twist_command(4));
-        // error_msg.data.push_back(twist_command(5));
         error_msg.data.push_back(180.0*sqrt(twist_command(3)*twist_command(3) + twist_command(4)*twist_command(4)) / M_PI);
         error_metrics_pub.publish(error_msg);
+
+        error_above_thresh_ = error_msg.data[0] > PelvisAlignmentTask::MAX_TRANSLATIONAL_ERROR || error_msg.data[1] > PelvisAlignmentTask::MAX_ORIENTATION_ERROR;
 
         for (int i = 0; i < robot_->CARTESIAN_DOF; ++i)
         {
