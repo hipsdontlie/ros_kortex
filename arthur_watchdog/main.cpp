@@ -81,6 +81,7 @@ int main(int argc, char **argv)
     arthur_watchdog::inputs input_msg;
     arthur_watchdog::perception percep_msg;
     std_msgs::Bool control_msg;
+    std_msgs::Bool hardware_msg;
     std_msgs::Empty eStop_msg;
     eStop_msg = {};
 
@@ -199,12 +200,13 @@ int main(int argc, char **argv)
     
     // ******************************************* controls ******************************************************
     
-    if (inputs.pelvis_visible && inputs.ee_visible && perception.rmse_error 
-        && controls.trans_bool && controls.orien_bool && controls.jlimits_bool 
-        && controls.singularity_bool && controls.controlsFault_bool)
+    // if (inputs.pelvis_visible && inputs.ee_visible && perception.rmse_error 
+    //     && controls.trans_bool && controls.orien_bool && controls.jlimits_bool 
+    //     && controls.singularity_bool && controls.controlsFault_bool)
+    if (inputs.pelvis_visible && perception.rmse_error)
     {
-      controls.controller_flag = true;
-      // hardware.hardware_flag = false;
+      controls.controller_flag = false;
+      hardware.hardware_flag = false;
       control_msg.data = controls.controller_flag;
       // ROS_INFO("Setting controller flag to true");
       if (fw.is_open() && controls.controllerFlag_printed)
@@ -224,7 +226,7 @@ int main(int argc, char **argv)
     else
     {
       controls.controller_flag = false;
-      // hardware.hardware_flag = true;
+      hardware.hardware_flag = true;
       control_msg.data = controls.controller_flag;
       if (fw.is_open() && !controls.controllerFlag_printed)
       {
@@ -496,7 +498,8 @@ int main(int argc, char **argv)
         }
       }
 
-    hardwareFlag_pub.publish(hardware.hardware_flag);
+    hardware_msg.data = hardware.hardware_flag;
+    hardwareFlag_pub.publish(hardware_msg);
 
     ros::spinOnce();
     loop_rate.sleep();
