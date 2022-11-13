@@ -9,14 +9,30 @@
 #include<std_msgs/Empty.h>
 #include<time.h>
 
+bool faults_cleared = false;
 
+void clearFaults_callback(const std_msgs::Bool::ConstPtr& msg, ros::Publisher* clearFaults_pub)
+{
+  std_msgs::Empty clearFaults_msg;
+  clearFaults_msg = {};
+  
+  if(msg->data)
+  {
+    faults_cleared = true;
+    clearFaults_pub->publish(clearFaults_msg);
+  }
+  else
+  {
+    faults_cleared = false;
+  }
+}
 
 int main(int argc, char **argv)
 {
   ros::init(argc, argv, "pelvis_pose_listener");
   ros::NodeHandle n;
 
-  std::ofstream fw("/home/mrsd-team-c/arthur_ws/CPlusPlusSampleFile.txt", std::ofstream::out);
+  std::ofstream fw("/home/mrsd-team-c/arthur_ws/ArthurLogs.txt", std::ofstream::out);
 
   // bool controller_flag = false;
 
@@ -28,6 +44,16 @@ int main(int argc, char **argv)
 
 
   perception.rmse_thresh->data = 1.0;
+
+
+    //*********************************************** publishers ********************************************************
+  
+  ros::Publisher inputs_pub = n.advertise<arthur_watchdog::inputs>("input_health", 1);
+  ros::Publisher percep_pub = n.advertise<arthur_watchdog::perception>("perception_health", 1);
+  ros::Publisher controllerFlag_pub = n.advertise<std_msgs::Bool>("controller_flag", 1);
+  ros::Publisher hardwareFlag_pub = n.advertise<std_msgs::Bool>("hardware_flag/command", 1);
+  ros::Publisher eStop_pub = n.advertise<std_msgs::Empty>("my_gen3/in/emergency_stop", 1);
+  ros::Publisher clearFaults_pub = n.advertise<std_msgs::Empty>("my_gen3/in/clear_faults", 1);
 
   //********************************************** subscribers *************************************************
 
@@ -60,18 +86,13 @@ int main(int argc, char **argv)
 
   ros::Subscriber currentDrawn_sub = n.subscribe("hardware_current/data", 1, &Hardware::current_drawn, &hardware);
 
+  ros::Subscriber clearFaults_sub = n.subscribe<std_msgs::Bool>("clearFaults", 1, boost::bind(&clearFaults_callback, _1, &clearFaults_pub));
+
+
 
 
 
   // ros::Subscriber ee_control_sub = n.subscribe("control_error", 1000, &Controls::error_check, &controls);
-
-  //*********************************************** publishers ********************************************************
-  
-  ros::Publisher inputs_pub = n.advertise<arthur_watchdog::inputs>("input_health", 1);
-  ros::Publisher percep_pub = n.advertise<arthur_watchdog::perception>("perception_health", 1);
-  ros::Publisher controllerFlag_pub = n.advertise<std_msgs::Bool>("controller_flag", 1);
-  ros::Publisher hardwareFlag_pub = n.advertise<std_msgs::Bool>("hardware_flag/command", 1);
-  ros::Publisher eStop_pub = n.advertise<std_msgs::Empty>("my_gen3/in/emergency_stop", 1);
 
   ros::Rate loop_rate(1000);
 
@@ -111,7 +132,9 @@ int main(int argc, char **argv)
         fw << "Pelvis marker is not visible\n";
         inputs.pelvis_printed = true;
       }
-      // eStop_pub.publish(eStop_msg);
+      if(!faults_cleared)
+        eStop_pub.publish(eStop_msg);
+        
     }
     
     //if you stop receiving 
@@ -132,7 +155,8 @@ int main(int argc, char **argv)
         fw << "End-effector marker is not visible\n";
         inputs.ee_printed = true;
       }
-      // eStop_pub.publish(eStop_msg);
+      if(!faults_cleared)
+        eStop_pub.publish(eStop_msg);
     }
 
     if(inputs.currTime_rp - inputs.prevTime_rp > ros::Duration(0.035).toSec())
@@ -182,6 +206,7 @@ int main(int argc, char **argv)
     // ********************************* perception ******************************************
 
     percep_msg.rmse_error = perception.rmse_error;
+      // eStop_pub.publish(eStop_msg);
     percep_pub.publish(percep_msg);
 
     if (fw.is_open() && !perception.rmse_error && !perception.percep_printed)
@@ -200,10 +225,10 @@ int main(int argc, char **argv)
     
     // ******************************************* controls ******************************************************
     
-    // if (inputs.pelvis_visible && inputs.ee_visible && perception.rmse_error 
-    //     && controls.trans_bool && controls.orien_bool && controls.jlimits_bool 
-    //     && controls.singularity_bool && controls.controlsFault_bool)
-    if (inputs.pelvis_visible && perception.rmse_error)
+    if (inputs.pelvis_visible && inputs.ee_visible && perception.rmse_error 
+        && controls.trans_bool && controls.orien_bool && controls.jlimits_bool 
+        && controls.singularity_bool && controls.controlsFault_bool)
+    // if (inputs.pelvis_visible && perception.rmse_error)
     {
       controls.controller_flag = false;
       hardware.hardware_flag = false;
@@ -307,18 +332,24 @@ int main(int argc, char **argv)
     //publish controller flag
     controllerFlag_pub.publish(control_msg);
 
-    if(controls.trans_bool == false && fw.is_open() && !controls.transError_printed)
+    if(controls.trans_bool == false)
     {
-      time_t rawtime;
-      struct tm * timeinfo;
-      char st [128];
-      
-      time (&rawtime);
-      timeinfo = localtime (&rawtime);
-      strftime (st,128,"Date: %y-%m-%d  Time: %I:%M:%S",timeinfo);
-      fw << st <<"     ";
-      fw << "Controls translation error is high\n";
-      controls.transError_printed = true;
+      if(!faults_cleared)
+        eStop_pub.publish(eStop_msg);
+
+      if(fw.is_open() && !controls.transError_printed)
+      {
+        time_t rawtime;
+        struct tm * timeinfo;
+        char st [128];
+        
+        time (&rawtime);
+        timeinfo = localtime (&rawtime);
+        strftime (st,128,"Date: %y-%m-%d  Time: %I:%M:%S",timeinfo);
+        fw << st <<"     ";
+        fw << "Controls translation error is high\n";
+        controls.transError_printed = true;
+      }
     }   
     if(controls.trans_bool && fw.is_open() && controls.transError_printed)
     {
@@ -334,18 +365,24 @@ int main(int argc, char **argv)
       controls.transError_printed = false;
     }
 
-    if(controls.orien_bool == false && fw.is_open() && !controls.orienError_printed)
+    if(controls.orien_bool == false)
     {
-      time_t rawtime;
-      struct tm * timeinfo;
-      char st [128];
+      if(!faults_cleared)
+        eStop_pub.publish(eStop_msg);
       
-      time (&rawtime);
-      timeinfo = localtime (&rawtime);
-      strftime (st,128,"Date: %y-%m-%d  Time: %I:%M:%S",timeinfo);
-      fw << st <<"     ";
-      fw << "Controls orientation error is high\n";
-      controls.orienError_printed = true;
+      if(fw.is_open() && !controls.orienError_printed)
+      {
+        time_t rawtime;
+        struct tm * timeinfo;
+        char st [128];
+        
+        time (&rawtime);
+        timeinfo = localtime (&rawtime);
+        strftime (st,128,"Date: %y-%m-%d  Time: %I:%M:%S",timeinfo);
+        fw << st <<"     ";
+        fw << "Controls orientation error is high\n";
+        controls.orienError_printed = true;
+      }
     } 
 
     if(controls.orien_bool && fw.is_open() && controls.orienError_printed)
@@ -390,6 +427,11 @@ int main(int argc, char **argv)
       controls.singularityBool_printed = false;
     } 
 
+    if(controls.controlsFault_bool == false && !faults_cleared)
+    {
+      eStop_pub.publish(eStop_msg);
+    } 
+
   // ****************************************** end of controls ********************************************************
 
   //*************************************** end-effector **********************************************
@@ -425,7 +467,7 @@ int main(int argc, char **argv)
     if(hardware.currTime_reamerSpeed - hardware.prevTime_reamerSpeed > ros::Duration(0.2).toSec())
       {
         // ROS_INFO("Controller joint limits publisher dropped below 30Hz!\n");
-        // hardware.hardware_flag = true;
+        hardware.hardware_flag = true;
         if (fw.is_open() && !hardware.reamerSpeed_printed)
         {
           time_t rawtime;
@@ -444,7 +486,7 @@ int main(int argc, char **argv)
     if(hardware.currTime_loadApplied - hardware.prevTime_loadApplied > ros::Duration(0.2).toSec())
       {
         // ROS_INFO("Controller joint limits publisher dropped below 30Hz!\n");
-        // hardware.hardware_flag = true;
+        hardware.hardware_flag = true;
         if (fw.is_open() && !hardware.loadApplied_printed)
         {
           time_t rawtime;
