@@ -18,6 +18,8 @@
 
     <param name="collision_robot_description" command="$(find xacro)/xacro --inorder $(find kortex_description)/robots/$(arg arm).xacro dof:=$(arg dof) vision:=$(arg vision) sim:=true prefix:=$(arg prefix)"
             if="$(eval not arg('gripper'))"/>
+    
+    <node pkg="arthur_watchdog" type="watchdog_main" name="main" output="screen"/>
 
     <node pkg="kortex_control" type="master_controller" name="master_controller" output="screen"  launch-prefix="$(arg launch_prefix)">
         <param name="robot_description" command="xacro $(find kortex_control)/arm_description/robot_model.xacro" />
@@ -27,9 +29,13 @@
         <param name="target_frame" value="dummy_pelvis" />
     </node>
 
+    <!-- <node pkg="kortex_control" type="tf_listener" name="tf_listener" output="screen" > -->
+        <!-- <param name="source_frame" value="tool_frame" /> -->
+        <!-- <param name="target_frame" value="dummy_pelvis" /> -->
+    <!-- </node> -->
     <node pkg="kortex_control" type="tf_listener" name="tf_listener" output="screen" >
         <param name="source_frame" value="tool_frame" />
-        <param name="target_frame" value="dummy_pelvis" />
+        <param name="target_frame" value="reaming_pose" />
     </node>
 
     <node pkg="kortex_control" type="tf_listener" name="camera_tf_listener" output="screen" >
