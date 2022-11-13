@@ -185,7 +185,9 @@ void getReamingCmd(const std_msgs::Bool& reamingCmd){
 
 // Callback for dynamic compensation command
 void getDynamicCompCmd(const std_msgs::Bool& dynamicCompensationCmd){
+  nh.loginfo("Started Dynamic Compensation!");
   dynamicCompensation = dynamicCompensationCmd.data;
+  currentState = DYNAMICCOMP;
 }
 
 // Callback for watchdog command
@@ -402,7 +404,7 @@ void loop(){
   // if(!digitalRead(LimSwitchPin2))
     // Serial.println("Limit switch 2 is on!");
 
-  // Serial.print(currentState);
+  Serial.print(currentState);
   switch (currentState) {
     
     // Calibrate linear actuator position 
@@ -424,7 +426,8 @@ void loop(){
       ReamerMotorControlType = speedControl;
       LinearActMotorControlType = speedControl;
       reamerMotorCommand = 0;
-      // linearActuatorMotorCommand = 0;
+      linearActuatorMotorCommand = 0;
+      nh.loginfo("Waiting for start reaming command...");
       if(startReamingProcess == true){
           currentState = MOVEUNTILCONTACT;
       }
@@ -472,6 +475,10 @@ void loop(){
         currentState = STARTREAMING;
       }
 
+      if(dynamicCompensation){
+        currentState = DYNAMICCOMP;
+      }
+
       break;
 
     //Ream as long as pelvis error is within thresholds and goal has not been reached 
@@ -497,6 +504,10 @@ void loop(){
         reamerMotorCommand = 0;
         // delay(3000);
       }
+
+      if(dynamicCompensation == true){
+        currentState = DYNAMICCOMP;
+      }
       
       break;
 
@@ -507,9 +518,10 @@ void loop(){
       LinearActMotorControlType = positionControl;
       ReamerMotorControlType = speedControl;
       reamerMotorCommand = 0; 
-      linearActuatorMotorCommand = 500;
+      linearActuatorMotorCommand = 5;
       // Serial.println("Dynamic comp!");
       currentState = WAITFORCMD;
+      dynamicCompensation = false;
       break;
 
     // Goal has been reached, stop reaming! 
