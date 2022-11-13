@@ -236,7 +236,7 @@ int main(int argc, char **argv)
             successful_update = false;
             ROS_WARN("Pelvis error could not be updated!!!");
         }
-        if (pelvis_task_->aboveErrorThreshold())
+        if (pelvis_task_->errorAboveThreshold())
         {
             start_reaming_.data = false;
             start_dynamic_comp_.data = true;
