@@ -185,6 +185,11 @@ namespace priority_control
         acm.setEntry("wall", "table", true);
         acm.setEntry("base_link", "shoulder_link", true);
         acm.setEntry("shoulder_link", "base_link", true);
+        acm.setEntry("tool_frame", "reamer_head", true);
+        acm.setEntry("reamer_head", "tool_frame", true);
+        acm.setEntry("reamer_head", "tool_frame", true);
+        acm.setEntry("ee_adapter_link", "reamer_head", true);
+        acm.setEntry("reamer_head", "ee_adapter_link", true);
         collision_request_.contacts = true;
         collision_request_.max_contacts = 1000;
 
