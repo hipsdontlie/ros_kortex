@@ -88,6 +88,7 @@ bool startReamingProcess = false;
 bool dynamicCompensation = false;
 bool reachedEnd = false;
 bool posCalibration = false;
+bool doneReaming = false;
 
 // Enum for which low level controller to use
 enum controlType {positionControl, speedControl};  
@@ -193,8 +194,16 @@ void getReamingCmd(const std_msgs::Bool& reamingCmd){
 // Callback for dynamic compensation command
 void getDynamicCompCmd(const std_msgs::Bool& dynamicCompensationCmd){
   // nh.loginfo("Started Dynamic Compensation!");
-  dynamicCompensation = dynamicCompensationCmd.data;
-  currentState = DYNAMICCOMP;
+  if(dynamicCompensationCmd.data)
+  {
+    dynamicCompensation = true;
+    currentState = DYNAMICCOMP;
+  }
+  
+  else{
+    dynamicCompensation = false;
+  }
+
 }
 
 // Callback for watchdog command
@@ -437,7 +446,7 @@ void loop(){
     //Wait until you get the actuation signal from arm controller
     case WAITFORCMD: 
       
-      // nh.loginfo("Waiting for command...");
+      nh.loginfo("Waiting for command...");
       // Serial.println("Waiting...");
       controllerStatus.data = 1;
       reamerMotor.stopMotor();
@@ -448,7 +457,7 @@ void loop(){
       reamerMotorCommand = 0;
       linearActuatorMotorCommand = 0;
       // nh.loginfo("Waiting for start reaming command...");
-      if(startReamingProcess == true && !MotorControl::watchDogStop_){
+      if(startReamingProcess == true && !MotorControl::watchDogStop_ && !doneReaming){
           currentState = MOVEUNTILCONTACT;
       }
       break;
@@ -458,7 +467,7 @@ void loop(){
       controllerStatus.data = 2;
 
       // Serial.println("Move until contact!");
-      // nh.loginfo("Moving until contact with bone...");
+      nh.loginfo("Moving until contact with bone...");
 
       if ((millis()-timerForce1) > 10){
         // Serial.print("Current: ");
@@ -506,6 +515,7 @@ void loop(){
     case STARTREAMING:
       // Serial.print("####################################################### Current force: ");
       // Serial.println(forceValue);
+      nh.loginfo("Start reaming...");
       controllerStatus.data = 3;
       if(MotorControl::watchDogStop_){
         currentState = WAITFORCMD;
@@ -547,7 +557,7 @@ void loop(){
     // Dynamic compensation - change state back to 1 after performing compensation routine 
     case DYNAMICCOMP:
       controllerStatus.data = 4;
-      
+      nh.loginfo("Dynamic Compensation!");
       LinearActMotorControlType = positionControl;
       ReamerMotorControlType = speedControl;
       reamerMotorCommand = 0; 
@@ -561,6 +571,7 @@ void loop(){
     case DONEREAMING: 
       controllerStatus.data = 5;
       nh.loginfo("Done reaming!");
+      doneReaming = true;
       // Serial.println("Done reaming!");
       LinearActMotorControlType = positionControl;
       ReamerMotorControlType = speedControl;
@@ -572,6 +583,7 @@ void loop(){
       // linearActuator.stopMotor();
       reamerMotor.stopMotor();
       // nh.loginfo("Done reaming!");
+      currentState = DONEREAMING;
       break;
 
     case TESTING:
@@ -586,7 +598,7 @@ void loop(){
     default:
       controllerStatus.data = -1;
       
-      // nh.loginfo("Invalid state, stopping reaming!");
+      nh.loginfo("Invalid state, stopping reaming!");
       // Serial.println("Invalid state!");
       reamerMotor.stopMotor();
       linearActuator.stopMotor();

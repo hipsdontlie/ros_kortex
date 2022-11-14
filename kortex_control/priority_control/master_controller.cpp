@@ -246,7 +246,6 @@ int main(int argc, char **argv)
             start_reaming_.data = true;
             start_dynamic_comp_.data = false;
         }
-        
         if(!camera_task_->updateError(q_pos_, camera_error_, camera_twist_, camera_error_metrics_pub_))
         {
             successful_update = false;
@@ -260,6 +259,7 @@ int main(int argc, char **argv)
 
         start_reaming_pub_.publish(start_reaming_);
         start_dynamic_comp_pub_.publish(start_dynamic_comp_);
+
         singularity_measure_.data = 1.0 / priority_controller_->manipulability(q_pos_);
         singularity_measure_pub_.publish(singularity_measure_);
         hit_joint_lim_.data = priority_controller_->hit_joint_limit();
@@ -286,7 +286,6 @@ int main(int argc, char **argv)
         {
             in_fault_ = false;
         }
-        
         
         ros::spinOnce();
         rate.sleep();

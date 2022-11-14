@@ -54,6 +54,7 @@ int main(int argc, char **argv)
   ros::Publisher hardwareFlag_pub = n.advertise<std_msgs::Bool>("hardware_flag/command", 1);
   ros::Publisher eStop_pub = n.advertise<std_msgs::Empty>("my_gen3/in/emergency_stop", 1);
   ros::Publisher clearFaults_pub = n.advertise<std_msgs::Empty>("my_gen3/in/clear_faults", 1);
+  ros::Publisher controller_clearFaults_pub = n.advertise<std_msgs::Empty>("controller_clear_fault", 1);
 
   //********************************************** subscribers *************************************************
 
@@ -104,7 +105,9 @@ int main(int argc, char **argv)
     std_msgs::Bool control_msg;
     std_msgs::Bool hardware_msg;
     std_msgs::Empty eStop_msg;
+    std_msgs::Empty controller_clearFault_msg;
     eStop_msg = {};
+    controller_clearFault_msg = {};
 
   // *********************************** inputs ********************************************
 
@@ -132,7 +135,7 @@ int main(int argc, char **argv)
         fw << "Pelvis marker is not visible\n";
         inputs.pelvis_printed = true;
       }
-      if(!faults_cleared)
+      // if(!faults_cleared)
         // eStop_pub.publish(eStop_msg);
         
     }
@@ -155,7 +158,7 @@ int main(int argc, char **argv)
         fw << "End-effector marker is not visible\n";
         inputs.ee_printed = true;
       }
-      if(!faults_cleared)
+      // if(!faults_cleared)
         // eStop_pub.publish(eStop_msg);
     }
 
@@ -227,10 +230,10 @@ int main(int argc, char **argv)
     
     if (inputs.pelvis_visible && inputs.ee_visible && perception.rmse_error 
         && controls.trans_bool && controls.orien_bool && controls.jlimits_bool 
-        && controls.singularity_bool && controls.controlsFault_bool)
+        && controls.singularity_bool)
     // if (inputs.pelvis_visible && perception.rmse_error)
     {
-      controls.controller_flag = false;
+      controls.controller_flag = true;
       hardware.hardware_flag = false;
       control_msg.data = controls.controller_flag;
       // ROS_INFO("Setting controller flag to true");
@@ -247,6 +250,9 @@ int main(int argc, char **argv)
         fw << "Controller flag set to true\n";
         controls.controllerFlag_printed = false;
       }
+
+      if(!controls.controlsFault_bool)
+        controller_clearFaults_pub.publish(controller_clearFault_msg);
     }
     else
     {
@@ -334,7 +340,7 @@ int main(int argc, char **argv)
 
     if(controls.trans_bool == false)
     {
-      if(!faults_cleared)
+      // if(!faults_cleared)
         // eStop_pub.publish(eStop_msg);
 
       if(fw.is_open() && !controls.transError_printed)
@@ -367,7 +373,7 @@ int main(int argc, char **argv)
 
     if(controls.orien_bool == false)
     {
-      if(!faults_cleared)
+      // if(!faults_cleared)
         // eStop_pub.publish(eStop_msg);
       
       if(fw.is_open() && !controls.orienError_printed)
