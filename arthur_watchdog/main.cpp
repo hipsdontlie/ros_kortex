@@ -133,7 +133,7 @@ int main(int argc, char **argv)
         inputs.pelvis_printed = true;
       }
       if(!faults_cleared)
-        eStop_pub.publish(eStop_msg);
+        // eStop_pub.publish(eStop_msg);
         
     }
     
@@ -156,7 +156,7 @@ int main(int argc, char **argv)
         inputs.ee_printed = true;
       }
       if(!faults_cleared)
-        eStop_pub.publish(eStop_msg);
+        // eStop_pub.publish(eStop_msg);
     }
 
     if(inputs.currTime_rp - inputs.prevTime_rp > ros::Duration(0.035).toSec())
@@ -335,7 +335,7 @@ int main(int argc, char **argv)
     if(controls.trans_bool == false)
     {
       if(!faults_cleared)
-        eStop_pub.publish(eStop_msg);
+        // eStop_pub.publish(eStop_msg);
 
       if(fw.is_open() && !controls.transError_printed)
       {
@@ -368,7 +368,7 @@ int main(int argc, char **argv)
     if(controls.orien_bool == false)
     {
       if(!faults_cleared)
-        eStop_pub.publish(eStop_msg);
+        // eStop_pub.publish(eStop_msg);
       
       if(fw.is_open() && !controls.orienError_printed)
       {
@@ -429,7 +429,7 @@ int main(int argc, char **argv)
 
     if(controls.controlsFault_bool == false && !faults_cleared)
     {
-      eStop_pub.publish(eStop_msg);
+      // eStop_pub.publish(eStop_msg);
     } 
 
   // ****************************************** end of controls ********************************************************
