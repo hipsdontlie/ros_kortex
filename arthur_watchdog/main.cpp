@@ -9,23 +9,22 @@
 #include<std_msgs/Empty.h>
 #include<time.h>
 
-bool faults_cleared = false;
+// bool faults_cleared = false;
 
-void clearFaults_callback(const std_msgs::Bool::ConstPtr& msg, ros::Publisher* clearFaults_pub)
-{
-  std_msgs::Empty clearFaults_msg;
-  clearFaults_msg = {};
+// void clearFaults_callback(const std_msgs::Bool::ConstPtr& msg, ros::Publisher* clearFaults_pub)
+// {
   
-  if(msg->data)
-  {
-    faults_cleared = true;
-    clearFaults_pub->publish(clearFaults_msg);
-  }
-  else
-  {
-    faults_cleared = false;
-  }
-}
+  
+//   if(msg->data)
+//   {
+//     faults_cleared = true;
+//     clearFaults_pub->publish(eStop_clearFaults_msg);
+//   }
+//   else
+//   {
+//     faults_cleared = false;
+//   }
+// }
 
 int main(int argc, char **argv)
 {
@@ -41,6 +40,7 @@ int main(int argc, char **argv)
   Controls controls;
   Hardware hardware;
   // bool printed = false;
+  bool ui_clear_faults;
 
 
   perception.rmse_thresh->data = 1.0;
@@ -53,7 +53,7 @@ int main(int argc, char **argv)
   ros::Publisher controllerFlag_pub = n.advertise<std_msgs::Bool>("controller_flag", 1);
   ros::Publisher hardwareFlag_pub = n.advertise<std_msgs::Bool>("hardware_flag/command", 1);
   ros::Publisher eStop_pub = n.advertise<std_msgs::Empty>("my_gen3/in/emergency_stop", 1);
-  ros::Publisher clearFaults_pub = n.advertise<std_msgs::Empty>("my_gen3/in/clear_faults", 1);
+  ros::Publisher eStop_clearFaults_pub = n.advertise<std_msgs::Empty>("my_gen3/in/clear_faults", 1);
   ros::Publisher controller_clearFaults_pub = n.advertise<std_msgs::Empty>("controller_clear_fault", 1);
 
   //********************************************** subscribers *************************************************
@@ -87,7 +87,7 @@ int main(int argc, char **argv)
 
   ros::Subscriber currentDrawn_sub = n.subscribe("hardware_current/data", 1, &Hardware::current_drawn, &hardware);
 
-  ros::Subscriber clearFaults_sub = n.subscribe<std_msgs::Bool>("clearFaults", 1, boost::bind(&clearFaults_callback, _1, &clearFaults_pub));
+  // ros::Subscriber clearFaults_sub = n.subscribe<std_msgs::Bool>("clearFaults", 1, boost::bind(&clearFaults_callback, _1, &clearFaults_pub));
 
 
 
@@ -106,7 +106,9 @@ int main(int argc, char **argv)
     std_msgs::Bool hardware_msg;
     std_msgs::Empty eStop_msg;
     std_msgs::Empty controller_clearFault_msg;
+    std_msgs::Empty eStop_clearFaults_msg;
     eStop_msg = {};
+    eStop_clearFaults_msg = {};
     controller_clearFault_msg = {};
 
   // *********************************** inputs ********************************************
@@ -135,8 +137,16 @@ int main(int argc, char **argv)
         fw << "Pelvis marker is not visible\n";
         inputs.pelvis_printed = true;
       }
-      // if(!faults_cleared)
-        // eStop_pub.publish(eStop_msg);
+      eStop_pub.publish(eStop_msg);
+      if(n.getParam("ui_clear_faults", ui_clear_faults))
+      {
+        if(ui_clear_faults)
+        {
+          eStop_clearFaults_pub.publish(eStop_clearFaults_msg);
+          ros::Duration(5.0).sleep();
+          n.setParam("ui_clear_faults", false);
+        }
+      }
         
     }
     
@@ -158,8 +168,16 @@ int main(int argc, char **argv)
         fw << "End-effector marker is not visible\n";
         inputs.ee_printed = true;
       }
-      // if(!faults_cleared)
-        // eStop_pub.publish(eStop_msg);
+      eStop_pub.publish(eStop_msg);
+      if(n.getParam("ui_clear_faults", ui_clear_faults))
+      {
+        if(ui_clear_faults)
+        {
+          eStop_clearFaults_pub.publish(eStop_clearFaults_msg);
+          ros::Duration(5.0).sleep();
+          n.setParam("ui_clear_faults", false);
+        }
+      }
     }
 
     if(inputs.currTime_rp - inputs.prevTime_rp > ros::Duration(0.035).toSec())
@@ -340,8 +358,16 @@ int main(int argc, char **argv)
 
     if(controls.trans_bool == false)
     {
-      // if(!faults_cleared)
-        // eStop_pub.publish(eStop_msg);
+      eStop_pub.publish(eStop_msg);
+      if(n.getParam("ui_clear_faults", ui_clear_faults))
+      {
+        if(ui_clear_faults)
+        {
+          eStop_clearFaults_pub.publish(eStop_clearFaults_msg);
+          ros::Duration(5.0).sleep();
+          n.setParam("ui_clear_faults", false);
+        }
+      }
 
       if(fw.is_open() && !controls.transError_printed)
       {
@@ -373,8 +399,16 @@ int main(int argc, char **argv)
 
     if(controls.orien_bool == false)
     {
-      // if(!faults_cleared)
-        // eStop_pub.publish(eStop_msg);
+      eStop_pub.publish(eStop_msg);
+      if(n.getParam("ui_clear_faults", ui_clear_faults))
+      {
+        if(ui_clear_faults)
+        {
+          eStop_clearFaults_pub.publish(eStop_clearFaults_msg);
+          ros::Duration(5.0).sleep();
+          n.setParam("ui_clear_faults", false);
+        }
+      }
       
       if(fw.is_open() && !controls.orienError_printed)
       {
@@ -433,9 +467,18 @@ int main(int argc, char **argv)
       controls.singularityBool_printed = false;
     } 
 
-    if(controls.controlsFault_bool == false && !faults_cleared)
+    if(controls.controlsFault_bool == false)
     {
-      // eStop_pub.publish(eStop_msg);
+      eStop_pub.publish(eStop_msg);
+      if(n.getParam("ui_clear_faults", ui_clear_faults))
+      {
+        if(ui_clear_faults)
+        {
+          eStop_clearFaults_pub.publish(eStop_clearFaults_msg);
+          ros::Duration(5.0).sleep();
+          n.setParam("ui_clear_faults", false);
+        }
+      }
     } 
 
   // ****************************************** end of controls ********************************************************
