@@ -8,45 +8,29 @@ Author(s): Kaushik Balasundar
 Team Members: Kaushik Balasundar, Anthony Kyu, Gunjan Sethi, Sundaram Seivur, Parker Hill
 
 High Level Description: Starts the all vital functionalities for the ArThur System, except camera
-Date of first revision: 28th Aoril 2022 -->
+Date of first revision: 28th April 2022 -->
 <launch>
 
 <!-- The only node not written is start_camera.launch since that requires you to enter the password -->
 
     <arg name="testing" default="False"/>
-    <arg name="rosbag" default="True"/>
 
     <!-- Start kortex_driver -->
     <include file="$(find kortex_driver)/launch/kortex_driver.launch"/>
-
-    <!-- Start FT sensor listener -->
-    <!-- <node pkg="kortex_control" type="ftsensor_listener.py" name="ftsensor_listener" output="screen"/> -->
 
     <!-- Start perception node -->
     <include file="$(find arthur_perception)/launch/registration.launch">
         <arg name="testing" value="$(arg testing)"/>
     </include>
 
-    <!-- Start EE TF listener -->
-    <node pkg="kortex_control" type="ee_tf_listener" name="ee_tf_listener" />
-
-    <!-- Start wrench controller -->
-    <!-- <node pkg="kortex_control" type="wrench_controller" name="wrench_controller" output="screen" /> -->
-
-    <!-- Start Planning node -->
-    <node pkg="arthur_planning" type="arthur_planning_node.py" name="arthur_planning" output="screen" ns="my_gen3"/>
+    <!-- Start reaming pose broadcaster -->
+    <node pkg="hipster_gui" type="reaming_endpt_broadcaster.py" name="reaming_end_point_broadcaster" />
 
     <!-- Start arduino serial node -->
-    <!-- <node pkg="rosserial_python" type="serial_node.py" name="serial_node" output="screen"/> -->
+    <!-- <node pkg="rosserial_python" type="serial_node.py" name="serial_node" output="screen" port="/dev/ttyACM0"/> -->
 
-    <!-- Record ROS bags for trajectory evaluation -->
-    <!-- <node pkg="rosbag" type="record" name="trajectory_ground_truth" output="screen"
-       args="record -o $(find arthur_planning)/bags/gt /my_gen3/arthur_traj"
-       if="$(arg rosbag)" />
-
-    <node pkg="rosbag" type="record" name="trajectory_actual" output="screen"
-       args="record -o $(find arthur_planning)/bags/actual /actual_traj"
-       if="$(arg rosbag)"/> -->
+    <!-- Start watchdog and arm controller -->
+    <include file="$(find kortex_control)/launch/priority_control.launch"/>
 
 </launch>
 

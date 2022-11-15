@@ -60,12 +60,12 @@ std_msgs::Int16 controllerStatus;
 
 // ROS publishers
 ros::Publisher pubCurrentSensor("hardware_current/data", &current);
-ros::Publisher pubLinearActMotorSpeed("linear_actuator_speed/data",&rpmLinearActuatorMotor);
-ros::Publisher pubReamerMotorSpeed("hardware_reamerSpeed/data",&rpmReamerMotor);
-ros::Publisher pubLinearActuatorMotorPos("linear_actuator_pos/data",&posLinearActuatorMotor);
-ros::Publisher pubForce("hardware_force/data",&force);
-ros::Publisher pubReamingPercentage("hardware_reamPercent/data",&reamingPercentage);
-ros::Publisher pubControllerStatus("hardware_controllerStatus/data", &controllerStatus);
+// ros::Publisher pubLinearActMotorSpeed("linear_actuator_speed/data",&rpmLinearActuatorMotor);
+// ros::Publisher pubReamerMotorSpeed("hardware_reamerSpeed/data",&rpmReamerMotor);
+// ros::Publisher pubLinearActuatorMotorPos("linear_actuator_pos/data",&posLinearActuatorMotor);
+// ros::Publisher pubForce("hardware_force/data",&force);
+// ros::Publisher pubReamingPercentage("hardware_reamPercent/data",&reamingPercentage);
+// ros::Publisher pubControllerStatus("hardware_controllerStatus/data", &controllerStatus);
 
 //Current sensor 
 currentSensor currSensor(currentSensorPin);
@@ -110,7 +110,7 @@ enum states
 enum states currentState = CALIBRATE;
 
 // High level controller parameters 
-float forceSetPoint = 0.45;
+float forceSetPoint = 0.5;
 float errorForce = 0; 
 float errorPrevForce = 0;
 float KpForce, KiForce, KdForce = 0;
@@ -126,8 +126,8 @@ float forceValue = 0;
 int linActPos = 0;
 float forceMovingAvg =0;
 int forceValueRaw = 0;
-int reamingEndPoint = 35;
-int reamingStartPoint = 15;
+int reamingEndPoint = 40;
+int reamingStartPoint = 30;
 float prevrpm1, prevrpm2 = 0;
 float startReamingTimer = 0;
 
@@ -178,8 +178,8 @@ void changepos_LinearActuatorMotor(const std_msgs::Int16& cmdLinearActuatorMotor
 
 // Callback for start reaming command
 void getReamingCmd(const std_msgs::Bool& reamingCmd){
-  // nh.loginfo("Start reaming callback!");
   if(reamingCmd.data == true){
+  // nh.loginfo("Start reaming!");
     startReamingProcess  = true;
     // currentState = MOVEUNTILCONTACT;
   }
@@ -193,9 +193,9 @@ void getReamingCmd(const std_msgs::Bool& reamingCmd){
 
 // Callback for dynamic compensation command
 void getDynamicCompCmd(const std_msgs::Bool& dynamicCompensationCmd){
-  // nh.loginfo("Started Dynamic Compensation!");
   if(dynamicCompensationCmd.data)
   {
+    // nh.loginfo("Started Dynamic Compensation!");
     dynamicCompensation = true;
     currentState = DYNAMICCOMP;
   }
@@ -361,7 +361,7 @@ void setup(){
     //Publishers
     nh.advertise(pubCurrentSensor);
     // nh.advertise(pubReamerMotorSpeed);
-    nh.advertise(pubReamingPercentage);
+    // nh.advertise(pubReamingPercentage);
     // nh.advertise(pubControllerStatus);    
 
     // Motor control setup
@@ -377,7 +377,7 @@ void setup(){
     attachInterrupt(digitalPinToInterrupt(LimSwitchPin2), triggerLimSwitch, RISING);
 
   // High level controller gains 
-    KpForce = 25;
+    KpForce = 50;
     KdForce = 0;
     KiForce = 0; 
 }
@@ -406,8 +406,8 @@ void loop(){
     // forceValue = (float(forceMovingAvg)-510.0)/14.0;
     
     // currentSampleTime  = millis();
-    Serial.print("Current");
-    Serial.println(forceValue);
+    // Serial.print("Current");
+    // Serial.println(forceValue);
 
 
   }
@@ -418,8 +418,8 @@ void loop(){
 
   // Get encoder position 
 
-  Serial.print("Encoder pos: ");
-  Serial.println(ticksTomm(linearActMotorEnc.read()));
+  // Serial.print("Encoder pos: ");
+  // Serial.println(ticksTomm(linearActMotorEnc.read()));
 
   // reamingPercentage.data = getReamingPercentage();
   // pubReamingPercentage.publish(&reamingPercentage);
@@ -433,6 +433,13 @@ void loop(){
   // float rpm2 = linearActuator.getMotorRPM(encValue2, LINEARACTMOTORPPR);
   // rpmReamerMotor.data = rpm2;
   // pubReamerMotorSpeed.publish(&rpmReamerMotor);
+
+  if(ticksTomm(linearActMotorEnc.read()) >= reamingEndPoint){
+  // Serial.println("Reached reaming end point!");
+  currentState = DONEREAMING; 
+  linearActuatorMotorCommand = 0;
+  reamerMotorCommand = 0;
+  }
 
   switch (currentState) {
     
@@ -473,8 +480,8 @@ void loop(){
         // Serial.print("Current: ");
         // Serial.println(forceValue);
         float forceOut = forceController(forceValue);
-        Serial.print("Force out");
-        Serial.println(forceOut);
+        // Serial.print("Force out");
+        // Serial.println(forceOut);
 
         LinearActMotorControlType = speedControl;
         ReamerMotorControlType = speedControl;
@@ -486,7 +493,7 @@ void loop(){
       }
 
       // Serial.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!HERE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-      if(forceValue >= forceSetPoint && ticksTomm(linearActMotorEnc.read()) > reamingStartPoint-10){
+      if(forceValue >= forceSetPoint && ticksTomm(linearActMotorEnc.read()) > 10){
           // Serial.println(currentState);
           // currentState = STARTREAMING;
           // Serial.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Force threshold Exceeded! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
@@ -501,9 +508,9 @@ void loop(){
           linearActuatorMotorCommand = 0;
       }
 
-      if(ticksTomm(linearActMotorEnc.read()) > reamingStartPoint){
-        currentState = STARTREAMING;
-      }
+      // if(ticksTomm(linearActMotorEnc.read()) > reamingStartPoint){
+      //   currentState = STARTREAMING;
+      // }
 
       if(dynamicCompensation){
         currentState = DYNAMICCOMP;
@@ -515,7 +522,7 @@ void loop(){
     case STARTREAMING:
       // Serial.print("####################################################### Current force: ");
       // Serial.println(forceValue);
-      nh.loginfo("Start reaming...");
+      // nh.loginfo("Start reaming...");
       controllerStatus.data = 3;
       if(MotorControl::watchDogStop_){
         currentState = WAITFORCMD;
@@ -525,7 +532,7 @@ void loop(){
       LinearActMotorControlType = speedControl;
       if ((millis()-timerForce2) > 400){
         linearActuatorMotorCommand = forceController(forceValue);
-        reamerMotorCommand = 600;
+        reamerMotorCommand = 1000;
         // reamerMotor.runMotorForward(255);
         timerForce2 = millis();
       }
@@ -557,7 +564,7 @@ void loop(){
     // Dynamic compensation - change state back to 1 after performing compensation routine 
     case DYNAMICCOMP:
       controllerStatus.data = 4;
-      nh.loginfo("Dynamic Compensation!");
+      // nh.loginfo("Dynamic Compensation!");
       LinearActMotorControlType = positionControl;
       ReamerMotorControlType = speedControl;
       reamerMotorCommand = 0; 
@@ -598,7 +605,7 @@ void loop(){
     default:
       controllerStatus.data = -1;
       
-      nh.loginfo("Invalid state, stopping reaming!");
+      // nh.loginfo("Invalid state, stopping reaming!");
       // Serial.println("Invalid state!");
       reamerMotor.stopMotor();
       linearActuator.stopMotor();
@@ -636,8 +643,8 @@ void loop(){
       prevrpm1 = rpm;
     }
     float pidOut = reamerMotor.pidSpeedControl(rpm, reamerMotorCommand);
-    Serial.print("---------------------------RPM: ");
-    Serial.println(rpm);
+    // Serial.print("---------------------------RPM: ");
+    // Serial.println(rpm);
     // Serial.print("-------------------------------------------reamer command is: ");
     // Serial.println(reamerMotorCommand);
     // Serial.print("PID out is: ");
@@ -712,6 +719,7 @@ void loop(){
     // posLinearActuatorMotor.data = currPos;
     // pubLinearActuatorMotorPos.publish(&posLinearActuatorMotor);
   }
+
 
 
 }

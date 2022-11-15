@@ -335,6 +335,7 @@
     
     <link name="${prefix}ee_marker_frame"/>
     <joint name="${prefix}ee_marker_frame_joint" type="fixed">
+        <!-- <origin xyz="0.034 0.0457193 0.14223149" rpy="0 -1.570796327 0" /> -->
         <origin xyz="0.042 0.0417193 0.14523149" rpy="0 -1.570796327 0" />
         <!-- <origin xyz="0 0.01025305 0.17316221" rpy="0 -1.570796327 0" /> -->
         <parent link="${prefix}ee_adapter_link" />
@@ -344,6 +345,7 @@
 
     <link name="${prefix}ee_reamer_hole"/>
     <joint name="${prefix}ee_reamer_hole_joint" type="fixed">
+        <!-- <origin xyz="0.03093072 -0.02746625 0.034" rpy="-1.570796327 -1.570796327 0.7853981635" /> -->
         <origin xyz="0.02793072 -0.03146625 0.042" rpy="-1.570796327 -1.570796327 0.7853981635" />
         <parent link="${prefix}ee_marker_frame" />
         <child link="${prefix}ee_reamer_hole" />

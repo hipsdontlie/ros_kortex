@@ -53,7 +53,7 @@
         <visual>
             <origin xyz="0 0 0" rpy="0 0 0" />
             <geometry>
-            <mesh filename="package://kortex_description/arms/gen3/$(arg dof)dof/meshes/ReamingHead_56MM.STL"/>
+            <mesh filename="package://kortex_description/arms/gen3/$(arg dof)dof/meshes/ReamingHead_48MM.STL"/>
             </geometry>
             <material name="">
             <color rgba="0.75294 0.75294 0.75294 1" />
@@ -62,7 +62,7 @@
         <collision>
             <origin xyz="0 0 0" rpy="0 0 0" />
             <geometry>
-            <mesh filename="package://kortex_description/arms/gen3/$(arg dof)dof/meshes/ReamingHead_56MM.STL"/>
+            <mesh filename="package://kortex_description/arms/gen3/$(arg dof)dof/meshes/ReamingHead_48MM.STL"/>
             </geometry>
         </collision>
     </link>
@@ -75,7 +75,7 @@
 
     <link name="$(arg prefix)tool_tip_frame"/>
     <joint name="$(arg prefix)tool_tip_frame_joint" type="fixed">
-        <origin xyz="0 0 -0.028" rpy="0 0 0" />
+        <origin xyz="0 0 -0.024" rpy="0 0 0" />
         <parent link="$(arg prefix)reamer_head" />
         <child link="$(arg prefix)tool_tip_frame"/>
         <axis xyz="0 0 0" />

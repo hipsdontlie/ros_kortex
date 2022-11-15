@@ -107,7 +107,7 @@
 
         <!-- Camera to base TF-->
         <!-- old values: -0.852687413837996 0.05427938698581192 1.0414459251762835 -0.48695025522964747 0.7217732770468246 -0.4374089451595048 0.2249359912671136  -->
-        <node pkg="tf" type="static_transform_publisher" name="camera_to_base_tf" args="-0.7736421489973982  -0.27619868668240544 1.0682232109817504  -0.537955916936678 0.6989886192144501 -0.3523926880211523 0.31279024132910793 base_link camera 1000"/> 
+        <node pkg="tf" type="static_transform_publisher" name="camera_to_base_tf" args="-0.7530143558157981 -0.2579824058668544 1.0695034275374646 -0.538180026321591 0.6979350604833902 -0.3490100521601672 0.3184978714335393 base_link camera 1000"/> 
 
         <!-- Start RViz -->
         <node name="rviz" pkg="rviz" type="rviz" output="log" args="-d $(find kortex_driver)/rviz/visualization.rviz"  if="$(arg start_rviz)"/> 

@@ -95,7 +95,7 @@ int main(int argc, char **argv)
 
   // ros::Subscriber ee_control_sub = n.subscribe("control_error", 1000, &Controls::error_check, &controls);
 
-  ros::Rate loop_rate(1000);
+  ros::Rate loop_rate(100);
 
 
   while(ros::ok())
@@ -137,7 +137,7 @@ int main(int argc, char **argv)
         fw << "Pelvis marker is not visible\n";
         inputs.pelvis_printed = true;
       }
-      eStop_pub.publish(eStop_msg);
+      // eStop_pub.publish(eStop_msg);
       if(n.getParam("ui_clear_faults", ui_clear_faults))
       {
         if(ui_clear_faults)
@@ -168,7 +168,7 @@ int main(int argc, char **argv)
         fw << "End-effector marker is not visible\n";
         inputs.ee_printed = true;
       }
-      eStop_pub.publish(eStop_msg);
+      // eStop_pub.publish(eStop_msg);
       if(n.getParam("ui_clear_faults", ui_clear_faults))
       {
         if(ui_clear_faults)
@@ -358,7 +358,7 @@ int main(int argc, char **argv)
 
     if(controls.trans_bool == false)
     {
-      eStop_pub.publish(eStop_msg);
+      // eStop_pub.publish(eStop_msg);
       if(n.getParam("ui_clear_faults", ui_clear_faults))
       {
         if(ui_clear_faults)
@@ -399,7 +399,7 @@ int main(int argc, char **argv)
 
     if(controls.orien_bool == false)
     {
-      eStop_pub.publish(eStop_msg);
+      // eStop_pub.publish(eStop_msg);
       if(n.getParam("ui_clear_faults", ui_clear_faults))
       {
         if(ui_clear_faults)
@@ -469,7 +469,7 @@ int main(int argc, char **argv)
 
     if(controls.controlsFault_bool == false)
     {
-      eStop_pub.publish(eStop_msg);
+      // eStop_pub.publish(eStop_msg);
       if(n.getParam("ui_clear_faults", ui_clear_faults))
       {
         if(ui_clear_faults)
