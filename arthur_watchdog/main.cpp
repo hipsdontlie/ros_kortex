@@ -4,6 +4,7 @@
 #include "include/hardware.hpp"
 #include<arthur_watchdog/inputs.h>
 #include<arthur_watchdog/perception.h>
+#include<arthur_watchdog/controls.h>
 #include<std_msgs/Bool.h>
 #include <fstream>
 #include<std_msgs/Empty.h>
@@ -51,6 +52,7 @@ int main(int argc, char **argv)
   ros::Publisher inputs_pub = n.advertise<arthur_watchdog::inputs>("input_health", 1);
   ros::Publisher percep_pub = n.advertise<arthur_watchdog::perception>("perception_health", 1);
   ros::Publisher controllerFlag_pub = n.advertise<std_msgs::Bool>("controller_flag", 1);
+  ros::Publisher controlsMsg_pub = n.advertise<std_msgs::Bool>("controller_health", 1);
   ros::Publisher hardwareFlag_pub = n.advertise<std_msgs::Bool>("hardware_flag/command", 1);
   ros::Publisher eStop_pub = n.advertise<std_msgs::Empty>("my_gen3/in/emergency_stop", 1);
   ros::Publisher eStop_clearFaults_pub = n.advertise<std_msgs::Empty>("my_gen3/in/clear_faults", 1);
@@ -102,7 +104,8 @@ int main(int argc, char **argv)
   {
     arthur_watchdog::inputs input_msg;
     arthur_watchdog::perception percep_msg;
-    std_msgs::Bool control_msg;
+    arthur_watchdog::controls controls_msg;
+    std_msgs::Bool controlsFlag_msg;
     std_msgs::Bool hardware_msg;
     std_msgs::Empty eStop_msg;
     std_msgs::Empty controller_clearFault_msg;
@@ -248,12 +251,12 @@ int main(int argc, char **argv)
     
     if (inputs.pelvis_visible && inputs.ee_visible && perception.rmse_error 
         && controls.trans_bool && controls.orien_bool && controls.jlimits_bool 
-        && controls.singularity_bool)
+        && controls.singularity_bool && controls.controlsFault_bool)
     // if (inputs.pelvis_visible && perception.rmse_error)
     {
       controls.controller_flag = true;
       hardware.hardware_flag = false;
-      control_msg.data = controls.controller_flag;
+      controlsFlag_msg.data = controls.controller_flag;
       // ROS_INFO("Setting controller flag to true");
       if (fw.is_open() && controls.controllerFlag_printed)
       {
@@ -276,7 +279,7 @@ int main(int argc, char **argv)
     {
       controls.controller_flag = false;
       hardware.hardware_flag = true;
-      control_msg.data = controls.controller_flag;
+      controlsFlag_msg.data = controls.controller_flag;
       if (fw.is_open() && !controls.controllerFlag_printed)
       {
         time_t rawtime;
@@ -352,9 +355,16 @@ int main(int argc, char **argv)
         controls.jlimits_printed = true;
       }
     }
-
+    
     //publish controller flag
-    controllerFlag_pub.publish(control_msg);
+    controls_msg.singularity_bool = controls.singularity_bool;
+    controls_msg.jlimits_bool = controls.jlimits_bool;
+    controls_msg.controlsFault_bool = controls.controlsFault_bool;
+    controls_msg.orien_bool = controls.orien_bool;
+    controls_msg.trans_bool = controls.trans_bool;
+
+    controllerFlag_pub.publish(controlsFlag_msg);
+    controlsMsg_pub.publish(controls_msg);
 
     if(controls.trans_bool == false)
     {
