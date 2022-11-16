@@ -140,7 +140,7 @@ int main(int argc, char **argv)
         fw << "Pelvis marker is not visible\n";
         inputs.pelvis_printed = true;
       }
-      // eStop_pub.publish(eStop_msg);
+      eStop_pub.publish(eStop_msg);
       if(n.getParam("ui_clear_faults", ui_clear_faults))
       {
         if(ui_clear_faults)
@@ -171,7 +171,7 @@ int main(int argc, char **argv)
         fw << "End-effector marker is not visible\n";
         inputs.ee_printed = true;
       }
-      // eStop_pub.publish(eStop_msg);
+      eStop_pub.publish(eStop_msg);
       if(n.getParam("ui_clear_faults", ui_clear_faults))
       {
         if(ui_clear_faults)
@@ -230,7 +230,7 @@ int main(int argc, char **argv)
     // ********************************* perception ******************************************
 
     percep_msg.rmse_error = perception.rmse_error;
-    // eStop_pub.publish(eStop_msg);
+    eStop_pub.publish(eStop_msg);
     percep_pub.publish(percep_msg);
 
     if (fw.is_open() && !perception.rmse_error && !perception.percep_printed)
@@ -296,7 +296,7 @@ int main(int argc, char **argv)
     }
 
 
-    if(controls.currTime_error - controls.prevTime_error > ros::Duration(0.1).toSec())
+    if(controls.currTime_error - controls.prevTime_error > ros::Duration(1).toSec())
     {
       // ROS_INFO("Controller error publisher dropped below 30Hz!\n");
       controls.trans_bool = false;
@@ -316,7 +316,7 @@ int main(int argc, char **argv)
       }
     }
 
-    if(controls.currTime_singularity - controls.prevTime_singularity > ros::Duration(0.1).toSec())
+    if(controls.currTime_singularity - controls.prevTime_singularity > ros::Duration(1).toSec())
     {
       // ROS_INFO("Controller singularity publisher dropped below 30Hz!\n");
       controls.singularity_bool = false;
@@ -336,7 +336,7 @@ int main(int argc, char **argv)
       }
     }
 
-    if(controls.currTime_jlimits - controls.prevTime_jlimits > ros::Duration(0.1).toSec())
+    if(controls.currTime_jlimits - controls.prevTime_jlimits > ros::Duration(1).toSec())
     {
       // ROS_INFO("Controller joint limits publisher dropped below 30Hz!\n");
       controls.jlimits_bool = false;
@@ -368,7 +368,7 @@ int main(int argc, char **argv)
 
     if(controls.trans_bool == false)
     {
-      // eStop_pub.publish(eStop_msg);
+      eStop_pub.publish(eStop_msg);
       if(n.getParam("ui_clear_faults", ui_clear_faults))
       {
         if(ui_clear_faults)
@@ -409,7 +409,7 @@ int main(int argc, char **argv)
 
     if(controls.orien_bool == false)
     {
-      // eStop_pub.publish(eStop_msg);
+      eStop_pub.publish(eStop_msg);
       if(n.getParam("ui_clear_faults", ui_clear_faults))
       {
         if(ui_clear_faults)
@@ -479,7 +479,7 @@ int main(int argc, char **argv)
 
     if(controls.controlsFault_bool == false)
     {
-      // eStop_pub.publish(eStop_msg);
+      eStop_pub.publish(eStop_msg);
       if(n.getParam("ui_clear_faults", ui_clear_faults))
       {
         if(ui_clear_faults)
