@@ -277,7 +277,7 @@ int main(int argc, char **argv)
             q_vel_command_ = Eigen::VectorXd::Zero(robot_->nj());
             while (!sendJointSpeeds(joint_speed_commander_, q_vel_command_, robot_))
             {
-                ROS_WARN("Attempting to stop controller because of fault!");
+                // ROS_WARN("Attempting to stop controller because of fault!");
             }
             ROS_WARN("Controller in fault!");
             in_fault_ = true;
@@ -294,7 +294,7 @@ int main(int argc, char **argv)
     q_vel_command_ = Eigen::VectorXd::Zero(robot_->nj());
     while (!sendJointSpeeds(joint_speed_commander_, q_vel_command_, robot_))
     {
-        std::cout << "Attempting to shut controller down!" << std::endl;
+        // std::cout << "Attempting to shut controller down!" << std::endl;
     }
     std::cout << "Shutting controller down!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
     ros::shutdown();

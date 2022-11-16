@@ -52,7 +52,7 @@ int main(int argc, char **argv)
   ros::Publisher inputs_pub = n.advertise<arthur_watchdog::inputs>("input_health", 1);
   ros::Publisher percep_pub = n.advertise<arthur_watchdog::perception>("perception_health", 1);
   ros::Publisher controllerFlag_pub = n.advertise<std_msgs::Bool>("controller_flag", 1);
-  ros::Publisher controlsMsg_pub = n.advertise<std_msgs::Bool>("controller_health", 1);
+  ros::Publisher controlsMsg_pub = n.advertise<arthur_watchdog::controls>("controller_health", 1);
   ros::Publisher hardwareFlag_pub = n.advertise<std_msgs::Bool>("hardware_flag/command", 1);
   ros::Publisher eStop_pub = n.advertise<std_msgs::Empty>("my_gen3/in/emergency_stop", 1);
   ros::Publisher eStop_clearFaults_pub = n.advertise<std_msgs::Empty>("my_gen3/in/clear_faults", 1);
@@ -230,7 +230,7 @@ int main(int argc, char **argv)
     // ********************************* perception ******************************************
 
     percep_msg.rmse_error = perception.rmse_error;
-      // eStop_pub.publish(eStop_msg);
+    // eStop_pub.publish(eStop_msg);
     percep_pub.publish(percep_msg);
 
     if (fw.is_open() && !perception.rmse_error && !perception.percep_printed)
@@ -251,7 +251,7 @@ int main(int argc, char **argv)
     
     if (inputs.pelvis_visible && inputs.ee_visible && perception.rmse_error 
         && controls.trans_bool && controls.orien_bool && controls.jlimits_bool 
-        && controls.singularity_bool && controls.controlsFault_bool)
+        && controls.singularity_bool)
     // if (inputs.pelvis_visible && perception.rmse_error)
     {
       controls.controller_flag = true;
