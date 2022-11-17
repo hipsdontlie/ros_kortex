@@ -42,6 +42,22 @@ float currentSensor::getCurrentAvg(){
 }
 
 /*
+@brief Get the voltage reading, and convert to the average current readings with a moving average filter  
+*/
+
+float currentSensor::getCurrentMovingAvg(){
+    // Moving Average filtering
+    sum_ = sum_ - allReadings[idx_];
+    int value = getRaw();
+    allReadings[idx_] = value; 
+    sum_ = sum_ + value;
+    idx_ = (idx_ + 1) % WINDOWSIZE;
+    movingAverage_ = float(sum_)/WINDOWSIZE;
+    current_ = (2.5 - (movingAverage_ * (5.0 / 1024.0)))/0.068;
+    return current_;
+}
+
+/*
 @brief Get the voltage reading, and convert to the current readings based on calibrated constants 
 */
 
