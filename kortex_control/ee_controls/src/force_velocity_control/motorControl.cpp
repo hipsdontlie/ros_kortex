@@ -62,7 +62,7 @@ void MotorControl::init(){
 */
 void MotorControl::runMotorForward(int analogValue){
   
-  if(!limitSwitchStop_ && !watchDogStop_){
+  if(!limitSwitchStop1_ && !watchDogStop_){
     digitalWrite(DIR_Pin_, LOW);
     analogWrite(PWM_Pin_, analogValue);
     return;
@@ -78,11 +78,18 @@ void MotorControl::runMotorForward(int analogValue){
 @brief Run the motor forward using analogWrite without any checks (only use for calibration!)
 */
 void MotorControl::runMotorForwardUnsafe(int analogValue){
-
   digitalWrite(DIR_Pin_, LOW);
   analogWrite(PWM_Pin_, analogValue);
   return;
+}
 
+/*
+@brief Run the motor backward using analogWrite without any checks (only use for calibration!)
+*/
+void MotorControl::runMotorBackwardUnsafe(int analogValue){
+  digitalWrite(DIR_Pin_, HIGH);
+  analogWrite(PWM_Pin_, analogValue);
+  return;
 }
 
 
@@ -91,7 +98,7 @@ void MotorControl::runMotorForwardUnsafe(int analogValue){
 @brief Run the motor backward using analogWrite 
 */
 void MotorControl::runMotorBackward(int analogValue){
-  if(!limitSwitchStop_ && !watchDogStop_){
+  if(!limitSwitchStop2_ && !watchDogStop_){
     digitalWrite(DIR_Pin_, HIGH);
     analogWrite(PWM_Pin_, analogValue);
   }

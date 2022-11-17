@@ -6,7 +6,7 @@ AUTHOR: Kaushik Balasundar
 
 #ifndef CURRENTSENSOR_H
 #define CURRENTSENSOR_H
-#define WINDOWSIZE 100
+#define WINDOWSIZE 200
 #include <Arduino.h>
 
 class currentSensor{
@@ -22,13 +22,13 @@ class currentSensor{
 
         /* -------------------------------- Public Variables -------------------------------- */
 
-        float current_;
+        double current_;
         int currentRaw_;
-        float currentRawAvg_; 
+        double currentRawAvg_; 
         int numSamples_;
-        int allReadings[WINDOWSIZE];
-        float movingAverage_; 
-        int sum_;
+        double allReadings[WINDOWSIZE];
+        double movingAverage_; 
+        double sum_;
         int idx_;
 
 
@@ -45,13 +45,13 @@ class currentSensor{
 
 
         // Get current 
-        float getCurrent(); 
+        double getCurrent(); 
 
         // Get current 
-        float getCurrentAvg(); 
+        double getCurrentAvg(); 
 
         //Get moving average current 
-        float getCurrentMovingAvg();
+        double getCurrentMovingAvg();
 
         //Publish current to a ROS topic 
         void publishCurrent();

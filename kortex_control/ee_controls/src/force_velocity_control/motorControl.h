@@ -48,7 +48,7 @@ class MotorControl{
         // volatile static int encoderValue_LinearActMotor_;
 
         //Some stopping variables for safety 
-        volatile static bool watchDogStop_, limitSwitchStop_;
+        volatile static bool watchDogStop_, limitSwitchStop1_,limitSwitchStop2_;
 
         //Interrupt pins 
         volatile static byte ENCB_Pin_ReamerMotor_;
@@ -76,6 +76,9 @@ class MotorControl{
 
         // Actuate motor forward using analogWrite without safety checks
         void runMotorForwardUnsafe(int analogValue);
+
+          // Actuate motor forward using analogWrite without safety checks
+        void runMotorBackwardUnsafe(int analogValue);
 
         // Actuate motor backward using analogWrite 
         void runMotorBackward(int analogValue);

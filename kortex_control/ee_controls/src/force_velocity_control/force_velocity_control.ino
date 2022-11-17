@@ -64,7 +64,7 @@ ros::Publisher pubCurrentSensor("hardware_current/data", &current);
 // ros::Publisher pubReamerMotorSpeed("hardware_reamerSpeed/data",&rpmReamerMotor);
 // ros::Publisher pubLinearActuatorMotorPos("linear_actuator_pos/data",&posLinearActuatorMotor);
 // ros::Publisher pubForce("hardware_force/data",&force);
-// ros::Publisher pubReamingPercentage("hardware_reamPercent/data",&reamingPercentage);
+ros::Publisher pubReamingPercentage("hardware_reamPercent/data",&reamingPercentage);
 // ros::Publisher pubControllerStatus("hardware_controllerStatus/data", &controllerStatus);
 
 //Current sensor
@@ -104,13 +104,15 @@ enum states {
   STARTREAMING,
   DYNAMICCOMP,
   TESTING,
+  HANDLELIMSWITCH,
   DONEREAMING
 };
 
 enum states currentState = CALIBRATE;
+enum states previousState = CALIBRATE;
 
 // High level controller parameters
-float forceSetPoint = 0.54;
+float forceSetPoint = 0.35;
 float errorForce = 0;
 float errorPrevForce = 0;
 float KpForce, KiForce, KdForce = 0;
@@ -231,15 +233,29 @@ ros::Subscriber<std_msgs::Bool> subWatchdogCmd("hardware_flag/command", &getWatc
 
 // Boolean flags for low level control
 volatile static bool MotorControl::watchDogStop_ = false;
-volatile static bool MotorControl::limitSwitchStop_ = false;
+volatile static bool MotorControl::limitSwitchStop1_ = false;
+volatile static bool MotorControl::limitSwitchStop2_ = false;
+
 
 // Limit switch interrupr service routine
-void triggerLimSwitch() {
-  // nh.loginfo("Limit switch hit, stopping!");
-  MotorControl::limitSwitchStop_ = true;
-  if (!currentState == CALIBRATE) {
-    linearActuator.stopMotor();
-    reamerMotor.stopMotor();
+void triggerLimSwitch1() {
+
+  MotorControl::limitSwitchStop1_ = true;
+
+  if (!currentState == CALIBRATE){
+    previousState = currentState;
+    currentState = HANDLELIMSWITCH;
+  }
+
+}
+
+void triggerLimSwitch2() {
+
+  MotorControl::limitSwitchStop2_ = true;
+
+  if (!currentState == CALIBRATE){
+    previousState = currentState;
+    currentState = HANDLELIMSWITCH;
   }
 }
 
@@ -274,11 +290,8 @@ void calibrateMotors() {
   }
 
   if (digitalRead(LimSwitchPin1) && !reachedEnd) {
-    // Serial.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!Calibration in progress...");
-    // reamerMotor.runMotorBackward(50);
     LinearActMotorControlType = speedControl;
     linearActuatorMotorCommand = -200;
-    // linearActuator.pidSpeedControl(rpm,linearActuatorMotorCommand);
   }
 
 
@@ -336,7 +349,7 @@ float forceController(float forceValue) {
 }
 
 double getReamingPercentage() {
-  double reamingPercentage = (double(reamingEndPoint) / ticksTomm(linearActMotorEnc.read())) * 100;
+  double reamingPercentage = (ticksTomm(linearActMotorEnc.read()/reamingEndPoint)) * 100;
   return reamingPercentage;
 }
 
@@ -360,7 +373,7 @@ void setup() {
   //Publishers
   nh.advertise(pubCurrentSensor);
   // nh.advertise(pubReamerMotorSpeed);
-  // nh.advertise(pubReamingPercentage);
+  nh.advertise(pubReamingPercentage);
   // nh.advertise(pubControllerStatus);
 
   // Motor control setup
@@ -372,8 +385,8 @@ void setup() {
   // Limit switch setup
   pinMode(LimSwitchPin1, INPUT_PULLUP);
   pinMode(LimSwitchPin2, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(LimSwitchPin1), triggerLimSwitch, RISING);
-  attachInterrupt(digitalPinToInterrupt(LimSwitchPin2), triggerLimSwitch, RISING);
+  attachInterrupt(digitalPinToInterrupt(LimSwitchPin1), triggerLimSwitch1, RISING);
+  attachInterrupt(digitalPinToInterrupt(LimSwitchPin2), triggerLimSwitch2, RISING);
 
   // High level controller gains
   KpForce = 50;
@@ -383,66 +396,35 @@ void setup() {
 
 void loop() {
 
-  // LinearActMotorControlType = positionControl;
-  // reamerMotorCommand = 500;
-  // linearActuatorMotorCommand = 2000;
-
-  // Serial.print("Linear Actuator Position: ");
-  // Serial.print("encoder ticks: ");
-  // int linearmotorout = linearActMotorEnc.read();
-  // Serial.println(linearActMotorEnc.read());
-  // delay(5000);
-  // LinearActMotorControlType = speedControl;
-
-  /*-------------------------------------HIGH LEVEL CONTROL-------------------------------------*/
   // Get the current readings from the current sensor
   nh.spinOnce();
-  if (millis() - currentSampleTime > 20) {
+  if (millis() - currentSampleTime >5) {
     forceValue = currSensor.getCurrentMovingAvg();
-    // currentSensorAvg.reading(forceValueRaw);
-    // forceMovingAvg = currentSensorAvg.getAvg(10);
-    // forceValue = (float(forceMovingAvg)-510.0)/14.0;
-
-    // currentSampleTime  = millis();
-    // Serial.print("Current");
-    // Serial.println(forceValue);
   }
 
   //Publishing some key parameters
   current.data = forceValue;
   pubCurrentSensor.publish(&current);
 
-  // Get encoder position
+  //Publishing reaming percentage 
+  reamingPercentage.data = getReamingPercentage();
+  pubReamingPercentage.publish(&reamingPercentage);
 
-  // Serial.print("Encoder pos: ");
-  // Serial.println(ticksTomm(linearActMotorEnc.read()));
+  /*-------------------------------------HIGH LEVEL CONTROL-------------------------------------*/
 
-  // reamingPercentage.data = getReamingPercentage();
-  // pubReamingPercentage.publish(&reamingPercentage);
-
-  // long int encValue1 = reamerMotorEnc.read();
-  // float rpm1 = reamerMotor.getMotorRPM(encValue1, REAMERMOTORPPR);
-  // rpmReamerMotor.data = rpm1;
-  // pubReamerMotorSpeed.publish(&rpmReamerMotor);
-
-  // long int encValue2 = linearActMotorEnc.read();
-  // float rpm2 = linearActuator.getMotorRPM(encValue2, LINEARACTMOTORPPR);
-  // rpmReamerMotor.data = rpm2;
-  // pubReamerMotorSpeed.publish(&rpmReamerMotor);
-
-  if (ticksTomm(linearActMotorEnc.read()) >= reamingEndPoint) {
-    // Serial.println("Reached reaming end point!");
-    currentState = DONEREAMING;
-    linearActuatorMotorCommand = 0;
-    reamerMotorCommand = 0;
-  }
+  // if (ticksTomm(linearActMotorEnc.read()) >= reamingEndPoint && forceValue <= 0.22) {
+  //   // Serial.println("Reached reaming end point!");
+  //   previousState = currentState;
+  //   currentState = DONEREAMING;
+  //   linearActuatorMotorCommand = 0;
+  //   reamerMotorCommand = 0;
+  // }
 
   switch (currentState) {
 
     // Calibrate linear actuator position
     case CALIBRATE:
       controllerStatus.data = 0;
-      // Serial.println("Calibrate!");
       calibrateMotors();
       break;
 
@@ -450,17 +432,19 @@ void loop() {
     case WAITFORCMD:
 
       nh.loginfo("Waiting for command...");
-      // Serial.println("Waiting...");
       controllerStatus.data = 1;
       reamerMotor.stopMotor();
       linearActuator.stopMotor();
+
       // Hold position at calibration position
       ReamerMotorControlType = speedControl;
       LinearActMotorControlType = speedControl;
       reamerMotorCommand = 0;
       linearActuatorMotorCommand = 0;
+
       // nh.loginfo("Waiting for start reaming command...");
-      if (startReamingProcess == true && !MotorControl::watchDogStop_ && !doneReaming) {
+      if (startReamingProcess == true && !MotorControl::watchDogStop_ && !doneReaming){
+        previousState = currentState;
         currentState = MOVEUNTILCONTACT;
       }
       break;
@@ -469,46 +453,29 @@ void loop() {
     case MOVEUNTILCONTACT:
       controllerStatus.data = 2;
 
-      // Serial.println("Move until contact!");
       nh.loginfo("Moving until contact with bone...");
-
       if ((millis() - timerForce1) > 10) {
-        // Serial.print("Current: ");
-        // Serial.println(forceValue);
         float forceOut = forceController(forceValue);
-        // Serial.print("Force out");
-        // Serial.println(forceOut);
-
         LinearActMotorControlType = speedControl;
-        ReamerMotorControlType = speedControl;
-        // Serial.print("Force controller out: ");
-        // Serial.println(forceOut);
+        ReamerMotorControlType = speedControl;;
         linearActuatorMotorCommand = int(forceOut);
         reamerMotorCommand = 0;
         timerForce1 = millis();
       }
 
-      // Serial.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!HERE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-      if (forceValue >= forceSetPoint && ticksTomm(linearActMotorEnc.read()) > 10) {
-        // Serial.println(currentState);
-        // currentState = STARTREAMING;
-        // Serial.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Force threshold Exceeded! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-        // Serial.print("Current at force thresh exceeded: ");
-        // Serial.println(forceValue);
-        // Serial.print("Current at forcesetpoint: ");
-        // Serial.println(forceSetPoint);
-        // Serial.print("-------------------------------------------State changed to : ");
+      if (forceValue >= forceSetPoint && ticksTomm(linearActMotorEnc.read()) > reamingEndPoint - 15) {
+        previousState = currentState;
         currentState = STARTREAMING;
         startReamingTimer = millis();
-        // Serial.println(currentState);
         linearActuatorMotorCommand = 0;
       }
 
-      // if(ticksTomm(linearActMotorEnc.read()) > reamingStartPoint){
-      //   currentState = STARTREAMING;
-      // }
+      if(ticksTomm(linearActMotorEnc.read()) > reamingStartPoint){
+        currentState = STARTREAMING;
+      }
 
       if (dynamicCompensation) {
+        previousState = currentState;
         currentState = DYNAMICCOMP;
       }
 
@@ -516,11 +483,11 @@ void loop() {
 
     //Ream as long as pelvis error is within thresholds and goal has not been reached
     case STARTREAMING:
-      // Serial.print("####################################################### Current force: ");
-      // Serial.println(forceValue);
-      // nh.loginfo("Start reaming...");
+
+      nh.loginfo("Start reaming...");
       controllerStatus.data = 3;
       if (MotorControl::watchDogStop_) {
+        previousState = currentState;
         currentState = WAITFORCMD;
       }
       // Serial.println("Start reaming...");
@@ -534,8 +501,7 @@ void loop() {
       }
 
       if (ticksTomm(linearActMotorEnc.read()) >= reamingEndPoint) {
-        // Serial.println("Reached reaming end point!");
-        
+       
         //Hold position if force is still high 
 
         if(forceValue >= 0.25){
@@ -546,6 +512,7 @@ void loop() {
         }
 
         else{
+        previousState = currentState;
         currentState = DONEREAMING;
         linearActuatorMotorCommand = 0;
         reamerMotorCommand = 0;
@@ -554,9 +521,10 @@ void loop() {
       }
 
       if (dynamicCompensation == true) {
+        previousState = currentState;
         currentState = DYNAMICCOMP;
+        
       }
-
 
       //Retract if reamer gets stuck
       if (reamerMotor.getMotorRPM(reamerMotorEnc.read(), REAMERMOTORPPR) == 0 && ((startReamingTimer - millis()) > 1000)) {
@@ -565,6 +533,7 @@ void loop() {
         linearActuatorMotorCommand = 5;
         forceSetPoint -= 0.2;
         reamingStartPoint -= 10;
+        previousState = currentState;
         currentState = MOVEUNTILCONTACT;
       }
 
@@ -572,21 +541,55 @@ void loop() {
 
     // Dynamic compensation - change state back to 1 after performing compensation routine
     case DYNAMICCOMP:
-      if(doneReaming){
+     if(doneReaming){
+        previousState = currentState;
         currentState = DONEREAMING;
-      }
+     }
      
      else{
-       controllerStatus.data = 4;
+      controllerStatus.data = 4;
       LinearActMotorControlType = positionControl;
       ReamerMotorControlType = speedControl;
       reamerMotorCommand = 0;
-      linearActuatorMotorCommand = 5;
+      linearActuatorMotorCommand = reamingEndPoint;
+      previousState = currentState;
       currentState = WAITFORCMD;
       dynamicCompensation = false;
      } 
 
       break;
+
+    case HANDLELIMSWITCH:
+
+      nh.loginfo("Handling limit switch");
+      
+      //Stop the reamer motor
+      ReamerMotorControlType = speedControl;
+      LinearActMotorControlType = speedControl;
+      reamerMotorCommand = 0;
+      reamerMotor.stopMotor();
+
+      //If limit switch 1 is hit, move the linear acutator forward 
+      if(MotorControl::limitSwitchStop1_){
+        linearActuator.stopMotor();
+        linearActuatorMotorCommand = 0;
+        linearActuator.runMotorForwardUnsafe(200);
+        delay(200);
+        
+      }
+
+
+      //If limit switch 2 is hit, move the linear acutator backward 
+      if(MotorControl::limitSwitchStop2_){
+        linearActuator.stopMotor();
+        linearActuatorMotorCommand = 0;
+        linearActuator.runMotorBackwardUnsafe(200);
+        delay(200);
+      }
+
+      currentState = WAITFORCMD;
+      break;
+
 
     // Goal has been reached, stop reaming!
     case DONEREAMING:
@@ -600,15 +603,12 @@ void loop() {
       linearActuator.errorProportionalPos_ = 0;
       linearActuator.errorDerivativePos_ = 0;
       linearActuatorMotorCommand = 5;
-      // linearActuator.stopMotor();
       reamerMotor.stopMotor();
       currentState = DONEREAMING;
       break;
 
     case TESTING:
       controllerStatus.data = 6;
-
-      // Serial.println("Testing!");
       LinearActMotorControlType = speedControl;
       linearActuatorMotorCommand = 2;
       // nh.loginfo("Testing state...");
@@ -616,9 +616,7 @@ void loop() {
 
     default:
       controllerStatus.data = -1;
-
-      // nh.loginfo("Invalid state, stopping reaming!");
-      // Serial.println("Invalid state!");
+      nh.loginfo("Invalid state, stopping reaming!");
       reamerMotor.stopMotor();
       linearActuator.stopMotor();
       break;
@@ -630,17 +628,20 @@ void loop() {
   // pubControllerStatus.publish(&controllerStatus);
   // reamerMotorCommand = 100;
   // ReamerMotorControlType = speedControl;
-  // Serial.println("Low level controller!");
+
   // Set LimitSwitch interrupt flag to false
-  if (digitalRead(LimSwitchPin1) && digitalRead(LimSwitchPin2))
-    // Serial.println("Both limit swtiches not engaged!");
-    MotorControl::limitSwitchStop_ = false;
+
+  if (!digitalRead(LimSwitchPin1))
+    MotorControl::limitSwitchStop1_ = true;
+  else
+    MotorControl::limitSwitchStop1_ = false;
 
 
-  if (!digitalRead(LimSwitchPin1) || !digitalRead(LimSwitchPin2)) {
-    MotorControl::limitSwitchStop_ = true;
-    // Serial.println("One of the limit switches engaged!");
-  }
+  if (!digitalRead(LimSwitchPin2))
+    MotorControl::limitSwitchStop2_ = true;
+  else
+    MotorControl::limitSwitchStop2_ = false;
+
 
   // Reamer Motor Speed Control
   if ((((millis() - rpmTimerM1)) > 10) && (ReamerMotorControlType == speedControl)) {
@@ -653,12 +654,6 @@ void loop() {
       prevrpm1 = rpm;
     }
     float pidOut = reamerMotor.pidSpeedControl(rpm, reamerMotorCommand);
-    // Serial.print("---------------------------RPM: ");
-    // Serial.println(rpm);
-    // Serial.print("-------------------------------------------reamer command is: ");
-    // Serial.println(reamerMotorCommand);
-    // Serial.print("PID out is: ");
-    // Serial.println(pidOut);
     rpmTimerM1 = millis();
 
     // Publish the rpm of the reamer motor
@@ -668,9 +663,8 @@ void loop() {
 
 
   // Linear Actuator Motor Speed Control
-  if ((((millis() - rpmTimerM2)) > 10) && (LinearActMotorControlType == speedControl)) {
-    // Serial.print("Speed command is : ");
-    // Serial.println(linearActuatorMotorCommand);
+  if ((((millis() - rpmTimerM2)) > 10) && (LinearActMotorControlType == speedControl)){
+
     long int encValue = linearActMotorEnc.read();
     float rpm = linearActuator.getMotorRPM(encValue, LINEARACTMOTORPPR);
     if (abs(rpm - prevrpm2) > 600) {
@@ -679,21 +673,12 @@ void loop() {
       prevrpm2 = rpm;
     }
 
-    if (rpm < 0) {
-      // Serial.print("Overflow!!");
-      // Serial.println(encValue);
-    }
-
-
-    // Serial.print("Actual RPM: ");
-    // Serial.println(rpm);
     float rpmCmd = mmPerSecToRpm(linearActuatorMotorCommand, LINEARACTMOTORPPR, 5);
-    // Serial.print("Desired RPM: ");
-    // Serial.println(rpmCmd);
     linearActuator.pidSpeedControl(rpm, rpmCmd);
     rpmTimerM2 = millis();
     // nh.loginfo("Low level speed control...");
     // Publish the rpm of the LinearAct motor
+
     // rpmLinearActuatorMotor.data = rpm;
     // pubLinearActMotorSpeed.publish(&rpmLinearActuatorMotor);
   }
@@ -701,10 +686,8 @@ void loop() {
 
   // Reamer Motor Position Control
   if ((((millis() - rpmTimerM1)) > 10) && (ReamerMotorControlType == positionControl)) {
-    // Serial.println("Here!");
+
     int currPos = reamerMotorEnc.read();
-    // Serial.print("Current position: ");
-    // Serial.println(currPos);
     int ticks = mmtoTicks(reamerMotorCommand);
     int posCurr = reamerMotor.pidPositionControl(currPos, ticks);
     rpmTimerM1 = millis();
@@ -717,10 +700,6 @@ void loop() {
 
     int currPos = linearActMotorEnc.read();
     int ticks = mmtoTicks(linearActuatorMotorCommand);
-    // Serial.print("Desired Ticks: ");
-    // Serial.println(ticks);
-    // Serial.print("Current ticks: ");
-    // Serial.println(linearActMotorEnc.read());
     linearActuator.pidPositionControl(currPos, ticks);
     rpmTimerM2 = millis();
 
