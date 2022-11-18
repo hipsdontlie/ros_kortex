@@ -23,6 +23,8 @@ Date of first revision: 28th April 2022 -->
         <arg name="testing" value="$(arg testing)"/>
     </include>
 
+    <include file="$(find arthur_online_calibration)/launch/online_calibration.launch"/>
+
     <!-- Start reaming pose broadcaster -->
     <node pkg="hipster_gui" type="reaming_endpt_broadcaster.py" name="reaming_end_point_broadcaster" />
 

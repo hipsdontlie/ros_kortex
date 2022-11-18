@@ -230,7 +230,7 @@ int main(int argc, char **argv)
     // ********************************* perception ******************************************
 
     percep_msg.rmse_error = perception.rmse_error;
-    eStop_pub.publish(eStop_msg);
+    // eStop_pub.publish(eStop_msg);
     percep_pub.publish(percep_msg);
 
     if (fw.is_open() && !perception.rmse_error && !perception.percep_printed)
@@ -435,6 +435,62 @@ int main(int argc, char **argv)
       }
     } 
 
+    if(controls.singularity_bool == false)
+    {
+      eStop_pub.publish(eStop_msg);
+      if(n.getParam("ui_clear_faults", ui_clear_faults))
+      {
+        if(ui_clear_faults)
+        {
+          eStop_clearFaults_pub.publish(eStop_clearFaults_msg);
+          ros::Duration(5.0).sleep();
+          n.setParam("ui_clear_faults", false);
+        }
+      }
+      
+      if(fw.is_open() && !controls.singularity_printed)
+      {
+        time_t rawtime;
+        struct tm * timeinfo;
+        char st [128];
+        
+        time (&rawtime);
+        timeinfo = localtime (&rawtime);
+        strftime (st,128,"Date: %y-%m-%d  Time: %I:%M:%S",timeinfo);
+        fw << st <<"     ";
+        fw << "Arthur at singularity\n";
+        controls.orienError_printed = true;
+      }
+    } 
+
+    if(controls.jlimits_bool == false)
+    {
+      eStop_pub.publish(eStop_msg);
+      if(n.getParam("ui_clear_faults", ui_clear_faults))
+      {
+        if(ui_clear_faults)
+        {
+          eStop_clearFaults_pub.publish(eStop_clearFaults_msg);
+          ros::Duration(15.0).sleep();
+          n.setParam("ui_clear_faults", false);
+        }
+      }
+      
+      if(fw.is_open() && !controls.jlimits_printed)
+      {
+        time_t rawtime;
+        struct tm * timeinfo;
+        char st [128];
+        
+        time (&rawtime);
+        timeinfo = localtime (&rawtime);
+        strftime (st,128,"Date: %y-%m-%d  Time: %I:%M:%S",timeinfo);
+        fw << st <<"     ";
+        fw << "Arthur at joint limits\n";
+        controls.orienError_printed = true;
+      }
+    } 
+
     if(controls.orien_bool && fw.is_open() && controls.orienError_printed)
     {
       time_t rawtime;
@@ -490,6 +546,18 @@ int main(int argc, char **argv)
         }
       }
     } 
+
+  if (inputs.pelvis_visible && inputs.ee_visible && perception.rmse_error 
+        && controls.trans_bool && controls.orien_bool && controls.jlimits_bool 
+        && controls.singularity_bool && n.getParam("ui_clear_faults", ui_clear_faults))
+        {
+        if(ui_clear_faults)
+        {
+          eStop_clearFaults_pub.publish(eStop_clearFaults_msg);
+          ros::Duration(5.0).sleep();
+          n.setParam("ui_clear_faults", false);
+        }
+      }
 
   // ****************************************** end of controls ********************************************************
 

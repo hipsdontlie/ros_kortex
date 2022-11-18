@@ -33,7 +33,7 @@ void Controls::error_check(const std_msgs::Float64MultiArray::ConstPtr& error_ms
 void Controls::singularity_check(const std_msgs::Float64::ConstPtr& singularity_msg)
 {
   prevTime_singularity = ros::Time::now().toSec();
-  if (singularity_msg->data < 0.05)
+  if (singularity_msg->data < 0.01)
   {
     ROS_INFO("Very close to singularity! Please realign!\n");
     // controller_flag = false;
