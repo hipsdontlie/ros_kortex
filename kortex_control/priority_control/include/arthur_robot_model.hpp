@@ -68,6 +68,8 @@ namespace priority_control
         std::shared_ptr<planning_scene::PlanningScene> planning_scene_;
         collision_detection::CollisionRequest collision_request_;
         collision_detection::CollisionResult collision_result_;
+        std::shared_ptr<moveit::core::RobotState> current_state_;
+        collision_detection::AllowedCollisionMatrix acm_;
 
         bool compute_joint_limits(const std::string& base_frame, const std::string& tip_frame);
         void compute_joint_limit_avoidance_thresholds();

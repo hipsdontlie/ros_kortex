@@ -123,7 +123,7 @@ int main(int argc, char **argv)
     ros::XMLRPCManager::instance()->unbind("shutdown");
     ros::XMLRPCManager::instance()->bind("shutdown", shutdownCallback);
 
-    double controller_rate_ = 16.0; // Rate of ros node (hz)
+    double controller_rate_ = 40.0; // Rate of ros node (hz)
     double controller_time_step_ = 1.0 / controller_rate_;
     ros::Rate rate(controller_rate_);
 

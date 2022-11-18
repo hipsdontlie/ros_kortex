@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+
+<robot name="gen3" xmlns:xacro="http://ros.org/wiki/xacro">
+
+    <!-- Arguments -->
+    <xacro:arg name="arm" default="gen3" />
+    <xacro:arg name="dof" default="7" />
+    <xacro:arg name="vision" default="true" />
+
+    <xacro:arg name="gripper" default="" />
+
+    <xacro:arg name="sim" default="false" />
+    <xacro:arg name="prefix" default="" />
+
+    <xacro:arg name="ee_joint_fixed" default="true" />
+
+    <xacro:include filename="$(find kortex_description)/robots/kortex_table_collision.xacro" />
+    <xacro:load_robot arm="$(arg arm)" gripper="$(arg gripper)" dof="$(arg dof)" vision="$(arg vision)" sim="$(arg sim)" prefix="$(arg prefix)" ee_joint_fixed="$(arg ee_joint_fixed)" />
+
+</robot>

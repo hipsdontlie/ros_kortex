@@ -17,6 +17,34 @@ namespace priority_control
 
         robot_description_ = robot_description;
         planning_scene_ = planning_scene;
+        current_state_ = std::make_shared<moveit::core::RobotState>(planning_scene_->getCurrentState());
+        acm_ = planning_scene_->getAllowedCollisionMatrix();
+        acm_.setEntry("table", "base_link", true);
+        acm_.setEntry("base_link", "table", true);
+        acm_.setEntry("table", "wall", true);
+        acm_.setEntry("wall", "table", true);
+        acm_.setEntry("base_link", "shoulder_link", true);
+        acm_.setEntry("shoulder_link", "base_link", true);
+        acm_.setEntry("half_arm_1_link", "shoulder_link", true);
+        acm_.setEntry("shoulder_link", "half_arm_1_link", true);
+        acm_.setEntry("half_arm_1_link", "half_arm_2_link", true);
+        acm_.setEntry("half_arm_2_link", "half_arm_1_link", true);
+        acm_.setEntry("forearm_link", "half_arm_2_link", true);
+        acm_.setEntry("half_arm_2_link", "forearm_link", true);
+        acm_.setEntry("forearm_link", "spherical_wrist_1_link", true);
+        acm_.setEntry("spherical_wrist_1_link", "forearm_link", true);
+        acm_.setEntry("spherical_wrist_2_link", "spherical_wrist_1_link", true);
+        acm_.setEntry("spherical_wrist_1_link", "spherical_wrist_2_link", true);
+        acm_.setEntry("spherical_wrist_2_link", "bracelet_link", true);
+        acm_.setEntry("bracelet_link", "spherical_wrist_2_link", true);
+        acm_.setEntry("ee_adapter_link", "bracelet_link", true);
+        acm_.setEntry("bracelet_link", "ee_adapter_link", true);
+        acm_.setEntry("ee_adapter_link", "reamer_head", true);
+        acm_.setEntry("reamer_head", "ee_adapter_link", true);
+        acm_.setEntry("tool_frame", "reamer_head", true);
+        acm_.setEntry("reamer_head", "tool_frame", true);
+        acm_.setEntry("ee_adapter_link", "reamer_head", true);
+        acm_.setEntry("reamer_head", "ee_adapter_link", true);
         
         if (!urdf_model_.initString(robot_description_)){
             ROS_ERROR("Could not initialize tree object");
@@ -162,14 +190,13 @@ namespace priority_control
 
     bool ArthurRobotModel::is_colliding(KDL::JntArray q_pos)
     {
-        moveit::core::RobotState current_state = planning_scene_->getCurrentState();
-        collision_detection::AllowedCollisionMatrix acm = planning_scene_->getAllowedCollisionMatrix();
+        
         std::vector<double> joint_positions;
         for (size_t i = 0; i < number_joints_; ++i)
         {
             joint_positions.push_back(q_pos(i));
         }
-        current_state.setVariablePositions(joint_positions);
+        current_state_->setVariablePositions(joint_positions);
 
         // collision_detection::CollisionResult::ContactMap::const_iterator it2;
         // // for (it2 = collision_result_.contacts.begin(); it2 != collision_result_.contacts.end(); ++it2)
@@ -179,24 +206,16 @@ namespace priority_control
         // //     std::cout << it2->first.second << std::endl;
         // //     std::cout << "-----------" << std::endl;
         // // }
-        acm.setEntry("table", "base_link", true);
-        acm.setEntry("base_link", "table", true);
-        acm.setEntry("table", "wall", true);
-        acm.setEntry("wall", "table", true);
-        acm.setEntry("base_link", "shoulder_link", true);
-        acm.setEntry("shoulder_link", "base_link", true);
-        acm.setEntry("tool_frame", "reamer_head", true);
-        acm.setEntry("reamer_head", "tool_frame", true);
-        acm.setEntry("reamer_head", "tool_frame", true);
-        acm.setEntry("ee_adapter_link", "reamer_head", true);
-        acm.setEntry("reamer_head", "ee_adapter_link", true);
-        collision_request_.contacts = true;
-        collision_request_.max_contacts = 1000;
+        // collision_request_.contacts = false;
+        // collision_request_.cost = false;
+        // collision_request_.distance = false;
+        // collision_request_.max_contacts = 1;
+        
 
         //
 
         collision_result_.clear();
-        planning_scene_->checkSelfCollision(collision_request_, collision_result_, current_state, acm);
+        planning_scene_->checkSelfCollision(collision_request_, collision_result_, (*current_state_), acm_);
         // ROS_INFO_STREAM("Test 5: Current state is " << (collision_result_.collision ? "in" : "not in") << " self collision");
         // collision_detection::CollisionResult::ContactMap::const_iterator it;
         // for (it = collision_result_.contacts.begin(); it != collision_result_.contacts.end(); ++it)

@@ -42,5 +42,6 @@ namespace priority_control
         void computeSingularityAvoidance(Eigen::VectorXd& F);
         void computeTaskJointVelocities();
         bool manipulabilityGradient(const KDL::JntArray& q_pos, Eigen::VectorXd& g);
+        bool checkCollision(const Eigen::VectorXd& q_vel);
     };
 }

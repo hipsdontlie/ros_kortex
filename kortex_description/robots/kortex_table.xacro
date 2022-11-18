@@ -28,25 +28,25 @@
                 <visual>
                     <origin xyz="0 0 0.02" rpy="1.5708 0 0" />
                     <geometry>
-                        <mesh filename="package://kortex_description/meshes/environment/Table_v2.STL"/>
+                        <mesh filename="package://kortex_description/meshes/environment/Table_v2.stl"/>
                     </geometry>
                 </visual>
                 <collision>
                     <origin xyz="0 0 0.02" rpy="1.5708 0 0" />
                     <geometry>
-                        <mesh filename="package://kortex_description/meshes/environment/Table_v2.STL"/>
+                        <mesh filename="package://kortex_description/meshes/environment/Table_v2.stl"/>
                     </geometry>
                 </collision>
             </link>
             <link name="wall">
                 <visual>
                     <geometry>
-                        <mesh filename="package://kortex_description/meshes/environment/Wall.STL"/>
+                        <mesh filename="package://kortex_description/meshes/environment/Wall.stl"/>
                     </geometry>
                 </visual>
                 <collision>
                     <geometry>
-                        <mesh filename="package://kortex_description/meshes/environment/Wall.STL"/>
+                        <mesh filename="package://kortex_description/meshes/environment/Wall.stl"/>
                     </geometry>
                 </collision>
             </link>
@@ -128,7 +128,7 @@
                 <visual>
                     <origin xyz="0 0 0" rpy="0 0 0" />
                     <geometry>
-                    <mesh filename="package://kortex_description/arms/gen3/${dof}dof/meshes/ReamerHead.STL"/>
+                    <mesh filename="package://kortex_description/arms/gen3/${dof}dof/meshes/ReamerHead.stl"/>
                     </geometry>
                     <material name="">
                     <color rgba="0.75294 0.75294 0.75294 1" />
@@ -137,7 +137,7 @@
                 <collision>
                     <origin xyz="0 0 0" rpy="0 0 0" />
                     <geometry>
-                    <mesh filename="package://kortex_description/arms/gen3/${dof}dof/meshes/ReamerHead.STL"/>
+                    <mesh filename="package://kortex_description/arms/gen3/${dof}dof/meshes/ReamerHead.stl"/>
                     </geometry>
                 </collision>
             </link>
@@ -165,7 +165,7 @@
                 <visual>
                     <origin xyz="0 0 0" rpy="0 0 0" />
                     <geometry>
-                    <mesh filename="package://kortex_description/arms/gen3/${dof}dof/meshes/ReamingHead_48MM.STL"/>
+                    <mesh filename="package://kortex_description/arms/gen3/${dof}dof/meshes/ReamingHead_48MM.stl"/>
                     </geometry>
                     <material name="">
                     <color rgba="0.75294 0.75294 0.75294 1" />
@@ -174,7 +174,7 @@
                 <collision>
                     <origin xyz="0 0 0" rpy="0 0 0" />
                     <geometry>
-                    <mesh filename="package://kortex_description/arms/gen3/${dof}dof/meshes/ReamingHead_48MM.STL"/>
+                    <mesh filename="package://kortex_description/arms/gen3/${dof}dof/meshes/ReamingHead_48MM.stl"/>
                     </geometry>
                 </collision>
             </link>

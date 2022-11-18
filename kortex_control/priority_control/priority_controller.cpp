@@ -109,6 +109,12 @@ namespace priority_control
             // TODO: error
             return false;
         }
+
+        // if (checkCollision(q_vel_cmd_))
+        // {
+        //     ROS_WARN("Robot or Pelvis is Bad Position. Avoiding Collisions!!!");
+        //     fault_ = true;
+        // }
         // std::cout << "Check 2.8" << std::endl;
         return true && !fault_;
     }
@@ -161,6 +167,17 @@ namespace priority_control
             return false;
         }
         return true;
+    }
+
+    bool PriorityController::checkCollision(const Eigen::VectorXd& q_vel)
+    {
+        KDL::JntArray q_pos_next = KDL::JntArray(robot_->nj());
+        for (size_t i = 0; i < robot_->nj(); ++i)
+        {
+            q_pos_next(i) = q_pos_(i) + q_vel(i)*dt_;
+        }
+
+        return robot_->is_colliding(q_pos_next);
     }
 
     size_t PriorityController::atJointVelLimit(const Eigen::VectorXd& q_vel)

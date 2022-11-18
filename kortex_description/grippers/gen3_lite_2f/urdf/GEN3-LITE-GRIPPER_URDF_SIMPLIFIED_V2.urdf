@@ -8,13 +8,13 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <mesh filename="package://L31K-GRIPPER_URDF_SIMPLIFIED_V2/meshes/GRIPPER_FRAME.STL" />
+        <mesh filename="package://L31K-GRIPPER_URDF_SIMPLIFIED_V2/meshes/GRIPPER_FRAME.stl" />
       </geometry>
     </visual>
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <mesh filename="package://L31K-GRIPPER_URDF_SIMPLIFIED_V2/meshes/GRIPPER_FRAME.STL" />
+        <mesh filename="package://L31K-GRIPPER_URDF_SIMPLIFIED_V2/meshes/GRIPPER_FRAME.stl" />
       </geometry>
     </collision>
   </link>
@@ -27,13 +27,13 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <mesh filename="package://L31K-GRIPPER_URDF_SIMPLIFIED_V2/meshes/RIGHT_FINGER_PROX.STL" />
+        <mesh filename="package://L31K-GRIPPER_URDF_SIMPLIFIED_V2/meshes/RIGHT_FINGER_PROX.stl" />
       </geometry>
     </visual>
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <mesh filename="package://L31K-GRIPPER_URDF_SIMPLIFIED_V2/meshes/RIGHT_FINGER_PROX.STL" />
+        <mesh filename="package://L31K-GRIPPER_URDF_SIMPLIFIED_V2/meshes/RIGHT_FINGER_PROX.stl" />
       </geometry>
     </collision>
   </link>
@@ -53,13 +53,13 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <mesh filename="package://L31K-GRIPPER_URDF_SIMPLIFIED_V2/meshes/RIGHT_FINGER_DIST.STL" />
+        <mesh filename="package://L31K-GRIPPER_URDF_SIMPLIFIED_V2/meshes/RIGHT_FINGER_DIST.stl" />
       </geometry>
     </visual>
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <mesh filename="package://L31K-GRIPPER_URDF_SIMPLIFIED_V2/meshes/RIGHT_FINGER_DIST.STL" />
+        <mesh filename="package://L31K-GRIPPER_URDF_SIMPLIFIED_V2/meshes/RIGHT_FINGER_DIST.stl" />
       </geometry>
     </collision>
   </link>
@@ -79,13 +79,13 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <mesh filename="package://L31K-GRIPPER_URDF_SIMPLIFIED_V2/meshes/LEFT_FINGER_PROX.STL" />
+        <mesh filename="package://L31K-GRIPPER_URDF_SIMPLIFIED_V2/meshes/LEFT_FINGER_PROX.stl" />
       </geometry>
     </visual>
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <mesh filename="package://L31K-GRIPPER_URDF_SIMPLIFIED_V2/meshes/LEFT_FINGER_PROX.STL" />
+        <mesh filename="package://L31K-GRIPPER_URDF_SIMPLIFIED_V2/meshes/LEFT_FINGER_PROX.stl" />
       </geometry>
     </collision>
   </link>
@@ -105,13 +105,13 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <mesh filename="package://L31K-GRIPPER_URDF_SIMPLIFIED_V2/meshes/LEFT_FINGER_DIST.STL" />
+        <mesh filename="package://L31K-GRIPPER_URDF_SIMPLIFIED_V2/meshes/LEFT_FINGER_DIST.stl" />
       </geometry>
     </visual>
     <collision>
       <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <mesh filename="package://L31K-GRIPPER_URDF_SIMPLIFIED_V2/meshes/LEFT_FINGER_DIST.STL" />
+        <mesh filename="package://L31K-GRIPPER_URDF_SIMPLIFIED_V2/meshes/LEFT_FINGER_DIST.stl" />
       </geometry>
     </collision>
   </link>
