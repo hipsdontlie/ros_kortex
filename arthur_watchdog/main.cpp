@@ -146,7 +146,7 @@ int main(int argc, char **argv)
         if(ui_clear_faults)
         {
           eStop_clearFaults_pub.publish(eStop_clearFaults_msg);
-          ros::Duration(5.0).sleep();
+          ros::Duration(15.0).sleep();
           n.setParam("ui_clear_faults", false);
         }
       }
@@ -177,7 +177,7 @@ int main(int argc, char **argv)
         if(ui_clear_faults)
         {
           eStop_clearFaults_pub.publish(eStop_clearFaults_msg);
-          ros::Duration(5.0).sleep();
+          ros::Duration(15.0).sleep();
           n.setParam("ui_clear_faults", false);
         }
       }
@@ -374,7 +374,7 @@ int main(int argc, char **argv)
         if(ui_clear_faults)
         {
           eStop_clearFaults_pub.publish(eStop_clearFaults_msg);
-          ros::Duration(5.0).sleep();
+          ros::Duration(15.0).sleep();
           n.setParam("ui_clear_faults", false);
         }
       }
@@ -415,7 +415,7 @@ int main(int argc, char **argv)
         if(ui_clear_faults)
         {
           eStop_clearFaults_pub.publish(eStop_clearFaults_msg);
-          ros::Duration(5.0).sleep();
+          ros::Duration(15.0).sleep();
           n.setParam("ui_clear_faults", false);
         }
       }
@@ -443,7 +443,7 @@ int main(int argc, char **argv)
         if(ui_clear_faults)
         {
           eStop_clearFaults_pub.publish(eStop_clearFaults_msg);
-          ros::Duration(5.0).sleep();
+          ros::Duration(15.0).sleep();
           n.setParam("ui_clear_faults", false);
         }
       }
@@ -541,7 +541,7 @@ int main(int argc, char **argv)
         if(ui_clear_faults)
         {
           eStop_clearFaults_pub.publish(eStop_clearFaults_msg);
-          ros::Duration(5.0).sleep();
+          ros::Duration(15.0).sleep();
           n.setParam("ui_clear_faults", false);
         }
       }
@@ -554,7 +554,7 @@ int main(int argc, char **argv)
         if(ui_clear_faults)
         {
           eStop_clearFaults_pub.publish(eStop_clearFaults_msg);
-          ros::Duration(5.0).sleep();
+          ros::Duration(15.0).sleep();
           n.setParam("ui_clear_faults", false);
         }
       }

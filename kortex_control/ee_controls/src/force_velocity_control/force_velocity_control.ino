@@ -89,6 +89,7 @@ bool dynamicCompensation = false;
 bool reachedEnd = false;
 bool posCalibration = false;
 bool reamAtEndPoint = false;
+bool reamAtEndPointTimerFlag = false;
 bool doneReaming = false;
 
 // Enum for which low level controller to use
@@ -113,7 +114,7 @@ enum states currentState = CALIBRATE;
 enum states previousState = CALIBRATE;
 
 // High level controller parameters
-float forceSetPoint = 0.35;
+float forceSetPoint = 0.4;
 float errorForce = 0;
 float errorPrevForce = 0;
 float KpForce, KiForce, KdForce = 0;
@@ -133,6 +134,7 @@ int reamingEndPoint = 40;
 int reamingStartPoint = 30;
 float prevrpm1, prevrpm2 = 0;
 float startReamingTimer = 0;
+float reamAtEndPointTimer = 0;
 
 /*------------------------------------------ROS Callbacks -------------------------------------------*/
 
@@ -249,6 +251,25 @@ void triggerLimSwitch1() {
     currentState = HANDLELIMSWITCH;
   }
 
+}
+
+void resetGains(){
+
+  //Position control gains 
+  linearActuator.errorIntegralPos_ = 0;
+  linearActuator.errorProportionalPos_ = 0;
+  linearActuator.errorDerivativePos_ = 0;
+  reamerMotor.errorProportionalPos_ = 0; 
+  reamerMotor.errorDerivativePos_ = 0; 
+  reamerMotor.errorIntegralPos_ = 0; 
+
+  //Velocity control gains
+  linearActuator.errorIntegralVel_ = 0;
+  linearActuator.errorProportionalVel_ = 0;
+  linearActuator.errorDerivativeVel_ = 0;
+  reamerMotor.errorProportionalVel_ = 0; 
+  reamerMotor.errorDerivativeVel_ = 0; 
+  reamerMotor.errorIntegralVel_ = 0; 
 }
 
 void triggerLimSwitch2() {
@@ -391,8 +412,8 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(LimSwitchPin2), triggerLimSwitch2, RISING);
 
   // High level controller gains
-  KpForce = 50;
-  KdForce = 0;
+  KpForce = 40;
+  KdForce = 1;
   KiForce = 0;
 }
 
@@ -464,7 +485,7 @@ void loop() {
         timerForce1 = millis();
       }
 
-      if (forceValue >= forceSetPoint && ticksTomm(linearActMotorEnc.read()) > reamingEndPoint - 15) {
+      if (forceValue >= forceSetPoint && ticksTomm(linearActMotorEnc.read()) > reamingEndPoint - 10) {
         
         currentState = STARTREAMING;
         startReamingTimer = millis();
@@ -513,20 +534,29 @@ void loop() {
         //   linearActuatorMotorCommand = reamingEndPoint;
         // }
 
-        if(millis()/1000 - reamAtEndPointTimer)
+        if(reamAtEndPointTimerFlag == false){
+          reamAtEndPointTimer = millis();          
+          reamAtEndPointTimerFlag = true;
+        }
 
+        if(millis()/1000 - reamAtEndPointTimer/1000 <= 15){
+          nh.loginfo("Reached end point, reaming for 15 seconds!");
+          ReamerMotorControlType = speedControl;
+          LinearActMotorControlType = speedControl;
+          linearActuatorMotorCommand = 0; 
+          reamerMotorCommand = 1000;
+        }
 
-        currentState = DONEREAMING;
-        linearActuatorMotorCommand = 0;
-        reamerMotorCommand = 0;
-        
+        else{
+          currentState = DONEREAMING;
+          linearActuatorMotorCommand = 0;
+          reamerMotorCommand = 0;
+        }
 
       }
 
       if (dynamicCompensation == true) {
-        
         currentState = DYNAMICCOMP;
-        
       }
 
       //Retract if reamer gets stuck
@@ -543,14 +573,16 @@ void loop() {
 
     // Dynamic compensation - change state back to 1 after performing compensation routine
     case DYNAMICCOMP:
-    nh.loginfo("Dynamic Compensation!")
-;     if(doneReaming){
-        
+    
+    resetGains();    
+    nh.loginfo("Dynamic Compensation!");
+     if(doneReaming){
         currentState = DONEREAMING;
      }
      
      else{
       controllerStatus.data = 4;
+      reamAtEndPointTimerFlag = false;
       LinearActMotorControlType = positionControl;
       ReamerMotorControlType = speedControl;
       reamerMotorCommand = 0;
@@ -558,7 +590,6 @@ void loop() {
       if(dynamicCompensation == false){
         currentState = WAITFORCMD;        
       }
-
 
      } 
 
@@ -607,7 +638,7 @@ void loop() {
       linearActuator.errorIntegralPos_ = 0;
       linearActuator.errorProportionalPos_ = 0;
       linearActuator.errorDerivativePos_ = 0;
-      linearActuatorMotorCommand = 5;
+      linearActuatorMotorCommand = 15;
       reamerMotor.stopMotor();
       currentState = DONEREAMING;
       break;

@@ -304,7 +304,7 @@
     </collision>
   </link>
   <joint name="tool_frame_joint" type="fixed">
-    <origin rpy="0 0 0" xyz="0 0 -0.0915"/>
+    <origin rpy="0 0 0" xyz="0 0 -0.0858"/>
     <parent link="end_effector_link"/>
     <child link="tool_frame"/>
     <axis xyz="0 0 0"/>

@@ -108,7 +108,6 @@
         <!-- Camera to base TF-->
         <!-- old values: -0.852687413837996 0.05427938698581192 1.0414459251762835 -0.48695025522964747 0.7217732770468246 -0.4374089451595048 0.2249359912671136  -->
         <!-- <node pkg="tf" type="static_transform_publisher" name="camera_to_base_tf" args="-0.7559493314204755 -0.25192519771538835 1.0781419196418933 -0.5406355892105992 0.6962895671955238 -0.35299364737627054 0.3135115360007914 base_link camera 1000"/>  -->
-        <!-- <include file="$(find arthur_online_calibration)/launch/online_calibration.launch"/> -->
 
         <!-- Start RViz -->
         <node name="rviz" pkg="rviz" type="rviz" output="log" args="-d $(find kortex_driver)/rviz/visualization.rviz"  if="$(arg start_rviz)"/> 
@@ -169,6 +168,9 @@
             <param name="test_duration" value="30.0" />
             <param name="wait_time" value="10.0" />
         </test>
+        
 
     </group>
+
+    <include file="$(find arthur_online_calibration)/launch/online_calibration.launch"/>
 </launch>
