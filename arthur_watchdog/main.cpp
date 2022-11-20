@@ -296,7 +296,7 @@ int main(int argc, char **argv)
     }
 
 
-    if(controls.currTime_error - controls.prevTime_error > ros::Duration(1).toSec())
+    if(controls.currTime_error - controls.prevTime_error > ros::Duration(0.05).toSec())
     {
       // ROS_INFO("Controller error publisher dropped below 30Hz!\n");
       controls.trans_bool = false;
@@ -316,7 +316,7 @@ int main(int argc, char **argv)
       }
     }
 
-    if(controls.currTime_singularity - controls.prevTime_singularity > ros::Duration(1).toSec())
+    if(controls.currTime_singularity - controls.prevTime_singularity > ros::Duration(0.05).toSec())
     {
       // ROS_INFO("Controller singularity publisher dropped below 30Hz!\n");
       controls.singularity_bool = false;
@@ -336,7 +336,7 @@ int main(int argc, char **argv)
       }
     }
 
-    if(controls.currTime_jlimits - controls.prevTime_jlimits > ros::Duration(1).toSec())
+    if(controls.currTime_jlimits - controls.prevTime_jlimits > ros::Duration(0.05).toSec())
     {
       // ROS_INFO("Controller joint limits publisher dropped below 30Hz!\n");
       controls.jlimits_bool = false;
@@ -369,6 +369,7 @@ int main(int argc, char **argv)
     if(controls.trans_bool == false)
     {
       eStop_pub.publish(eStop_msg);
+      hardware.hardware_flag = true;
       if(n.getParam("ui_clear_faults", ui_clear_faults))
       {
         if(ui_clear_faults)
@@ -376,6 +377,7 @@ int main(int argc, char **argv)
           eStop_clearFaults_pub.publish(eStop_clearFaults_msg);
           ros::Duration(15.0).sleep();
           n.setParam("ui_clear_faults", false);
+          hardware.hardware_flag = false;
         }
       }
 
@@ -410,6 +412,7 @@ int main(int argc, char **argv)
     if(controls.orien_bool == false)
     {
       eStop_pub.publish(eStop_msg);
+      hardware.hardware_flag = true;
       if(n.getParam("ui_clear_faults", ui_clear_faults))
       {
         if(ui_clear_faults)
@@ -417,6 +420,7 @@ int main(int argc, char **argv)
           eStop_clearFaults_pub.publish(eStop_clearFaults_msg);
           ros::Duration(15.0).sleep();
           n.setParam("ui_clear_faults", false);
+          hardware.hardware_flag = false;
         }
       }
       
@@ -438,6 +442,7 @@ int main(int argc, char **argv)
     if(controls.singularity_bool == false)
     {
       eStop_pub.publish(eStop_msg);
+      hardware.hardware_flag = true;
       if(n.getParam("ui_clear_faults", ui_clear_faults))
       {
         if(ui_clear_faults)
@@ -445,6 +450,7 @@ int main(int argc, char **argv)
           eStop_clearFaults_pub.publish(eStop_clearFaults_msg);
           ros::Duration(15.0).sleep();
           n.setParam("ui_clear_faults", false);
+          hardware.hardware_flag = false;
         }
       }
       
@@ -466,6 +472,7 @@ int main(int argc, char **argv)
     if(controls.jlimits_bool == false)
     {
       eStop_pub.publish(eStop_msg);
+      hardware.hardware_flag = true;
       if(n.getParam("ui_clear_faults", ui_clear_faults))
       {
         if(ui_clear_faults)
@@ -473,6 +480,7 @@ int main(int argc, char **argv)
           eStop_clearFaults_pub.publish(eStop_clearFaults_msg);
           ros::Duration(15.0).sleep();
           n.setParam("ui_clear_faults", false);
+          hardware.hardware_flag = false;
         }
       }
       
@@ -536,6 +544,7 @@ int main(int argc, char **argv)
     if(controls.controlsFault_bool == false)
     {
       eStop_pub.publish(eStop_msg);
+      hardware.hardware_flag = true;
       if(n.getParam("ui_clear_faults", ui_clear_faults))
       {
         if(ui_clear_faults)
@@ -543,6 +552,7 @@ int main(int argc, char **argv)
           eStop_clearFaults_pub.publish(eStop_clearFaults_msg);
           ros::Duration(15.0).sleep();
           n.setParam("ui_clear_faults", false);
+          hardware.hardware_flag = false;
         }
       }
     } 
