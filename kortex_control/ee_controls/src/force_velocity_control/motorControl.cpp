@@ -131,15 +131,15 @@ void MotorControl::stopMotor(){
 /*
 @brief Returns the current motor rpm
 */
-float MotorControl::getMotorRPM(int encoderValue, float ppr){
+float MotorControl::getMotorRPM(long int encoderValue, float ppr){
     
     currentTimeVel_ = micros();
-    deltaTVel_ = ((float) (currentTimeVel_-previousTimeVel_)/1000000); 
-    numSteps_ = 60/deltaTVel_;
+    deltaTVel_ = ((float) (currentTimeVel_-previousTimeVel_)/1000000.0); 
+    numSteps_ = 60.0/deltaTVel_;
     tempPosCurr_ = encoderValue;
     rpmCurr_ = float(tempPosCurr_-tempPosPrev_) * numSteps_ / ppr; 
     tempPosPrev_ = tempPosCurr_;
-    previousTimeVel_ = micros();
+    previousTimeVel_ = currentTimeVel_;
     return rpmCurr_;
 }
 
@@ -147,7 +147,7 @@ float MotorControl::getMotorRPM(int encoderValue, float ppr){
 /*
 @brief PID position control to a targetPos
 */
-int MotorControl::pidPositionControl(int encoderValue, int targetPos){
+int MotorControl::pidPositionControl(long int encoderValue, int targetPos){
     
     currentTimePos_ = micros();
     deltaTPos_ = currentTimePos_ - previousTimePos_; 

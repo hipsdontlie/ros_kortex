@@ -6,7 +6,7 @@ AUTHOR: Kaushik Balasundar
 
 #ifndef CURRENTSENSOR_H
 #define CURRENTSENSOR_H
-#define WINDOWSIZE 200
+#define WINDOWSIZE 100
 #include <Arduino.h>
 
 class currentSensor{

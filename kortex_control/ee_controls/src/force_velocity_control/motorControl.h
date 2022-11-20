@@ -43,7 +43,7 @@ class MotorControl{
 
 
         //Other generic PID parameters
-        int encoderValue_;
+        long int encoderValue_;
         // volatile static int encoderValue_;
         // volatile static int encoderValue_LinearActMotor_;
 
@@ -87,7 +87,7 @@ class MotorControl{
         void stopMotor();
 
         // Get RPM of the motor 
-        float getMotorRPM(int encoderValue, float ppr);
+        float getMotorRPM(long int encoderValue, float ppr);
 
         // Get current position 
         // int getMotorPos();
@@ -102,7 +102,7 @@ class MotorControl{
         void setupInterruptPins();
 
         //PID position control 
-        int pidPositionControl(int encoderValue, int targetPos);
+        int pidPositionControl(long int encoderValue, int targetPos);
 
         //PID speed control 
         int pidSpeedControl(int rpm, int targetSpeed);

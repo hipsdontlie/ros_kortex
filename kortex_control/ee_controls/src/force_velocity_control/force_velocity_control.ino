@@ -60,7 +60,7 @@ std_msgs::Int16 controllerStatus;
 
 // ROS publishers
 ros::Publisher pubCurrentSensor("hardware_current/data", &current);
-// ros::Publisher pubLinearActMotorSpeed("linear_actuator_speed/data",&rpmLinearActuatorMotor);
+ros::Publisher pubLinearActMotorSpeed("linear_actuator_speed/data",&rpmLinearActuatorMotor);
 // ros::Publisher pubReamerMotorSpeed("hardware_reamerSpeed/data",&rpmReamerMotor);
 // ros::Publisher pubLinearActuatorMotorPos("linear_actuator_pos/data",&posLinearActuatorMotor);
 // ros::Publisher pubForce("hardware_force/data",&force);
@@ -114,7 +114,7 @@ enum states currentState = CALIBRATE;
 enum states previousState = CALIBRATE;
 
 // High level controller parameters
-float forceSetPoint = 0.4;
+float forceSetPoint = 0.7;
 float errorForce = 0;
 float errorPrevForce = 0;
 float KpForce, KiForce, KdForce = 0;
@@ -126,6 +126,7 @@ int cmd = 0;
 float timerForce1 = 0;
 float timerForce2 = 0;
 float currentSampleTime = 0;
+float rpmSampleTime = 0;
 float forceValue = 0;
 int linActPos = 0;
 float forceMovingAvg = 0;
@@ -135,7 +136,9 @@ int reamingStartPoint = 30;
 float prevrpm1, prevrpm2 = 0;
 float startReamingTimer = 0;
 float reamAtEndPointTimer = 0;
-
+double rpmValue = 0;
+long int encValue = 0;
+double mmpersec = 0;
 /*------------------------------------------ROS Callbacks -------------------------------------------*/
 
 //Callback for reamer motor speed command
@@ -396,6 +399,7 @@ void setup() {
   //Publishers
   nh.advertise(pubCurrentSensor);
   // nh.advertise(pubReamerMotorSpeed);
+  nh.advertise(pubLinearActMotorSpeed);
   nh.advertise(pubReamingPercentage);
   // nh.advertise(pubControllerStatus);
 
@@ -412,9 +416,9 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(LimSwitchPin2), triggerLimSwitch2, RISING);
 
   // High level controller gains
-  KpForce = 40;
+  KpForce = 10;
   KdForce = 1;
-  KiForce = 0;
+  KiForce = 0.00001;
 }
 
 void loop() {
@@ -423,15 +427,27 @@ void loop() {
   nh.spinOnce();
   if (millis() - currentSampleTime >5) {
     forceValue = currSensor.getCurrentMovingAvg();
+    //Publishing some key parameters
+    current.data = forceValue;
+    pubCurrentSensor.publish(&current);
+
   }
 
-  //Publishing some key parameters
-  current.data = forceValue;
-  pubCurrentSensor.publish(&current);
+  if ((millis() - rpmSampleTime) > 10) {
+    encValue = linearActMotorEnc.read();
+    rpmValue = linearActuator.getMotorRPM(encValue, LINEARACTMOTORPPR);
+    mmpersec = rpmTommPerSec(rpmValue, 5.0);
+    //Publishing linear actuator rpm 
+    rpmLinearActuatorMotor.data = mmpersec;
+    pubLinearActMotorSpeed.publish(&rpmLinearActuatorMotor);
+  }
+
 
   //Publishing reaming percentage 
   reamingPercentage.data = getReamingPercentage();
   pubReamingPercentage.publish(&reamingPercentage);
+
+
 
   /*-------------------------------------HIGH LEVEL CONTROL-------------------------------------*/
 
@@ -485,21 +501,53 @@ void loop() {
         timerForce1 = millis();
       }
 
-      if (forceValue >= forceSetPoint && ticksTomm(linearActMotorEnc.read()) > reamingEndPoint - 10) {
+      // if (forceValue >= forceSetPoint && ticksTomm(linearActMotorEnc.read()) > reamingEndPoint - 10) {
+      if (forceValue >= forceSetPoint && mmpersec < 2.0) {
         
         currentState = STARTREAMING;
         startReamingTimer = millis();
         linearActuatorMotorCommand = 0;
       }
 
-      if(ticksTomm(linearActMotorEnc.read()) > reamingStartPoint){
-        currentState = STARTREAMING;
-      }
+      // if(ticksTomm(linearActMotorEnc.read()) > reamingStartPoint){
+      //   currentState = STARTREAMING;
+      // }
 
       if (dynamicCompensation) {
         
         previousState = currentState;
         currentState = DYNAMICCOMP;
+      }
+
+      if (ticksTomm(linearActMotorEnc.read()) >= reamingEndPoint) {
+       
+        //Hold position if force is still high 
+
+        // if(forceValue >= 0.25){
+        //   //Hold position of linear actuator at the reaming end point
+        //   nh.loginfo("Reached end point but bone still left to ream!");
+        //   LinearActMotorControlType = positionControl;
+        //   linearActuatorMotorCommand = reamingEndPoint;
+        // }
+
+        if(reamAtEndPointTimerFlag == false){
+          reamAtEndPointTimer = millis();          
+          reamAtEndPointTimerFlag = true;
+        }
+        
+      if(millis()/1000 - reamAtEndPointTimer/1000 <= 15){
+          nh.loginfo("Reached end point, reaming for 15 seconds!");
+          ReamerMotorControlType = speedControl;
+          LinearActMotorControlType = speedControl;
+          linearActuatorMotorCommand = 0; 
+          reamerMotorCommand = 1000;
+        }
+
+      else{
+          currentState = DONEREAMING;
+          linearActuatorMotorCommand = 0;
+          reamerMotorCommand = 0;
+        }
       }
 
       break;
@@ -701,22 +749,21 @@ void loop() {
   // Linear Actuator Motor Speed Control
   if ((((millis() - rpmTimerM2)) > 10) && (LinearActMotorControlType == speedControl)){
     
-    long int encValue = linearActMotorEnc.read();
-    float rpm = linearActuator.getMotorRPM(encValue, LINEARACTMOTORPPR);
-    if (abs(rpm - prevrpm2) > 600) {
-      rpm = prevrpm2;
-    } else {
-      prevrpm2 = rpm;
-    }
+    // long int encValue = linearActMotorEnc.read();
+
+    
+    // if (abs(rpmValue - prevrpm2) > 520) {
+    //   rpmValue = prevrpm2;
+    // } else {
+    //   prevrpm2 = rpmValue;
+    // }
 
     float rpmCmd = mmPerSecToRpm(linearActuatorMotorCommand, LINEARACTMOTORPPR, 5);
-    linearActuator.pidSpeedControl(rpm, rpmCmd);
+    linearActuator.pidSpeedControl(rpmValue, rpmCmd);
     rpmTimerM2 = millis();
     // nh.loginfo("Low level speed control...");
     // Publish the rpm of the LinearAct motor
 
-    // rpmLinearActuatorMotor.data = rpm;
-    // pubLinearActMotorSpeed.publish(&rpmLinearActuatorMotor);
   }
 
 

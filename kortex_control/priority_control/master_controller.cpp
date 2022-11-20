@@ -187,6 +187,8 @@ int main(int argc, char **argv)
     std_msgs::Bool start_dynamic_comp_;
     start_dynamic_comp_.data = false;
 
+    bool start_reaming_button_ = false;
+
 
     // Subs/Pubs
     ros::Publisher pelvis_error_metrics_pub_ = node.advertise<std_msgs::Float64MultiArray>("/controls_error", 1);
@@ -228,6 +230,8 @@ int main(int argc, char **argv)
             ros::Duration(1.0).sleep();
             continue;
         }
+
+        node.getParam("ui_start_reaming", start_reaming_button_);
     
         bool successful_update = true;
         
@@ -238,13 +242,13 @@ int main(int argc, char **argv)
         }
         if (pelvis_task_->errorAboveThreshold())
         {
-            start_reaming_.data = false;
-            start_dynamic_comp_.data = true;
+            start_reaming_.data = false & start_reaming_button_;
+            start_dynamic_comp_.data = true & start_reaming_button_;
         }
         else
         {
-            start_reaming_.data = true;
-            start_dynamic_comp_.data = false;
+            start_reaming_.data = true & start_reaming_button_;
+            start_dynamic_comp_.data = false & start_reaming_button_;
         }
         if(!camera_task_->updateError(q_pos_, camera_error_, camera_twist_, camera_error_metrics_pub_))
         {
