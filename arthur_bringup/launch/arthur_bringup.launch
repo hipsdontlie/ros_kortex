@@ -27,7 +27,7 @@ Date of first revision: 28th April 2022 -->
     <node pkg="hipster_gui" type="reaming_endpt_broadcaster.py" name="reaming_end_point_broadcaster" />
 
     <!-- Start arduino serial node -->
-    <node pkg="rosserial_python" type="serial_node.py" name="serial_node" output="screen" port="/dev/ttyACM0"/>
+    <!-- <node pkg="rosserial_python" type="serial_node.py" name="serial_node" output="screen" port="/dev/ttyACM0"/> -->
 
     <!-- Start watchdog and arm controller -->
     <include file="$(find kortex_control)/launch/priority_control.launch"/>

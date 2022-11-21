@@ -217,7 +217,12 @@ void getWatchdogCmd(const std_msgs::Bool& watchdogCmd) {
 
   if (watchdogCmd.data == true) {
     MotorControl::watchDogStop_ = true;
-    currentState = WAITFORCMD;
+    if(currentState!=DONEREAMING)
+      currentState = WAITFORCMD;
+    else
+      currentState = DONEREAMING;
+      
+    reamAtEndPointTimerFlag = false;
   }
 
   else {

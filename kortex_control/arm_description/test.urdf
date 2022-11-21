@@ -314,7 +314,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://kortex_description/arms/gen3/7dof/meshes/ReamingHead_48MM.stl"/>
+        <mesh filename="package://kortex_description/arms/gen3/7dof/meshes/ReamingHead_56MM.stl"/>
       </geometry>
       <material name="">
         <color rgba="0.75294 0.75294 0.75294 1"/>
@@ -323,7 +323,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://kortex_description/arms/gen3/7dof/meshes/ReamingHead_48MM.stl"/>
+        <mesh filename="package://kortex_description/arms/gen3/7dof/meshes/ReamingHead_56MM.stl"/>
       </geometry>
     </collision>
   </link>
@@ -335,7 +335,7 @@
   </joint>
   <link name="tool_tip_frame"/>
   <joint name="tool_tip_frame_joint" type="fixed">
-    <origin rpy="0 0 0" xyz="0 0 -0.024"/>
+    <origin rpy="0 0 0" xyz="0 0 -0.028"/>
     <parent link="reamer_head"/>
     <child link="tool_tip_frame"/>
     <axis xyz="0 0 0"/>
