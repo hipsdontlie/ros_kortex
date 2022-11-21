@@ -188,6 +188,7 @@ int main(int argc, char **argv)
     start_dynamic_comp_.data = false;
 
     bool start_reaming_button_ = false;
+    bool stop_controller_button_ = true;
 
 
     // Subs/Pubs
@@ -232,6 +233,7 @@ int main(int argc, char **argv)
         }
 
         node.getParam("ui_start_reaming", start_reaming_button_);
+        node.getParam("ui_controller", stop_controller_button_);
     
         bool successful_update = true;
         
@@ -271,12 +273,12 @@ int main(int argc, char **argv)
         fault_.data = !successful_update;
         controller_fault_.publish(fault_);
 
-        if (controller_enabled_ && successful_update && !in_fault_)
+        if (controller_enabled_ && successful_update && !in_fault_ && stop_controller_button_)
         {
             q_vel_command_ = priority_controller_->getJointVelocityCommand();
             sendJointSpeeds(joint_speed_commander_, q_vel_command_, robot_);
         }
-        else if (!in_fault_)
+        else if (!in_fault_ && stop_controller_button_)
         {
             q_vel_command_ = Eigen::VectorXd::Zero(robot_->nj());
             in_fault_ = sendJointSpeeds(joint_speed_commander_, q_vel_command_, robot_);

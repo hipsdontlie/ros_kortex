@@ -686,7 +686,7 @@ void loop() {
       linearActuator.errorIntegralPos_ = 0;
       linearActuator.errorProportionalPos_ = 0;
       linearActuator.errorDerivativePos_ = 0;
-      linearActuatorMotorCommand = 15;
+      linearActuatorMotorCommand = 5;
       reamerMotor.stopMotor();
       currentState = DONEREAMING;
       break;

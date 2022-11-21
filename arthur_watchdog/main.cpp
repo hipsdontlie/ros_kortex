@@ -9,6 +9,7 @@
 #include <fstream>
 #include<std_msgs/Empty.h>
 #include<time.h>
+#include <tf/transform_listener.h>
 
 // bool faults_cleared = false;
 
@@ -42,7 +43,13 @@ int main(int argc, char **argv)
   Hardware hardware;
   // bool printed = false;
   bool ui_clear_faults;
+  bool eStop_published_bool = false;
 
+  std_msgs::Bool eStop_bool_msg;
+
+  tf2_ros::Buffer tfBuffer;
+  tf2_ros::TransformListener tfListener(tfBuffer);
+  geometry_msgs::TransformStamped transformStamped;
 
   perception.rmse_thresh->data = 1.0;
 
@@ -57,6 +64,8 @@ int main(int argc, char **argv)
   ros::Publisher eStop_pub = n.advertise<std_msgs::Empty>("my_gen3/in/emergency_stop", 1);
   ros::Publisher eStop_clearFaults_pub = n.advertise<std_msgs::Empty>("my_gen3/in/clear_faults", 1);
   ros::Publisher controller_clearFaults_pub = n.advertise<std_msgs::Empty>("controller_clear_fault", 1);
+  ros::Publisher eStop_flag_pub = n.advertise<std_msgs::Bool>("eStop_flag", 1);
+  ros::Time current_time_estop;
 
   //********************************************** subscribers *************************************************
 
@@ -81,13 +90,13 @@ int main(int argc, char **argv)
   ros::Subscriber controlFault_sub = n.subscribe("controller_fault", 1, &Controls::controller_fault, &controls);
 
   //hardware/end-effector subscribers
-  ros::Subscriber reamerSpeed_sub = n.subscribe("hardware_force/data", 1, &Hardware::reamer_speed, &hardware);
+  // ros::Subscriber reamerSpeed_sub = n.subscribe("hardware_force/data", 1, &Hardware::reamer_speed, &hardware);
 
-  ros::Subscriber loadApplied_sub = n.subscribe("hardware_reamerSpeed/data", 1, &Hardware::load_applied, &hardware);
+  // ros::Subscriber loadApplied_sub = n.subscribe("hardware_reamerSpeed/data", 1, &Hardware::load_applied, &hardware);
 
   ros::Subscriber reamPercent_sub = n.subscribe("hardware_reamPercent/data", 1, &Hardware::ream_percent, &hardware);
 
-  ros::Subscriber currentDrawn_sub = n.subscribe("hardware_current/data", 1, &Hardware::current_drawn, &hardware);
+  // ros::Subscriber currentDrawn_sub = n.subscribe("hardware_current/data", 1, &Hardware::current_drawn, &hardware);
 
   // ros::Subscriber clearFaults_sub = n.subscribe<std_msgs::Bool>("clearFaults", 1, boost::bind(&clearFaults_callback, _1, &clearFaults_pub));
 
@@ -98,6 +107,7 @@ int main(int argc, char **argv)
   // ros::Subscriber ee_control_sub = n.subscribe("control_error", 1000, &Controls::error_check, &controls);
 
   ros::Rate loop_rate(100);
+
 
 
   while(ros::ok())
@@ -123,6 +133,18 @@ int main(int argc, char **argv)
     controls.currTime_jlimits = ros::Time::now().toSec();
     controls.currTime_singularity = ros::Time::now().toSec();
 
+
+    try{
+            transformStamped = tfBuffer.lookupTransform("base_link", "ee_marker_frame",
+                                ros::Time(0));
+        }
+        catch (tf2::TransformException &ex) 
+        {
+            ROS_WARN("%s",ex.what());
+            ros::Duration(1.0).sleep();
+            continue;
+        }
+
     if(inputs.currTime_pelvis - inputs.prevTime_pelvis > ros::Duration(0.035).toSec())
     {
       // ROS_INFO("Pelvis not visible!\n");
@@ -140,14 +162,27 @@ int main(int argc, char **argv)
         fw << "Pelvis marker is not visible\n";
         inputs.pelvis_printed = true;
       }
-      eStop_pub.publish(eStop_msg);
+      if(!eStop_published_bool && (ros::Time::now() - current_time_estop) > ros::Duration(10))
+      {
+        eStop_pub.publish(eStop_msg);
+        eStop_published_bool = true;
+        eStop_bool_msg.data = eStop_published_bool;
+        hardware.hardware_flag = true;
+        std::cout<<"Estop bool pelvis: "<<eStop_published_bool<<std::endl;
+      }
+
       if(n.getParam("ui_clear_faults", ui_clear_faults))
       {
         if(ui_clear_faults)
         {
           eStop_clearFaults_pub.publish(eStop_clearFaults_msg);
-          ros::Duration(15.0).sleep();
+          hardware.hardware_flag = false;
+          eStop_published_bool = false;
+          eStop_bool_msg.data = eStop_published_bool;
           n.setParam("ui_clear_faults", false);
+          ROS_INFO("Published estop!");
+          current_time_estop = ros::Time::now();
+         
         }
       }
         
@@ -171,14 +206,29 @@ int main(int argc, char **argv)
         fw << "End-effector marker is not visible\n";
         inputs.ee_printed = true;
       }
-      eStop_pub.publish(eStop_msg);
+      if(!eStop_published_bool && (ros::Time::now() - current_time_estop) > ros::Duration(10))
+      {
+        eStop_pub.publish(eStop_msg);
+        eStop_published_bool = true;
+        eStop_bool_msg.data = eStop_published_bool;
+        hardware.hardware_flag = true;
+        std::cout<<"Estop bool ee: "<<eStop_published_bool<<std::endl;
+      }
+
       if(n.getParam("ui_clear_faults", ui_clear_faults))
       {
         if(ui_clear_faults)
         {
           eStop_clearFaults_pub.publish(eStop_clearFaults_msg);
-          ros::Duration(15.0).sleep();
           n.setParam("ui_clear_faults", false);
+          ROS_INFO("Published estop!");
+          hardware.hardware_flag = false;
+          eStop_published_bool = false;
+          eStop_bool_msg.data = eStop_published_bool;
+          current_time_estop = ros::Time::now();
+
+
+          std::cout<<"Estop bool ee: "<<eStop_published_bool<<std::endl;
         }
       }
     }
@@ -251,11 +301,11 @@ int main(int argc, char **argv)
     
     if (inputs.pelvis_visible && inputs.ee_visible && perception.rmse_error 
         && controls.trans_bool && controls.orien_bool && controls.jlimits_bool 
-        && controls.singularity_bool)
+        && controls.singularity_bool && (ros::Time::now() - current_time_estop) > ros::Duration(10))
     // if (inputs.pelvis_visible && perception.rmse_error)
     {
       controls.controller_flag = true;
-      hardware.hardware_flag = false;
+      // hardware.hardware_flag = false;
       controlsFlag_msg.data = controls.controller_flag;
       // ROS_INFO("Setting controller flag to true");
       if (fw.is_open() && controls.controllerFlag_printed)
@@ -278,7 +328,7 @@ int main(int argc, char **argv)
     else
     {
       controls.controller_flag = false;
-      hardware.hardware_flag = true;
+      // hardware.hardware_flag = true;
       controlsFlag_msg.data = controls.controller_flag;
       if (fw.is_open() && !controls.controllerFlag_printed)
       {
@@ -296,7 +346,7 @@ int main(int argc, char **argv)
     }
 
 
-    if(controls.currTime_error - controls.prevTime_error > ros::Duration(0.05).toSec())
+    if(controls.currTime_error - controls.prevTime_error > ros::Duration(1).toSec())
     {
       // ROS_INFO("Controller error publisher dropped below 30Hz!\n");
       controls.trans_bool = false;
@@ -316,9 +366,8 @@ int main(int argc, char **argv)
       }
     }
 
-    if(controls.currTime_singularity - controls.prevTime_singularity > ros::Duration(0.05).toSec())
-    {
-      // ROS_INFO("Controller singularity publisher dropped below 30Hz!\n");
+    if(controls.currTime_singularity - controls.prevTime_singularity > ros::Duration(1).toSec())
+    {hardware.hardware_flag = true;
       controls.singularity_bool = false;
       controls.controller_flag = false;
       if (fw.is_open() && !controls.singularity_printed)
@@ -336,7 +385,7 @@ int main(int argc, char **argv)
       }
     }
 
-    if(controls.currTime_jlimits - controls.prevTime_jlimits > ros::Duration(0.05).toSec())
+    if(controls.currTime_jlimits - controls.prevTime_jlimits > ros::Duration(1).toSec())
     {
       // ROS_INFO("Controller joint limits publisher dropped below 30Hz!\n");
       controls.jlimits_bool = false;
@@ -368,16 +417,28 @@ int main(int argc, char **argv)
 
     if(controls.trans_bool == false)
     {
-      eStop_pub.publish(eStop_msg);
-      hardware.hardware_flag = true;
+      if(!eStop_published_bool && (ros::Time::now() - current_time_estop) > ros::Duration(10))
+      {
+        eStop_pub.publish(eStop_msg);
+        eStop_published_bool = true;
+        eStop_bool_msg.data = eStop_published_bool;
+        hardware.hardware_flag = true;
+        std::cout<<"Estop bool trans error: "<<eStop_published_bool<<std::endl;
+      }
       if(n.getParam("ui_clear_faults", ui_clear_faults))
       {
         if(ui_clear_faults)
         {
           eStop_clearFaults_pub.publish(eStop_clearFaults_msg);
-          ros::Duration(15.0).sleep();
           n.setParam("ui_clear_faults", false);
+          ROS_INFO("Published estop!");
           hardware.hardware_flag = false;
+          eStop_published_bool = false;
+          eStop_bool_msg.data = eStop_published_bool;
+          current_time_estop = ros::Time::now();
+        
+
+          std::cout<<"Estop bool trans error: "<<eStop_published_bool<<std::endl;
         }
       }
 
@@ -411,16 +472,28 @@ int main(int argc, char **argv)
 
     if(controls.orien_bool == false)
     {
-      eStop_pub.publish(eStop_msg);
-      hardware.hardware_flag = true;
+      if(!eStop_published_bool && (ros::Time::now() - current_time_estop) > ros::Duration(10))
+      {
+        eStop_pub.publish(eStop_msg);
+        eStop_published_bool = true;
+        eStop_bool_msg.data = eStop_published_bool;
+        hardware.hardware_flag = true;
+        std::cout<<"Estop bool orien error: "<<eStop_published_bool<<std::endl;
+      }
       if(n.getParam("ui_clear_faults", ui_clear_faults))
       {
         if(ui_clear_faults)
         {
           eStop_clearFaults_pub.publish(eStop_clearFaults_msg);
-          ros::Duration(15.0).sleep();
           n.setParam("ui_clear_faults", false);
+          ROS_INFO("Published estop!");
           hardware.hardware_flag = false;
+          eStop_published_bool = false;
+          eStop_bool_msg.data = eStop_published_bool;
+          current_time_estop = ros::Time::now();
+
+
+          std::cout<<"Estop bool orien error: "<<eStop_published_bool<<std::endl;
         }
       }
       
@@ -441,16 +514,28 @@ int main(int argc, char **argv)
 
     if(controls.singularity_bool == false)
     {
-      eStop_pub.publish(eStop_msg);
-      hardware.hardware_flag = true;
+      if(!eStop_published_bool && (ros::Time::now() - current_time_estop) > ros::Duration(10))
+      {
+        eStop_pub.publish(eStop_msg);
+        eStop_published_bool = true;
+        eStop_bool_msg.data = eStop_published_bool;
+        hardware.hardware_flag = true;
+        std::cout<<"Estop bool singularity: "<<eStop_published_bool<<std::endl;
+      }
       if(n.getParam("ui_clear_faults", ui_clear_faults))
       {
         if(ui_clear_faults)
         {
           eStop_clearFaults_pub.publish(eStop_clearFaults_msg);
-          ros::Duration(15.0).sleep();
           n.setParam("ui_clear_faults", false);
+          ROS_INFO("Published estop!");
           hardware.hardware_flag = false;
+          eStop_published_bool = false;
+          eStop_bool_msg.data = eStop_published_bool;
+          current_time_estop = ros::Time::now();
+
+
+          std::cout<<"Estop bool singularity: "<<eStop_published_bool<<std::endl;
         }
       }
       
@@ -471,16 +556,28 @@ int main(int argc, char **argv)
 
     if(controls.jlimits_bool == false)
     {
-      eStop_pub.publish(eStop_msg);
-      hardware.hardware_flag = true;
+      if(!eStop_published_bool && (ros::Time::now() - current_time_estop) > ros::Duration(10))
+      {
+        eStop_pub.publish(eStop_msg);
+        eStop_published_bool = true;
+        eStop_bool_msg.data = eStop_published_bool;
+        hardware.hardware_flag = true;
+        std::cout<<"Estop bool jlimits: "<<eStop_published_bool<<std::endl;
+      }
       if(n.getParam("ui_clear_faults", ui_clear_faults))
       {
         if(ui_clear_faults)
         {
           eStop_clearFaults_pub.publish(eStop_clearFaults_msg);
-          ros::Duration(15.0).sleep();
           n.setParam("ui_clear_faults", false);
+          ROS_INFO("Published estop!");
           hardware.hardware_flag = false;
+          eStop_published_bool = false;
+          eStop_bool_msg.data = eStop_published_bool;
+          current_time_estop = ros::Time::now();
+
+
+          std::cout<<"Estop bool jlimits: "<<eStop_published_bool<<std::endl;
         }
       }
       
@@ -543,16 +640,26 @@ int main(int argc, char **argv)
 
     if(controls.controlsFault_bool == false)
     {
-      eStop_pub.publish(eStop_msg);
-      hardware.hardware_flag = true;
+      if(!eStop_published_bool && (ros::Time::now() - current_time_estop) > ros::Duration(10))
+      {
+        eStop_pub.publish(eStop_msg);
+        eStop_published_bool = true;
+        eStop_bool_msg.data = eStop_published_bool;
+        hardware.hardware_flag = true;
+        std::cout<<"Estop bool control fault: "<<eStop_published_bool<<std::endl;
+      }
       if(n.getParam("ui_clear_faults", ui_clear_faults))
       {
         if(ui_clear_faults)
         {
           eStop_clearFaults_pub.publish(eStop_clearFaults_msg);
-          ros::Duration(15.0).sleep();
           n.setParam("ui_clear_faults", false);
+          ROS_INFO("Published estop!");
           hardware.hardware_flag = false;
+          eStop_published_bool = false;
+          eStop_bool_msg.data = eStop_published_bool;
+          std::cout<<"Estop bool control fault: "<<eStop_published_bool<<std::endl;
+          current_time_estop = ros::Time::now();
         }
       }
     } 
@@ -564,8 +671,12 @@ int main(int argc, char **argv)
         if(ui_clear_faults)
         {
           eStop_clearFaults_pub.publish(eStop_clearFaults_msg);
-          ros::Duration(15.0).sleep();
           n.setParam("ui_clear_faults", false);
+          ROS_INFO("Published estop!");
+          hardware.hardware_flag = false;
+          eStop_published_bool = false;
+          eStop_bool_msg.data = eStop_published_bool;
+          current_time_estop = ros::Time::now();
         }
       }
 
@@ -601,67 +712,67 @@ int main(int argc, char **argv)
         hardware.hardwareFlag_printed = true;
       }
 
-    if(hardware.currTime_reamerSpeed - hardware.prevTime_reamerSpeed > ros::Duration(0.2).toSec())
-      {
-        // ROS_INFO("Controller joint limits publisher dropped below 30Hz!\n");
-        hardware.hardware_flag = true;
-        if (fw.is_open() && !hardware.reamerSpeed_printed)
-        {
-          time_t rawtime;
-          struct tm * timeinfo;
-          char st [128];
+    // if(hardware.currTime_reamerSpeed - hardware.prevTime_reamerSpeed > ros::Duration(0.2).toSec())
+    //   {
+    //     // ROS_INFO("Controller joint limits publisher dropped below 30Hz!\n");
+    //     hardware.hardware_flag = true;
+    //     if (fw.is_open() && !hardware.reamerSpeed_printed)
+    //     {
+    //       time_t rawtime;
+    //       struct tm * timeinfo;
+    //       char st [128];
           
-          time (&rawtime);
-          timeinfo = localtime (&rawtime);
-          strftime (st,128,"Date: %y-%m-%d  Time: %I:%M:%S",timeinfo);
-          fw << st <<"     ";
-          fw << "End-effector speed publisher dropped below 30Hz\n";
-          hardware.reamerSpeed_printed = true;
-        }
-      }
+    //       time (&rawtime);
+    //       timeinfo = localtime (&rawtime);
+    //       strftime (st,128,"Date: %y-%m-%d  Time: %I:%M:%S",timeinfo);
+    //       fw << st <<"     ";
+    //       fw << "End-effector speed publisher dropped below 30Hz\n";
+    //       hardware.reamerSpeed_printed = true;
+    //     }
+    //   }
 
-    if(hardware.currTime_loadApplied - hardware.prevTime_loadApplied > ros::Duration(0.2).toSec())
-      {
-        // ROS_INFO("Controller joint limits publisher dropped below 30Hz!\n");
-        hardware.hardware_flag = true;
-        if (fw.is_open() && !hardware.loadApplied_printed)
-        {
-          time_t rawtime;
-          struct tm * timeinfo;
-          char st [128];
+    // if(hardware.currTime_loadApplied - hardware.prevTime_loadApplied > ros::Duration(0.2).toSec())
+    //   {
+    //     // ROS_INFO("Controller joint limits publisher dropped below 30Hz!\n");
+    //     hardware.hardware_flag = true;
+    //     if (fw.is_open() && !hardware.loadApplied_printed)
+    //     {
+    //       time_t rawtime;
+    //       struct tm * timeinfo;
+    //       char st [128];
           
-          time (&rawtime);
-          timeinfo = localtime (&rawtime);
-          strftime (st,128,"Date: %y-%m-%d  Time: %I:%M:%S",timeinfo);
-          fw << st <<"     ";
-          fw << "End-effector load applied publisher dropped below 30Hz\n";
-          hardware.loadApplied_printed = true;
-        }
-      }
+    //       time (&rawtime);
+    //       timeinfo = localtime (&rawtime);
+    //       strftime (st,128,"Date: %y-%m-%d  Time: %I:%M:%S",timeinfo);
+    //       fw << st <<"     ";
+    //       fw << "End-effector load applied publisher dropped below 30Hz\n";
+    //       hardware.loadApplied_printed = true;
+    //     }
+    //   }
 
-    if(hardware.currTime_currentDrawn - hardware.prevTime_currentDrawn > ros::Duration(0.2).toSec())
-      {
-        // ROS_INFO("Controller joint limits publisher dropped below 30Hz!\n");
-        hardware.hardware_flag = true;
-        if (fw.is_open() && !hardware.currentDrawn_printed)
-        {
-          time_t rawtime;
-          struct tm * timeinfo;
-          char st [128];
+    // if(hardware.currTime_currentDrawn - hardware.prevTime_currentDrawn > ros::Duration(0.2).toSec())
+    //   {
+    //     // ROS_INFO("Controller joint limits publisher dropped below 30Hz!\n");
+    //     hardware.hardware_flag = true;
+    //     if (fw.is_open() && !hardware.currentDrawn_printed)
+    //     {
+    //       time_t rawtime;
+    //       struct tm * timeinfo;
+    //       char st [128];
           
-          time (&rawtime);
-          timeinfo = localtime (&rawtime);
-          strftime (st,128,"Date: %y-%m-%d  Time: %I:%M:%S",timeinfo);
-          fw << st <<"     ";
-          fw << "End-effector current drawn publisher dropped below 30Hz\n";
-          hardware.currentDrawn_printed = true;
-        }
-      }
+    //       time (&rawtime);
+    //       timeinfo = localtime (&rawtime);
+    //       strftime (st,128,"Date: %y-%m-%d  Time: %I:%M:%S",timeinfo);
+    //       fw << st <<"     ";
+    //       fw << "End-effector current drawn publisher dropped below 30Hz\n";
+    //       hardware.currentDrawn_printed = true;
+    //     }
+    //   }
 
     if(hardware.currTime_reamPercent - hardware.prevTime_reamPercent > ros::Duration(0.2).toSec())
       {
         // ROS_INFO("Controller joint limits publisher dropped below 30Hz!\n");
-        hardware.hardware_flag = true;
+        // hardware.hardware_flag = true;
         if (fw.is_open() && !hardware.reamPercent_printed)
         {
           time_t rawtime;
@@ -679,6 +790,8 @@ int main(int argc, char **argv)
 
     hardware_msg.data = hardware.hardware_flag;
     hardwareFlag_pub.publish(hardware_msg);
+
+    eStop_flag_pub.publish(eStop_bool_msg);
 
     ros::spinOnce();
     loop_rate.sleep();
