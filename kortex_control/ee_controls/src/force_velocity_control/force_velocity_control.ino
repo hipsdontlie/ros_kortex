@@ -221,7 +221,7 @@ void getWatchdogCmd(const std_msgs::Bool& watchdogCmd) {
       currentState = WAITFORCMD;
     else
       currentState = DONEREAMING;
-      
+
     reamAtEndPointTimerFlag = false;
   }
 
@@ -474,7 +474,7 @@ void loop() {
 
     //Wait until you get the actuation signal from arm controller
     case WAITFORCMD:
-
+      
       nh.loginfo("Waiting for command...");
       controllerStatus.data = 1;
       reamerMotor.stopMotor();

@@ -244,13 +244,13 @@ int main(int argc, char **argv)
         }
         if (pelvis_task_->errorAboveThreshold())
         {
-            start_reaming_.data = false & start_reaming_button_;
-            start_dynamic_comp_.data = true & start_reaming_button_;
+            start_reaming_.data = false && start_reaming_button_ && controller_enabled_;
+            start_dynamic_comp_.data = true && start_reaming_button_ && controller_enabled_;
         }
         else
         {
-            start_reaming_.data = true & start_reaming_button_;
-            start_dynamic_comp_.data = false & start_reaming_button_;
+            start_reaming_.data = true && start_reaming_button_ && controller_enabled_;
+            start_dynamic_comp_.data = false && start_reaming_button_ && controller_enabled_;
         }
         if(!camera_task_->updateError(q_pos_, camera_error_, camera_twist_, camera_error_metrics_pub_))
         {
