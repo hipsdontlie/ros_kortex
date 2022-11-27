@@ -25,9 +25,9 @@ namespace priority_control
 
     Eigen::VectorXd PelvisAlignmentTask::pidController(const geometry_msgs::Transform& error, const Eigen::VectorXd& twist, ros::Publisher& error_metrics_pub)
     {
-        std::array<double, 6> Kp = {2, 2, 2, 2, 2, 2};
+        std::array<double, 6> Kp = {1, 1, 1, 1, 1, 1};
         std::array<double, 6> Ki = {0, 0, 0, 0, 0, 0};
-        std::array<double, 6> Kd = {0.15, 0.15, 0.15, 0.15, 0.15, 0.15};
+        std::array<double, 6> Kd = {0, 0, 0, 0, 0, 0};
         Eigen::VectorXd twist_command = Eigen::VectorXd::Zero(robot_->CARTESIAN_DOF);
         twist_command(0) = error.translation.x;
         twist_command(1) = error.translation.y;

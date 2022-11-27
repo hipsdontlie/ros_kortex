@@ -23,8 +23,8 @@ namespace priority_control
         static constexpr size_t CARTESIAN_DOF = 6;
         static constexpr double DEFAULT_LAMBDA = 0.5;
         static constexpr double DEFAULT_EPSILON = 0.05;
-        static constexpr double DEFAULT_JOINT_LIMIT_FORCE_COEFFICIENT = 1.5;
-        static constexpr double DEFAULT_SINGULARITY_FORCE_COEFFICIENT = 1;
+        static constexpr double DEFAULT_JOINT_LIMIT_FORCE_COEFFICIENT = 1.0;
+        static constexpr double DEFAULT_SINGULARITY_FORCE_COEFFICIENT = 0.6;
         static constexpr double MAX_LINEAR_VELOCITY = 0.1;
         static constexpr double MAX_ANGULAR_VELOCITY = 1.57;
 
