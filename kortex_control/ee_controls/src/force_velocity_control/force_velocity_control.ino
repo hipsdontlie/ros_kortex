@@ -229,7 +229,7 @@ void getWatchdogCmd(const std_msgs::Bool& watchdogCmd) {
   }
 }
 
-// Callback for watchdog command
+// Callback for controller flag command
 void getControllerFlagCmd(const std_msgs::Bool& controllerFlagCmd){
 
   if (controllerFlagCmd.data == false) {
@@ -542,7 +542,7 @@ void loop() {
 
       if (dynamicCompensation) {
         
-        previousState = currentState;
+        previousState = currentState;=
         currentState = DYNAMICCOMP;
       }
 
@@ -557,13 +557,13 @@ void loop() {
         //   linearActuatorMotorCommand = reamingEndPoint;
         // }
 
-        if(reamAtEndPointTimerFlag == false){
+      if(reamAtEndPointTimerFlag == false){
           reamAtEndPointTimer = millis();          
           reamAtEndPointTimerFlag = true;
         }
         
-      if(millis()/1000 - reamAtEndPointTimer/1000 <= 15){
-          nh.loginfo("Reached end point, reaming for 15 seconds!");
+      if(millis()/1000 - reamAtEndPointTimer/1000 <= 30){
+          nh.loginfo("Reached end point, reaming for 30 seconds!");
           ReamerMotorControlType = speedControl;
           LinearActMotorControlType = speedControl;
           linearActuatorMotorCommand = 0; 
@@ -614,8 +614,8 @@ void loop() {
           reamAtEndPointTimerFlag = true;
         }
 
-        if(millis()/1000 - reamAtEndPointTimer/1000 <= 15){
-          nh.loginfo("Reached end point, reaming for 15 seconds!");
+        if(millis()/1000 - reamAtEndPointTimer/1000 <= 30){
+          nh.loginfo("Reached end point, reaming for 30 seconds!");
           ReamerMotorControlType = speedControl;
           LinearActMotorControlType = speedControl;
           linearActuatorMotorCommand = 0; 
