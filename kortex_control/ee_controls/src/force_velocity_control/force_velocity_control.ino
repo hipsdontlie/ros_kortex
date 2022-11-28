@@ -57,6 +57,7 @@ std_msgs::Int16 posLinearActuatorMotor;
 std_msgs::Int16 controllerStatus;
 
 
+
 // ROS publishers
 ros::Publisher pubCurrentSensor("hardware_current/data", &current);
 ros::Publisher pubLinearActMotorSpeed("linear_actuator_speed/data",&rpmLinearActuatorMotor);
@@ -114,6 +115,7 @@ enum states previousState = CALIBRATE;
 
 // High level controller parameters
 float forceSetPoint = 0.7;
+float forceThreshold = 0.7;
 float errorForce = 0;
 float errorPrevForce = 0;
 float KpForce, KiForce, KdForce = 0;
@@ -247,6 +249,11 @@ void getControllerFlagCmd(const std_msgs::Bool& controllerFlagCmd){
   }
 }
 
+// Callback for current threshold
+void getcurrentThreshold(const std_msgs::Float64& currentThresholdMsg){
+  forceThreshold = currentThresholdMsg.data;
+}
+
 /*------------------------------------------End of ROS Callbacks -------------------------------------------*/
 // ROS Subscribers
 // ros::Subscriber<std_msgs::Int16> subReamerMotorVelCmd("reamer_speed/command", &changespeed_ReamerMotor);
@@ -257,6 +264,8 @@ ros::Subscriber<std_msgs::Bool> subReamingCmd("start_reaming/command", &getReami
 ros::Subscriber<std_msgs::Bool> subDynamicCompCmd("start_dynamic_compensation/command", &getDynamicCompCmd);
 ros::Subscriber<std_msgs::Bool> subWatchdogCmd("hardware_flag/command", &getWatchdogCmd);
 ros::Subscriber<std_msgs::Bool> subControllerFlagCmd("controller_flag", &getControllerFlagCmd);
+ros::Subscriber<std_msgs::Float64> subCurrentThresholdCmd("current_threshold", &getcurrentThreshold);
+
 
 
 /*------------------------------------------Helper Functions-------------------------------------------*/
@@ -421,7 +430,7 @@ void setup() {
   nh.subscribe(subDynamicCompCmd);
   nh.subscribe(subWatchdogCmd);
   nh.subscribe(subControllerFlagCmd);
-
+  nh.subscribe(subCurrentThresholdCmd);
 
   //Publishers
   nh.advertise(pubCurrentSensor);
@@ -529,7 +538,7 @@ void loop() {
       }
 
       // if (forceValue >= forceSetPoint && ticksTomm(linearActMotorEnc.read()) > reamingEndPoint - 10) {
-      if (forceValue >= forceSetPoint && mmpersec < 2.0) {
+      if (forceValue >= forceThreshold && mmpersec < 2.0) {
         
         currentState = STARTREAMING;
         startReamingTimer = millis();
@@ -542,7 +551,7 @@ void loop() {
 
       if (dynamicCompensation) {
         
-        previousState = currentState;=
+        previousState = currentState;
         currentState = DYNAMICCOMP;
       }
 
