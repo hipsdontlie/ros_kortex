@@ -168,7 +168,6 @@ int main(int argc, char **argv)
         eStop_published_bool = true;
         eStop_bool_msg.data = eStop_published_bool;
         hardware.hardware_flag = true;
-        std::cout<<"Estop bool pelvis: "<<eStop_published_bool<<std::endl;
       }
 
       if(n.getParam("ui_clear_faults", ui_clear_faults))
@@ -176,11 +175,10 @@ int main(int argc, char **argv)
         if(ui_clear_faults)
         {
           eStop_clearFaults_pub.publish(eStop_clearFaults_msg);
-          hardware.hardware_flag = false;
+          // hardware.hardware_flag = false;
           eStop_published_bool = false;
           eStop_bool_msg.data = eStop_published_bool;
           n.setParam("ui_clear_faults", false);
-          ROS_INFO("Published estop!");
           current_time_estop = ros::Time::now();
          
         }
@@ -222,7 +220,7 @@ int main(int argc, char **argv)
           eStop_clearFaults_pub.publish(eStop_clearFaults_msg);
           n.setParam("ui_clear_faults", false);
           ROS_INFO("Published estop!");
-          hardware.hardware_flag = false;
+          // hardware.hardware_flag = false;
           eStop_published_bool = false;
           eStop_bool_msg.data = eStop_published_bool;
           current_time_estop = ros::Time::now();
@@ -301,11 +299,11 @@ int main(int argc, char **argv)
     
     if (inputs.pelvis_visible && inputs.ee_visible && perception.rmse_error 
         && controls.trans_bool && controls.orien_bool && controls.jlimits_bool 
-        && controls.singularity_bool && (ros::Time::now() - current_time_estop) > ros::Duration(10))
+        && controls.singularity_bool && (ros::Time::now() - current_time_estop) > ros::Duration(10) && !eStop_published_bool)
     // if (inputs.pelvis_visible && perception.rmse_error)
     {
       controls.controller_flag = true;
-      // hardware.hardware_flag = false;
+      hardware.hardware_flag = false;
       controlsFlag_msg.data = controls.controller_flag;
       // ROS_INFO("Setting controller flag to true");
       if (fw.is_open() && controls.controllerFlag_printed)
@@ -367,7 +365,8 @@ int main(int argc, char **argv)
     }
 
     if(controls.currTime_singularity - controls.prevTime_singularity > ros::Duration(1).toSec())
-    {hardware.hardware_flag = true;
+    {
+    // hardware.hardware_flag = true;
       controls.singularity_bool = false;
       controls.controller_flag = false;
       if (fw.is_open() && !controls.singularity_printed)
@@ -423,7 +422,7 @@ int main(int argc, char **argv)
         eStop_published_bool = true;
         eStop_bool_msg.data = eStop_published_bool;
         hardware.hardware_flag = true;
-        std::cout<<"Estop bool trans error: "<<eStop_published_bool<<std::endl;
+        // std::cout<<"Estop bool trans error: "<<eStop_published_bool<<std::endl;
       }
       if(n.getParam("ui_clear_faults", ui_clear_faults))
       {
@@ -431,8 +430,8 @@ int main(int argc, char **argv)
         {
           eStop_clearFaults_pub.publish(eStop_clearFaults_msg);
           n.setParam("ui_clear_faults", false);
-          ROS_INFO("Published estop!");
-          hardware.hardware_flag = false;
+          // ROS_INFO("Published estop!");
+          // hardware.hardware_flag = false;
           eStop_published_bool = false;
           eStop_bool_msg.data = eStop_published_bool;
           current_time_estop = ros::Time::now();
@@ -478,7 +477,7 @@ int main(int argc, char **argv)
         eStop_published_bool = true;
         eStop_bool_msg.data = eStop_published_bool;
         hardware.hardware_flag = true;
-        std::cout<<"Estop bool orien error: "<<eStop_published_bool<<std::endl;
+        // std::cout<<"Estop bool orien error: "<<eStop_published_bool<<std::endl;
       }
       if(n.getParam("ui_clear_faults", ui_clear_faults))
       {
@@ -486,8 +485,8 @@ int main(int argc, char **argv)
         {
           eStop_clearFaults_pub.publish(eStop_clearFaults_msg);
           n.setParam("ui_clear_faults", false);
-          ROS_INFO("Published estop!");
-          hardware.hardware_flag = false;
+          // ROS_INFO("Published estop!");
+          // hardware.hardware_flag = false;
           eStop_published_bool = false;
           eStop_bool_msg.data = eStop_published_bool;
           current_time_estop = ros::Time::now();
@@ -520,7 +519,7 @@ int main(int argc, char **argv)
         eStop_published_bool = true;
         eStop_bool_msg.data = eStop_published_bool;
         hardware.hardware_flag = true;
-        std::cout<<"Estop bool singularity: "<<eStop_published_bool<<std::endl;
+        // std::cout<<"Estop bool singularity: "<<eStop_published_bool<<std::endl;
       }
       if(n.getParam("ui_clear_faults", ui_clear_faults))
       {
@@ -528,8 +527,8 @@ int main(int argc, char **argv)
         {
           eStop_clearFaults_pub.publish(eStop_clearFaults_msg);
           n.setParam("ui_clear_faults", false);
-          ROS_INFO("Published estop!");
-          hardware.hardware_flag = false;
+          // ROS_INFO("Published estop!");
+          // hardware.hardware_flag = false;
           eStop_published_bool = false;
           eStop_bool_msg.data = eStop_published_bool;
           current_time_estop = ros::Time::now();
@@ -562,7 +561,7 @@ int main(int argc, char **argv)
         eStop_published_bool = true;
         eStop_bool_msg.data = eStop_published_bool;
         hardware.hardware_flag = true;
-        std::cout<<"Estop bool jlimits: "<<eStop_published_bool<<std::endl;
+        // std::cout<<"Estop bool jlimits: "<<eStop_published_bool<<std::endl;
       }
       if(n.getParam("ui_clear_faults", ui_clear_faults))
       {
@@ -570,8 +569,8 @@ int main(int argc, char **argv)
         {
           eStop_clearFaults_pub.publish(eStop_clearFaults_msg);
           n.setParam("ui_clear_faults", false);
-          ROS_INFO("Published estop!");
-          hardware.hardware_flag = false;
+          // ROS_INFO("Published estop!");
+          // hardware.hardware_flag = false;
           eStop_published_bool = false;
           eStop_bool_msg.data = eStop_published_bool;
           current_time_estop = ros::Time::now();
@@ -646,7 +645,7 @@ int main(int argc, char **argv)
         eStop_published_bool = true;
         eStop_bool_msg.data = eStop_published_bool;
         hardware.hardware_flag = true;
-        std::cout<<"Estop bool control fault: "<<eStop_published_bool<<std::endl;
+        // std::cout<<"Estop bool control fault: "<<eStop_published_bool<<std::endl;
       }
       if(n.getParam("ui_clear_faults", ui_clear_faults))
       {
@@ -654,8 +653,7 @@ int main(int argc, char **argv)
         {
           eStop_clearFaults_pub.publish(eStop_clearFaults_msg);
           n.setParam("ui_clear_faults", false);
-          ROS_INFO("Published estop!");
-          hardware.hardware_flag = false;
+          // hardware.hardware_flag = false;
           eStop_published_bool = false;
           eStop_bool_msg.data = eStop_published_bool;
           std::cout<<"Estop bool control fault: "<<eStop_published_bool<<std::endl;
@@ -672,13 +670,29 @@ int main(int argc, char **argv)
         {
           eStop_clearFaults_pub.publish(eStop_clearFaults_msg);
           n.setParam("ui_clear_faults", false);
-          ROS_INFO("Published estop!");
-          hardware.hardware_flag = false;
+          // ROS_INFO("Published estop!");
+          // hardware.hardware_flag = false;
           eStop_published_bool = false;
           eStop_bool_msg.data = eStop_published_bool;
           current_time_estop = ros::Time::now();
         }
       }
+
+  if (inputs.pelvis_visible && inputs.ee_visible && perception.rmse_error 
+    && controls.trans_bool && controls.orien_bool && controls.jlimits_bool 
+    && controls.singularity_bool && n.getParam("ui_clear_faults", ui_clear_faults))
+    {
+    if(ui_clear_faults)
+    {
+      eStop_clearFaults_pub.publish(eStop_clearFaults_msg);
+      n.setParam("ui_clear_faults", false);
+      // ROS_INFO("Published estop!");
+      // hardware.hardware_flag = false;
+      eStop_published_bool = false;
+      eStop_bool_msg.data = eStop_published_bool;
+      current_time_estop = ros::Time::now();
+    }
+  }
 
   // ****************************************** end of controls ********************************************************
 
