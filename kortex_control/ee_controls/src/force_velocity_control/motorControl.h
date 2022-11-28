@@ -48,7 +48,7 @@ class MotorControl{
         // volatile static int encoderValue_LinearActMotor_;
 
         //Some stopping variables for safety 
-        volatile static bool watchDogStop_, limitSwitchStop1_,limitSwitchStop2_;
+        volatile static bool watchDogStop_, limitSwitchStop1_,limitSwitchStop2_, controllerFlagStop_;
 
         //Interrupt pins 
         volatile static byte ENCB_Pin_ReamerMotor_;

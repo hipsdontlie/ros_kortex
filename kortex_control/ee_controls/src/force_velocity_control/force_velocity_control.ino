@@ -9,7 +9,6 @@ Author: Kaushik Balasundar
 #include <std_msgs/String.h>
 #include "currentSensor.h"
 #include "motorControl.h"
-#include <movingAvg.h>
 #include <Encoder.h>
 
 //Current sensor pin
@@ -69,7 +68,7 @@ ros::Publisher pubReamingPercentage("hardware_reamPercent/data",&reamingPercenta
 
 //Current sensor
 currentSensor currSensor(currentSensorPin);
-movingAvg currentSensorAvg(10);
+// movingAvg currentSensorAvg(10);
 
 //Reamer motor
 MotorControl reamerMotor(PWMPinReamerMotor, DIRPinReamerMotor, 1, REAMERMOTORPPR);
@@ -230,6 +229,24 @@ void getWatchdogCmd(const std_msgs::Bool& watchdogCmd) {
   }
 }
 
+// Callback for watchdog command
+void getControllerFlagCmd(const std_msgs::Bool& controllerFlagCmd){
+
+  if (controllerFlagCmd.data == false) {
+    MotorControl::controllerFlagStop_ = true;
+    if(currentState!=DONEREAMING)
+      currentState = WAITFORCMD;
+    else
+      currentState = DONEREAMING;
+
+    reamAtEndPointTimerFlag = false;
+  }
+
+  else {
+    MotorControl::controllerFlagStop_ = false;
+  }
+}
+
 /*------------------------------------------End of ROS Callbacks -------------------------------------------*/
 // ROS Subscribers
 // ros::Subscriber<std_msgs::Int16> subReamerMotorVelCmd("reamer_speed/command", &changespeed_ReamerMotor);
@@ -239,12 +256,15 @@ void getWatchdogCmd(const std_msgs::Bool& watchdogCmd) {
 ros::Subscriber<std_msgs::Bool> subReamingCmd("start_reaming/command", &getReamingCmd);
 ros::Subscriber<std_msgs::Bool> subDynamicCompCmd("start_dynamic_compensation/command", &getDynamicCompCmd);
 ros::Subscriber<std_msgs::Bool> subWatchdogCmd("hardware_flag/command", &getWatchdogCmd);
+ros::Subscriber<std_msgs::Bool> subControllerFlagCmd("controller_flag", &getControllerFlagCmd);
+
 
 /*------------------------------------------Helper Functions-------------------------------------------*/
 
 
 // Boolean flags for low level control
 volatile static bool MotorControl::watchDogStop_ = false;
+volatile static bool MotorControl::controllerFlagStop_ = false;
 volatile static bool MotorControl::limitSwitchStop1_ = false;
 volatile static bool MotorControl::limitSwitchStop2_ = false;
 
@@ -400,6 +420,8 @@ void setup() {
   nh.subscribe(subReamingCmd);
   nh.subscribe(subDynamicCompCmd);
   nh.subscribe(subWatchdogCmd);
+  nh.subscribe(subControllerFlagCmd);
+
 
   //Publishers
   nh.advertise(pubCurrentSensor);
@@ -487,7 +509,7 @@ void loop() {
       linearActuatorMotorCommand = 0;
 
       // nh.loginfo("Waiting for start reaming command...");
-      if (startReamingProcess == true && !MotorControl::watchDogStop_ && !doneReaming){
+      if (startReamingProcess == true && !MotorControl::watchDogStop_ && !doneReaming && !MotorControl::controllerFlagStop_){
         currentState = MOVEUNTILCONTACT;
       }
       break;
@@ -562,7 +584,7 @@ void loop() {
 
       nh.loginfo("Start reaming...");
       controllerStatus.data = 3;
-      if (MotorControl::watchDogStop_) {
+      if (MotorControl::watchDogStop_ && MotorControl::controllerFlagStop_) {
         
         currentState = WAITFORCMD;
       }

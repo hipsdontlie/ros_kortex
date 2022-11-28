@@ -5,7 +5,7 @@ Author: Kaushik Balasundar
 #include "motorControl.h"
 
 /*
- @brief motorControl constructor that calls init() 
+@brief motorControl constructor that calls init() 
 */
 MotorControl::MotorControl(byte PWM_Pin, byte DIR_Pin, int whichMotor, int PPR){
 
@@ -62,7 +62,7 @@ void MotorControl::init(){
 */
 void MotorControl::runMotorForward(int analogValue){
   
-  if(!limitSwitchStop1_ && !watchDogStop_){
+  if(!limitSwitchStop1_ && !watchDogStop_ && !controllerFlagStop_){
     digitalWrite(DIR_Pin_, LOW);
     analogWrite(PWM_Pin_, analogValue);
     return;
@@ -98,7 +98,7 @@ void MotorControl::runMotorBackwardUnsafe(int analogValue){
 @brief Run the motor backward using analogWrite 
 */
 void MotorControl::runMotorBackward(int analogValue){
-  if(!limitSwitchStop2_ && !watchDogStop_){
+  if(!limitSwitchStop2_ && !watchDogStop_ && !controllerFlagStop_){
     digitalWrite(DIR_Pin_, HIGH);
     analogWrite(PWM_Pin_, analogValue);
   }
