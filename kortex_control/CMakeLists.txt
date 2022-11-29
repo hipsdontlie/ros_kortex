@@ -59,6 +59,10 @@ foreach(dir arms grippers)
 		DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/${dir})
 endforeach(dir)
 
+add_executable(current_to_force_node ee_controls/src/current_to_force.cpp)
+add_dependencies(current_to_force_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(current_to_force_node ${catkin_LIBRARIES})
+
 add_executable(ee_tf_listener wrench_control/ee_tf_listener.cpp)
 add_dependencies(ee_tf_listener ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(ee_tf_listener ${catkin_LIBRARIES})

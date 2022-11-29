@@ -44,4 +44,6 @@
         <param name="target_frame" value="camera" />
     </node>
 
+    <node pkg="kortex_control" type="current_to_force_node" name="current_to_force_node" output="screen"/>
+
 </launch>
