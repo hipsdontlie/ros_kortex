@@ -644,14 +644,14 @@ void loop() {
       }
 
       //Retract if reamer gets stuck
-      if (reamerMotor.getMotorRPM(reamerMotorEnc.read(), REAMERMOTORPPR) == 0 && ((startReamingTimer - millis()) > 1000)) {
-        nh.loginfo("Stuck! Attempting to get unstuck!");
-        LinearActMotorControlType = positionControl;
-        linearActuatorMotorCommand = reamingStartPoint;
-        forceSetPoint -= 0.2;
-        reamingStartPoint -= 10;
-        currentState = MOVEUNTILCONTACT;
-      }
+      // if (reamerMotor.getMotorRPM(reamerMotorEnc.read(), REAMERMOTORPPR) == 0 && ((startReamingTimer - millis()) > 1000)) {
+      //   nh.loginfo("Stuck! Attempting to get unstuck!");
+      //   LinearActMotorControlType = positionControl;
+      //   linearActuatorMotorCommand = reamingStartPoint;
+      //   forceSetPoint -= 0.2;
+      //   reamingStartPoint -= 10;
+      //   currentState = MOVEUNTILCONTACT;
+      // }
 
       break;
 
